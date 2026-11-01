@@ -88,6 +88,16 @@ export function rangeLength(range: DateRange): number {
   return Math.round((parse(range.to).getTime() - parse(range.from).getTime()) / 86_400_000) + 1;
 }
 
+/** Liệt kê từng ngày trong khoảng (dùng làm trục ngang của biểu đồ). */
+export function listDays(range: DateRange): DateString[] {
+  return Array.from({ length: rangeLength(range) }, (_, i) => addDays(range.from, i));
+}
+
+/** Số ngày từ hôm nay đến hạn: 0 là hôm nay, số âm là đã quá hạn. */
+export function daysUntil(date: DateString, today: DateString): number {
+  return Math.round((parse(date).getTime() - parse(today).getTime()) / 86_400_000);
+}
+
 export function presetRange(preset: RangePreset, today: DateString): DateRange {
   switch (preset) {
     case "today":

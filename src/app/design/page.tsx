@@ -1,197 +1,151 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import {
-  BanknoteIcon,
-  MegaphoneIcon,
-  PackageCheckIcon,
-  ReceiptIcon,
-  ShoppingCartIcon,
-  TrendingUpIcon,
-} from "lucide-react";
-import { DataWarning } from "@/components/dashboard/data-warning";
+import { ChartLineIcon } from "lucide-react";
+import { DataWarnings, type DataIssue } from "@/components/dashboard/data-warning";
 import { DateFilter } from "@/components/dashboard/date-filter";
+import { MetricStrip } from "@/components/dashboard/metric-strip";
+import { Panel } from "@/components/dashboard/panel";
 import { RefreshButton } from "@/components/dashboard/refresh-button";
-import { StatCard, StatCardSkeleton } from "@/components/dashboard/stat-card";
-import { TrendBadge } from "@/components/dashboard/trend-badge";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatRangeVN, resolveFilter } from "@/lib/date-range";
+import { Skeleton } from "@/components/dashboard/stat-card";
+import { AdCosts } from "@/components/overview/ad-costs";
+import { CashflowSummary } from "@/components/overview/cashflow-summary";
+import { OrderSources } from "@/components/overview/order-sources";
+import { StaffSummary } from "@/components/overview/staff-summary";
+import { SummaryCards } from "@/components/overview/summary-cards";
+import { TaxSummary } from "@/components/overview/tax-summary";
+import { TopContent } from "@/components/overview/top-content";
+import { TopProducts } from "@/components/overview/top-products";
+import { compareLabel, formatRangeVN, resolveFilter, todayInVN } from "@/lib/date-range";
+import { getDemoOverview } from "@/lib/overview/demo-data";
+import type { OverviewData } from "@/lib/overview/types";
 
-export const metadata: Metadata = { title: "Mẫu giao diện" };
+export const metadata: Metadata = { title: "Tổng quan (bản mẫu)" };
 
-// Số liệu GIẢ chỉ để xem giao diện. Sẽ thay bằng dữ liệu Pancake ở Giai đoạn 1.
-const DEMO_STATS = [
-  { label: "Doanh số", value: 48_750_000, previous: 41_200_000, icon: TrendingUpIcon },
-  { label: "Doanh thu", value: 45_310_000, previous: 46_020_000, icon: BanknoteIcon },
-  { label: "Lợi nhuận", value: 12_480_000, previous: 0, icon: ReceiptIcon },
-  { label: "Đơn chốt", value: 137, previous: 118, icon: PackageCheckIcon, format: "number" as const },
-  { label: "GTTB", value: 330_730, previous: 390_000, icon: ShoppingCartIcon },
-  {
-    label: "Chi phí quảng cáo",
-    value: 5_600_000,
-    previous: 4_100_000,
-    icon: MegaphoneIcon,
-    positiveIsGood: false,
-  },
-];
+// Cảnh báo GIẢ cho bản mẫu. Giai đoạn 1 sẽ tự phát hiện từ dữ liệu Pancake.
+// Con số lấy từ cùng bộ dữ liệu với các khối bên dưới để không bao giờ lệch nhau.
+function demoIssues(data: OverviewData): DataIssue[] {
+  return [
+    {
+      title: `${data.inventory.productsMissingCost} sản phẩm chưa có giá vốn`,
+      impact: "Lợi nhuận bị tính cao hơn thực tế, giá trị tồn kho bị thiếu.",
+      howToFix: "Vào Pancake POS → Sản phẩm, mở từng sản phẩm dưới đây và nhập Giá vốn.",
+      items: [
+        "Kệ góc nhà tắm inox SUS304 3 tầng",
+        "Thanh treo rèm nhà tắm",
+        "Hộp đựng giấy vệ sinh inox",
+        "Kệ xà phòng đôi",
+        "Móc treo áo choàng 2 nhánh",
+        "Kệ để khăn gấp gọn",
+        "Giá phơi đồ mini",
+      ],
+      fixUrl: "https://pos.pages.fm",
+    },
+    {
+      title: `${data.staff.unassignedOrders} đơn chưa gán nhân viên`,
+      impact: "Các đơn chỉ có “Hệ thống” nên KPI và hiệu suất theo nhân viên đang thiếu.",
+      howToFix:
+        "Gán nhân viên xử lý cho đơn trên Pancake, hoặc đặt quy tắc tự gán theo kênh ở trang Kết nối (sẽ có ở bước sau).",
+      fixUrl: "https://pos.pages.fm",
+    },
+    {
+      title: "4 sản phẩm sàn chưa liên kết",
+      impact: "Dòng sản phẩm không tên “-” làm lệch bảng Top sản phẩm.",
+      howToFix: "Vào Pancake POS → Sản phẩm kênh bán, liên kết từng sản phẩm sàn với sản phẩm trong kho.",
+      items: ["Shopee: Kệ inox góc 2T", "Shopee: Combo 6 móc dán", "TikTok: Kệ dầu gội 304", "TikTok: Giá khăn 60"],
+      fixUrl: "https://pos.pages.fm",
+    },
+  ];
+}
 
-const COLORS = [
-  { name: "Nhấn (primary)", className: "bg-primary" },
-  { name: "Tăng (success)", className: "bg-success" },
-  { name: "Giảm (destructive)", className: "bg-destructive" },
-  { name: "Cảnh báo (warning)", className: "bg-warning" },
-  { name: "Nền trang", className: "bg-background ring-1 ring-border" },
-  { name: "Thẻ", className: "bg-card ring-1 ring-border" },
-];
-
-export default function DesignPage({ searchParams }: PageProps<"/design">) {
+export default function OverviewPrototypePage({ searchParams }: PageProps<"/design">) {
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-8 p-4 md:p-6">
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold">Mẫu giao diện 1Click</h1>
-        <p className="text-sm text-muted-foreground">
-          Trang nội bộ để xem các khối dùng chung. Số liệu trên trang này là số giả.
-        </p>
+    <main className="mx-auto w-full max-w-[1440px] space-y-4 px-4 py-4 md:px-6">
+      <header className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-xl font-bold">Tổng quan</h1>
+        <span className="rounded-md bg-warning/15 px-2 py-1 text-xs font-medium text-warning">
+          Bản mẫu · số liệu giả
+        </span>
       </header>
 
       {/* Phần phụ thuộc ngày hôm nay và bộ lọc: tải sau, hiện khung xám trong lúc chờ. */}
-      <Suspense fallback={<FilteredStatsSkeleton />}>
-        <FilteredStats searchParams={searchParams} />
+      <Suspense fallback={<OverviewSkeleton />}>
+        <Overview searchParams={searchParams} />
       </Suspense>
-
-      <section className="space-y-3">
-        <SectionTitle>3. Banner cảnh báo dữ liệu</SectionTitle>
-        <DataWarning
-          title="7 sản phẩm chưa có giá vốn"
-          impact="Lợi nhuận đang bị tính bằng 100% doanh thu và giá trị tồn kho bằng 0 đ."
-          howToFix="Vào Pancake POS → Sản phẩm, mở từng sản phẩm dưới đây và nhập Giá vốn."
-          items={[
-            "Kệ góc nhà tắm inox SUS304 2 tầng",
-            "Giá treo khăn inox SUS304 60cm",
-            "Móc dán tường inox (bộ 6 cái)",
-            "Kệ để dầu gội gắn tường",
-            "Thanh treo rèm nhà tắm",
-            "Hộp đựng giấy vệ sinh inox",
-            "Kệ xà phòng đôi",
-          ]}
-          fixUrl="https://pos.pages.fm"
-        />
-      </section>
-
-      <section className="space-y-3">
-        <SectionTitle>4. Thẻ nội dung và mũi tên tăng giảm</SectionTitle>
-        <Card className="shadow-xs">
-          <CardHeader>
-            <CardTitle className="font-semibold">Nguồn đơn</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            {[
-              { name: "Shopee", change: 18.2 },
-              { name: "TikTok", change: -6.5 },
-              { name: "Facebook", change: 0 },
-              { name: "Website", change: null },
-            ].map((row) => (
-              <div key={row.name} className="flex items-center justify-between border-b pb-2 last:border-0">
-                <span>{row.name}</span>
-                <TrendBadge change={row.change} />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </section>
-
-      <section className="space-y-3">
-        <SectionTitle>5. Nút và nhãn</SectionTitle>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button>Lưu</Button>
-          <Button variant="outline">Hủy</Button>
-          <Button variant="secondary">Phụ</Button>
-          <Button variant="destructive">Xóa</Button>
-          <Button variant="link">Xem trên Pancake</Button>
-          <Badge>Đã kết nối</Badge>
-          <Badge variant="secondary">Chưa kết nối</Badge>
-          <Badge variant="destructive">Lỗi</Badge>
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <SectionTitle>6. Bảng màu</SectionTitle>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {COLORS.map((color) => (
-            <div key={color.name} className="space-y-1.5">
-              <div className={`h-12 rounded-lg ${color.className}`} />
-              <p className="text-xs text-muted-foreground">{color.name}</p>
-            </div>
-          ))}
-        </div>
-      </section>
     </main>
   );
 }
 
-async function FilteredStats({ searchParams }: Pick<PageProps<"/design">, "searchParams">) {
+async function Overview({ searchParams }: Pick<PageProps<"/design">, "searchParams">) {
   // "Hôm nay" thay đổi theo thời điểm mở trang, nên phần này không được dựng sẵn trước.
   await connection();
-  const filter = resolveFilter(await searchParams);
-  const showCompare = filter.previousRange !== null;
+  const today = todayInVN();
+  const filter = resolveFilter(await searchParams, today);
+  const data = getDemoOverview(filter.range, filter.previousRange, today);
+  const totalRevenue = data.sources.reduce((sum, s) => sum + s.revenue.value, 0);
+
+  const datesText = filter.previousRange
+    ? `${formatRangeVN(filter.range)} · so với ${formatRangeVN(filter.previousRange)}`
+    : formatRangeVN(filter.range);
 
   return (
     <>
-      <section className="space-y-3">
-        <SectionTitle>1. Bộ lọc thời gian và nút Tải lại</SectionTitle>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <DateFilter
-            preset={filter.preset}
-            compare={filter.compare}
-            rangeText={formatRangeVN(filter.range)}
-            compareText={
-              filter.previousRange &&
-              `${filter.compareLabel} (${formatRangeVN(filter.previousRange)})`
-            }
-          />
-          <RefreshButton />
-        </div>
-      </section>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <DateFilter
+          preset={filter.preset}
+          compare={filter.compare}
+          previousLabel={compareLabel(filter.range, "previous")}
+          datesText={datesText}
+        />
+        <RefreshButton />
+      </div>
 
-      <section className="space-y-3">
-        <SectionTitle>2. Thẻ số liệu</SectionTitle>
-        <p className="text-sm text-muted-foreground">
-          &quot;Lợi nhuận&quot; có kỳ trước bằng 0 nên hiện &quot;—&quot;. &quot;Chi phí quảng cáo&quot;
-          tăng là xấu nên hiện màu đỏ.
-        </p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {DEMO_STATS.map((stat) => (
-            <StatCard
-              key={stat.label}
-              label={stat.label}
-              value={stat.value}
-              previous={showCompare ? stat.previous : null}
-              format={stat.format}
-              positiveIsGood={stat.positiveIsGood}
-              icon={stat.icon}
-            />
-          ))}
+      <DataWarnings issues={demoIssues(data)} />
+
+      <SummaryCards closed={data.closedOrders} returned={data.returnedOrders} inventory={data.inventory} />
+
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="min-w-0 space-y-4">
+          <Panel title="Kinh doanh" icon={ChartLineIcon}>
+            <MetricStrip metrics={data.metrics} />
+          </Panel>
+
+          <OrderSources rows={data.sources} />
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <CashflowSummary cashflow={data.cashflow} />
+            <TaxSummary tax={data.tax} today={today} />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <TopProducts products={data.topProducts} />
+            <AdCosts channels={data.adCosts} totalRevenue={totalRevenue} />
+          </div>
+
+          <TopContent items={data.topContent} />
         </div>
-      </section>
+
+        <aside className="min-w-0">
+          <StaffSummary staff={data.staff} today={today} />
+        </aside>
+      </div>
     </>
   );
 }
 
-function FilteredStatsSkeleton() {
+function OverviewSkeleton() {
   return (
-    <div className="space-y-3">
-      <div className="h-8 w-80 max-w-full animate-pulse rounded-lg bg-muted" />
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {DEMO_STATS.map((stat) => (
-          <StatCardSkeleton key={stat.label} />
+    <div className="space-y-4">
+      <Skeleton className="h-9 w-96 max-w-full" />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        {[0, 1, 2].map((i) => (
+          <Skeleton key={i} className="h-32 bg-card" />
         ))}
+      </div>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <Skeleton className="h-96 bg-card" />
+        <Skeleton className="h-96 bg-card" />
       </div>
     </div>
   );
-}
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{children}</h2>;
 }

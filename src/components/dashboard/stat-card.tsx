@@ -1,66 +1,58 @@
-import type { LucideIcon } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { formatNumber, formatVND, percentChange } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { formatValue, percentChange, type ValueFormat } from "@/lib/format";
 import { TrendBadge } from "./trend-badge";
 
-export type StatFormat = "vnd" | "number";
+const VALUE_TONES = {
+  default: "text-foreground",
+  green: "text-success",
+  orange: "text-warning",
+  blue: "text-primary",
+} as const;
 
-const formatters: Record<StatFormat, (value: number) => string> = {
-  vnd: formatVND,
-  number: formatNumber,
-};
-
-interface StatCardProps {
+interface StatBlockProps {
   label: string;
   value: number;
-  /** Giá trị kỳ trước. Bỏ trống khi không so sánh. */
+  /** Giá trị kỳ trước. null/undefined khi không so sánh. */
   previous?: number | null;
-  format?: StatFormat;
-  /** false cho chi phí: tăng hiện màu đỏ. */
+  format?: ValueFormat;
+  /** false cho chi phí, hàng hoàn: tăng hiện màu đỏ. */
   positiveIsGood?: boolean;
-  icon?: LucideIcon;
+  tone?: keyof typeof VALUE_TONES;
+  className?: string;
 }
 
-/** Thẻ số liệu kiểu Pancake: tên chỉ số, giá trị lớn, ↑/↓ % so với kỳ trước. */
-export function StatCard({
+/**
+ * Khối số kiểu Pancake: nhãn xám, số lớn, ↑/↓ % bên dưới.
+ * Rê chuột vào để xem giá trị kỳ trước.
+ */
+export function StatBlock({
   label,
   value,
   previous,
   format = "vnd",
   positiveIsGood = true,
-  icon: Icon,
-}: StatCardProps) {
-  const formatValue = formatters[format];
+  tone = "default",
+  className,
+}: StatBlockProps) {
   const hasPrevious = previous !== undefined && previous !== null;
 
   return (
-    <Card size="sm" className="gap-2 px-4 shadow-xs">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        {Icon && <Icon className="size-4" aria-hidden />}
-        <span>{label}</span>
-      </div>
-      <div className="text-2xl font-semibold tracking-tight tabular-nums">
-        {formatValue(value)}
+    <div
+      className={cn("min-w-0 space-y-1", className)}
+      title={hasPrevious ? `Kỳ trước: ${formatValue(previous, format)}` : undefined}
+    >
+      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className={cn("text-xl font-semibold tabular-nums", VALUE_TONES[tone])}>
+        {formatValue(value, format)}
       </div>
       {hasPrevious && (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          <TrendBadge change={percentChange(value, previous)} positiveIsGood={positiveIsGood} />
-          <span className="text-xs text-muted-foreground tabular-nums">
-            Kỳ trước: {formatValue(previous)}
-          </span>
-        </div>
+        <TrendBadge change={percentChange(value, previous)} positiveIsGood={positiveIsGood} />
       )}
-    </Card>
+    </div>
   );
 }
 
-/** Khung xám hiện trong lúc chờ số liệu tải về. */
-export function StatCardSkeleton() {
-  return (
-    <Card size="sm" className="gap-3 px-4 shadow-xs" aria-hidden>
-      <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-      <div className="h-7 w-40 animate-pulse rounded bg-muted" />
-      <div className="h-3 w-32 animate-pulse rounded bg-muted" />
-    </Card>
-  );
+/** Khối xám nhấp nháy hiện trong lúc chờ số liệu tải về. */
+export function Skeleton({ className }: { className?: string }) {
+  return <div className={cn("animate-pulse rounded-md bg-muted", className)} aria-hidden />;
 }

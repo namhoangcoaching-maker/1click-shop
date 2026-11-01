@@ -14,6 +14,7 @@ export function RefreshButton() {
   return (
     <Button
       variant="outline"
+      className="h-9 bg-card px-3 font-normal"
       onClick={() => startTransition(() => router.refresh())}
       disabled={isPending}
     >

@@ -1,21 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { formatNumber, formatPercent, formatVND, percentChange } from "./format";
+import {
+  formatCompact,
+  formatNumber,
+  formatPercent,
+  formatVND,
+  percentChange,
+  ratio,
+} from "./format";
 
 describe("formatVND", () => {
-  it("ngăn hàng nghìn bằng dấu chấm và thêm đ", () => {
-    expect(formatVND(1250000)).toBe("1.250.000 đ");
-    expect(formatVND(0)).toBe("0 đ");
-    expect(formatVND(999)).toBe("999 đ");
+  it("ngăn hàng nghìn bằng dấu chấm và thêm ₫", () => {
+    expect(formatVND(1250000)).toBe("1.250.000 ₫");
+    expect(formatVND(0)).toBe("0 ₫");
+    expect(formatVND(999)).toBe("999 ₫");
   });
 
   it("làm tròn về đồng, không có phần lẻ", () => {
-    expect(formatVND(1250000.6)).toBe("1.250.001 đ");
-    expect(formatVND(1250000.4)).toBe("1.250.000 đ");
+    expect(formatVND(1250000.6)).toBe("1.250.001 ₫");
+    expect(formatVND(1250000.4)).toBe("1.250.000 ₫");
   });
 
   it("hiển thị số âm và không bao giờ hiện -0", () => {
-    expect(formatVND(-2500000)).toBe("-2.500.000 đ");
-    expect(formatVND(-0.4)).toBe("0 đ");
+    expect(formatVND(-2500000)).toBe("-2.500.000 ₫");
+    expect(formatVND(-0.4)).toBe("0 ₫");
   });
 });
 
@@ -27,10 +34,25 @@ describe("formatNumber", () => {
 });
 
 describe("formatPercent", () => {
-  it("dùng dấu phẩy thập phân, tối đa 1 chữ số lẻ", () => {
-    expect(formatPercent(12.345)).toBe("12,3%");
+  it("mặc định 2 chữ số lẻ, dấu phẩy thập phân", () => {
+    expect(formatPercent(42.3712)).toBe("42,37%");
     expect(formatPercent(50)).toBe("50%");
-    expect(formatPercent(-8.25)).toBe("-8,3%");
+    expect(formatPercent(-8.256)).toBe("-8,26%");
+  });
+
+  it("cho phép chọn số chữ số lẻ", () => {
+    expect(formatPercent(12.345, 1)).toBe("12,3%");
+    expect(formatPercent(12.6, 0)).toBe("13%");
+  });
+});
+
+describe("formatCompact", () => {
+  it("viết gọn cho trục biểu đồ", () => {
+    expect(formatCompact(35_000_000)).toBe("35 tr");
+    expect(formatCompact(1_250_000_000)).toBe("1,3 tỷ");
+    expect(formatCompact(350_000)).toBe("350 k");
+    expect(formatCompact(140)).toBe("140");
+    expect(formatCompact(0)).toBe("0");
   });
 });
 
@@ -51,5 +73,12 @@ describe("percentChange", () => {
     expect(percentChange(50, -100)).toBe(150);
     // Từ lỗ 100 xuống lỗ 200 là giảm
     expect(percentChange(-200, -100)).toBe(-100);
+  });
+});
+
+describe("ratio", () => {
+  it("tính tỷ lệ phần trăm, mẫu bằng 0 thì trả về 0", () => {
+    expect(ratio(112, 140)).toBe(80);
+    expect(ratio(5, 0)).toBe(0);
   });
 });

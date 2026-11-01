@@ -20,20 +20,23 @@ import {
 interface DateFilterProps {
   preset: RangePreset;
   compare: CompareMode;
-  /** Ví dụ "01/11/2026" – do server tính sẵn theo giờ Việt Nam. */
-  rangeText: string;
-  /** Ví dụ "Trước đó 1 ngày (31/10/2026)", null khi không so sánh. */
-  compareText: string | null;
+  /** Nhãn của "kỳ liền trước" theo độ dài khoảng đang chọn, ví dụ "Trước đó 7 ngày". */
+  previousLabel: string;
+  /** Ngày cụ thể, ví dụ "27/10/2026 – 02/11/2026 · so với 20/10/2026 – 26/10/2026". */
+  datesText: string;
 }
 
+const TRIGGER_CLASS = "h-9 rounded-md bg-card px-3 font-normal";
+
 /**
- * Bộ lọc thời gian. Lựa chọn được ghi lên thanh địa chỉ (?range=…&compare=…)
+ * Bộ lọc thời gian kiểu Pancake. Lựa chọn được ghi lên thanh địa chỉ (?range=…&compare=…)
  * để trang tải lại đúng số liệu và có thể gửi link cho người khác.
  */
-export function DateFilter({ preset, compare, rangeText, compareText }: DateFilterProps) {
+export function DateFilter({ preset, compare, previousLabel, datesText }: DateFilterProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
+  const compareItems: Record<CompareMode, string> = { ...COMPARE_MODES, previous: previousLabel };
 
   function update(next: { range?: RangePreset; compare?: CompareMode }) {
     const params = new URLSearchParams({
@@ -45,51 +48,52 @@ export function DateFilter({ preset, compare, rangeText, compareText }: DateFilt
 
   return (
     <div
-      className="flex flex-wrap items-center gap-x-3 gap-y-2 data-pending:opacity-60"
+      className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm transition-opacity data-pending:opacity-60"
       data-pending={isPending || undefined}
     >
-      <Select
-        items={RANGE_PRESETS}
-        value={preset}
-        onValueChange={(value) => value && update({ range: value as RangePreset })}
-      >
-        <SelectTrigger className="bg-card" aria-label="Khoảng thời gian">
-          <CalendarIcon className="text-muted-foreground" />
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {Object.entries(RANGE_PRESETS).map(([value, label]) => (
-            <SelectItem key={value} value={value}>
-              {label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <div className="flex items-center gap-2 text-sm">
-        <span className="text-muted-foreground">So sánh với:</span>
+      <label className="flex items-center gap-2">
+        <span className="font-medium">Khoảng thời gian</span>
         <Select
-          items={COMPARE_MODES}
-          value={compare}
-          onValueChange={(value) => value && update({ compare: value as CompareMode })}
+          items={RANGE_PRESETS}
+          value={preset}
+          onValueChange={(value) => value && update({ range: value as RangePreset })}
         >
-          <SelectTrigger className="bg-card" aria-label="So sánh với">
+          <SelectTrigger className={TRIGGER_CLASS}>
+            <CalendarIcon />
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {Object.entries(COMPARE_MODES).map(([value, label]) => (
+            {Object.entries(RANGE_PRESETS).map(([value, label]) => (
               <SelectItem key={value} value={value}>
                 {label}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </label>
 
-      <p className="w-full text-xs text-muted-foreground">
-        {rangeText}
-        {compareText && <> · so với {compareText}</>}
-      </p>
+      <label className="flex items-center gap-2">
+        <span className="font-medium">So sánh với</span>
+        <Select
+          items={compareItems}
+          value={compare}
+          onValueChange={(value) => value && update({ compare: value as CompareMode })}
+        >
+          <SelectTrigger className={TRIGGER_CLASS}>
+            <CalendarIcon />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(compareItems).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </label>
+
+      <span className="text-xs text-muted-foreground">{datesText}</span>
     </div>
   );
 }

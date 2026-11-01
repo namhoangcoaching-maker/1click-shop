@@ -15,15 +15,21 @@
 | `src/app/` | **Các trang web.** Mỗi thư mục con là một đường dẫn, ví dụ `src/app/thue/page.tsx` là trang `/thue`. |
 | `src/app/layout.tsx` | Khung chung của mọi trang: font chữ, tiêu đề tab trình duyệt. |
 | `src/app/page.tsx` | Trang chủ (`/`). Hiện là trang chào tạm. |
-| `src/app/design/page.tsx` | Trang **Mẫu giao diện** (`/design`): xem tất cả khối dùng chung với số liệu giả. |
+| `src/app/design/page.tsx` | **Bản mẫu trang Tổng quan** (`/design`) với số liệu giả: thứ tự và cách xếp các khối trên trang nằm ở đây. |
+| `src/components/overview/` | **Từng khối của trang Tổng quan**, mỗi khối một file: `summary-cards` (Hàng chốt, Hàng hoàn, Tồn kho), `order-sources` (Nguồn đơn), `cashflow-summary` (Dòng tiền), `tax-summary` (Thuế), `top-products` (Top 5 SP), `ad-costs` (Chi phí QC), `top-content` (Content), `staff-summary` (Nhân sự). |
+| `src/components/dashboard/panel.tsx` | Khung **thẻ trắng** có biểu tượng tròn, ô xám bên trong, thanh tiến độ. |
+| `src/components/dashboard/metric-strip.tsx` | **Dải chỉ số** Doanh số / Doanh thu / Lợi nhuận… bấm vào để đổi biểu đồ. |
+| `src/components/dashboard/trend-chart.tsx` | **Biểu đồ đường** kỳ này (xanh) và kỳ trước (xám nét đứt). |
+| `src/lib/overview/types.ts` | Danh sách các con số mà trang Tổng quan cần. |
+| `src/lib/overview/demo-data.ts` | **Số liệu giả** cho bản mẫu. Giai đoạn 1 sẽ thay bằng dữ liệu Pancake thật. |
 | `src/app/globals.css` | **Màu sắc** toàn web (xanh dương nhấn, xanh lá tăng, đỏ giảm, cam cảnh báo, nền xám). Đổi màu thì sửa phần `:root` ở đây. |
 | `src/components/ui/` | Các khối giao diện có sẵn (nút, ô nhập, thẻ…) của shadcn/ui. Thường không cần sửa. |
-| `src/components/dashboard/stat-card.tsx` | **Thẻ số liệu** (Doanh thu, Lợi nhuận…) có ↑/↓ % và "Kỳ trước". |
+| `src/components/dashboard/stat-card.tsx` | **Khối số** (nhãn xám, số to, ↑/↓ %). Rê chuột để xem giá trị kỳ trước. |
 | `src/components/dashboard/trend-badge.tsx` | Mũi tên ↑/↓ % màu xanh/đỏ, dùng trong thẻ và bảng. |
 | `src/components/dashboard/date-filter.tsx` | **Bộ lọc thời gian** "Hôm nay / 7 ngày qua…" và "So sánh với". |
 | `src/components/dashboard/refresh-button.tsx` | Nút **Tải lại**. |
-| `src/components/dashboard/data-warning.tsx` | **Banner cảnh báo dữ liệu** (thiếu giá vốn, đơn không gán nhân viên…). |
-| `src/lib/format.ts` | Cách hiển thị **tiền** (`1.250.000 đ`), số, phần trăm, và công thức % tăng giảm. |
+| `src/components/dashboard/data-warning.tsx` | **Khung "Dữ liệu cần kiểm tra"** (thiếu giá vốn, đơn không gán nhân viên…), bấm "Chi tiết" để xem cách sửa. |
+| `src/lib/format.ts` | Cách hiển thị **tiền** (`1.250.000 ₫`), số, phần trăm (`42,37%`), và công thức % tăng giảm. |
 | `src/lib/date-range.ts` | Tính khoảng ngày theo **giờ Việt Nam**: Hôm nay, 7 ngày qua, Tháng này… và kỳ so sánh. Muốn thêm lựa chọn thời gian mới thì sửa ở đây. |
 | `src/lib/*.test.ts` | **Unit test**: kiểm tra tự động các công thức. Mỗi file `abc.ts` có file `abc.test.ts` đi kèm. |
 | `public/` | Ảnh, logo tĩnh. |
@@ -60,6 +66,7 @@ Mẫu câu hay dùng:
 - *"Tôi gặp lỗi sau khi bấm nút Lưu ở trang Kết nối: (dán lỗi). Tìm nguyên nhân và sửa."*
 - *"Giải thích cho tôi file src/app/layout.tsx làm gì, bằng tiếng Việt dễ hiểu."*
 - *"Đổi màu nhấn của web từ xanh dương sang xanh ngọc, cho tôi xem ở trang /design."*
+- *"Ở trang Tổng quan, đưa khối Dòng tiền lên ngay dưới Kinh doanh."*
 - *"Thêm lựa chọn 'Quý này' vào bộ lọc thời gian, có unit test."*
 - *"Commit những thay đổi vừa rồi với message rõ ràng."*
 - *"Tiếp tục bước tiếp theo trong lộ trình của PROJECT_BRIEF.md."*

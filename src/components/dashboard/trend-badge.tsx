@@ -5,16 +5,16 @@ import { formatPercent } from "@/lib/format";
 interface TrendBadgeProps {
   /** Phần trăm thay đổi, null khi kỳ trước bằng 0. */
   change: number | null;
-  /** false cho các chỉ số mà tăng là xấu (chi phí, hoàn hàng…): tăng sẽ hiện màu đỏ. */
+  /** false cho các chỉ số mà tăng là xấu (chi phí, hàng hoàn…): tăng sẽ hiện màu đỏ. */
   positiveIsGood?: boolean;
   className?: string;
 }
 
-/** ↑ 12,5% (xanh lá) hoặc ↓ 8% (đỏ), giống Pancake. */
+/** ↑ 12,53% (xanh lá) hoặc ↓ 8,10% (đỏ), giống Pancake. */
 export function TrendBadge({ change, positiveIsGood = true, className }: TrendBadgeProps) {
-  if (change === null || Math.abs(change) < 0.05) {
+  if (change === null || Math.abs(change) < 0.005) {
     return (
-      <span className={cn("text-xs font-medium text-muted-foreground", className)}>
+      <span className={cn("text-[13px] text-muted-foreground", className)}>
         {change === null ? "—" : "0%"}
       </span>
     );
@@ -27,7 +27,7 @@ export function TrendBadge({ change, positiveIsGood = true, className }: TrendBa
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-0.5 text-xs font-semibold",
+        "inline-flex items-center gap-0.5 text-[13px] tabular-nums",
         isGood ? "text-success" : "text-destructive",
         className,
       )}

@@ -3,7 +3,9 @@ import {
   addMonths,
   compareLabel,
   compareRange,
+  daysUntil,
   formatRangeVN,
+  listDays,
   presetRange,
   rangeLength,
   resolveFilter,
@@ -76,6 +78,24 @@ describe("nhãn hiển thị", () => {
   it("định dạng ngày dd/mm/yyyy", () => {
     expect(formatRangeVN({ from: "2026-11-01", to: "2026-11-01" })).toBe("01/11/2026");
     expect(formatRangeVN({ from: "2026-10-26", to: "2026-11-01" })).toBe("26/10/2026 – 01/11/2026");
+  });
+});
+
+describe("listDays và daysUntil", () => {
+  it("liệt kê từng ngày, qua cả ranh giới tháng", () => {
+    expect(listDays({ from: "2026-10-30", to: "2026-11-02" })).toEqual([
+      "2026-10-30",
+      "2026-10-31",
+      "2026-11-01",
+      "2026-11-02",
+    ]);
+  });
+
+  it("đếm số ngày còn lại đến hạn", () => {
+    expect(daysUntil("2026-11-05", "2026-11-02")).toBe(3);
+    expect(daysUntil("2026-11-02", "2026-11-02")).toBe(0);
+    expect(daysUntil("2026-10-31", "2026-11-02")).toBe(-2);
+    expect(daysUntil("2027-01-31", "2026-11-02")).toBe(90);
   });
 });
 
