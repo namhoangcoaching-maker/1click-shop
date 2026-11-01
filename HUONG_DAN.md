@@ -2,7 +2,7 @@
 
 > File này luôn được cập nhật sau mỗi bước. Nếu thấy chỗ nào không khớp với thực tế, hãy nhắn Claude Code: *"HUONG_DAN.md đang sai ở mục …, sửa lại giúp tôi"*.
 
-**Tiến độ:** Giai đoạn 0 – Bước 0.1 (khởi tạo dự án) ✅
+**Tiến độ:** Giai đoạn 0 – Bước 0.1 (khởi tạo dự án) ✅ · Bước 0.2 (hệ thống thiết kế) ✅
 
 ---
 
@@ -15,9 +15,17 @@
 | `src/app/` | **Các trang web.** Mỗi thư mục con là một đường dẫn, ví dụ `src/app/thue/page.tsx` là trang `/thue`. |
 | `src/app/layout.tsx` | Khung chung của mọi trang: font chữ, tiêu đề tab trình duyệt. |
 | `src/app/page.tsx` | Trang chủ (`/`). Hiện là trang chào tạm. |
-| `src/app/globals.css` | Màu sắc, bo góc dùng chung toàn web. |
+| `src/app/design/page.tsx` | Trang **Mẫu giao diện** (`/design`): xem tất cả khối dùng chung với số liệu giả. |
+| `src/app/globals.css` | **Màu sắc** toàn web (xanh dương nhấn, xanh lá tăng, đỏ giảm, cam cảnh báo, nền xám). Đổi màu thì sửa phần `:root` ở đây. |
 | `src/components/ui/` | Các khối giao diện có sẵn (nút, ô nhập, thẻ…) của shadcn/ui. Thường không cần sửa. |
-| `src/lib/` | Code xử lý dùng chung (hàm tiện ích, sau này có tích hợp API, công thức tính tiền). |
+| `src/components/dashboard/stat-card.tsx` | **Thẻ số liệu** (Doanh thu, Lợi nhuận…) có ↑/↓ % và "Kỳ trước". |
+| `src/components/dashboard/trend-badge.tsx` | Mũi tên ↑/↓ % màu xanh/đỏ, dùng trong thẻ và bảng. |
+| `src/components/dashboard/date-filter.tsx` | **Bộ lọc thời gian** "Hôm nay / 7 ngày qua…" và "So sánh với". |
+| `src/components/dashboard/refresh-button.tsx` | Nút **Tải lại**. |
+| `src/components/dashboard/data-warning.tsx` | **Banner cảnh báo dữ liệu** (thiếu giá vốn, đơn không gán nhân viên…). |
+| `src/lib/format.ts` | Cách hiển thị **tiền** (`1.250.000 đ`), số, phần trăm, và công thức % tăng giảm. |
+| `src/lib/date-range.ts` | Tính khoảng ngày theo **giờ Việt Nam**: Hôm nay, 7 ngày qua, Tháng này… và kỳ so sánh. Muốn thêm lựa chọn thời gian mới thì sửa ở đây. |
+| `src/lib/*.test.ts` | **Unit test**: kiểm tra tự động các công thức. Mỗi file `abc.ts` có file `abc.test.ts` đi kèm. |
 | `public/` | Ảnh, logo tĩnh. |
 | `.env.example` | **Mẫu** danh sách khóa bí mật cần có. Không chứa giá trị thật. |
 | `.env.local` | **Khóa bí mật thật** (sẽ tạo ở bước 0.4). Chỉ nằm trên máy bạn, không bao giờ lên GitHub. |
@@ -39,7 +47,11 @@
 - Lỗi trên trang: Next.js hiện khung lỗi đỏ ngay trên trình duyệt; ngoài ra có thể nhấn `F12` → tab **Console**.
 - Cách nhanh nhất: copy nguyên đoạn lỗi, dán cho Claude Code kèm câu *"Tôi gặp lỗi này khi …"*.
 
-**Kiểm tra trước khi đưa lên mạng:** `npm run build`. Nếu không báo lỗi là ổn.
+**Chạy unit test:** `npm test`. Dòng cuối phải là `Tests  N passed`. Nếu có dòng `failed` nghĩa là một công thức đang tính sai: đừng đưa lên mạng, dán kết quả cho Claude Code.
+
+**Kiểm tra trước khi đưa lên mạng:** `npm test` rồi `npm run build`. Cả hai không báo lỗi là ổn.
+
+**Vì sao số liệu hiện khung xám một chút rồi mới ra số?** Đây là chủ ý: khung trang (tiêu đề, menu) hiện ngay, phần số liệu tải sau. Nhờ vậy trang luôn mở nhanh, kể cả khi lấy dữ liệu từ Pancake mất vài giây.
 
 ## 3. Nhờ Claude Code sửa hoặc thêm tính năng
 
@@ -47,6 +59,8 @@ Mẫu câu hay dùng:
 - *"Ở trang Tổng quan, đổi thẻ Doanh thu thành hiển thị thêm số đơn. Làm xong cho tôi xem cách kiểm tra."*
 - *"Tôi gặp lỗi sau khi bấm nút Lưu ở trang Kết nối: (dán lỗi). Tìm nguyên nhân và sửa."*
 - *"Giải thích cho tôi file src/app/layout.tsx làm gì, bằng tiếng Việt dễ hiểu."*
+- *"Đổi màu nhấn của web từ xanh dương sang xanh ngọc, cho tôi xem ở trang /design."*
+- *"Thêm lựa chọn 'Quý này' vào bộ lọc thời gian, có unit test."*
 - *"Commit những thay đổi vừa rồi với message rõ ràng."*
 - *"Tiếp tục bước tiếp theo trong lộ trình của PROJECT_BRIEF.md."*
 

@@ -1,10 +1,11 @@
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
 
 export default function Home() {
   return (
-    <main className="flex flex-1 items-center justify-center bg-zinc-100 p-6">
+    <main className="flex flex-1 items-center justify-center p-6">
       <div className="w-full max-w-md rounded-xl bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-lg bg-blue-600 text-lg font-bold text-white">
+        <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-lg bg-primary text-lg font-bold text-primary-foreground">
           1C
         </div>
         <h1 className="text-2xl font-bold">1Click</h1>
@@ -14,7 +15,9 @@ export default function Home() {
         <p className="mt-1 text-sm text-zinc-500">
           Dự án đã khởi tạo thành công – Giai đoạn 0.
         </p>
-        <Button className="mt-6">Bắt đầu</Button>
+        <Link href="/design" className={buttonVariants({ className: "mt-6" })}>
+          Xem mẫu giao diện
+        </Link>
       </div>
     </main>
   );
