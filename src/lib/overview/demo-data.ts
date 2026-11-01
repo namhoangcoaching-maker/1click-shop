@@ -9,6 +9,7 @@ import {
   type DateRange,
   type DateString,
 } from "@/lib/date-range";
+import { parseLeadTime } from "@/lib/inventory/lead-time";
 import type { StockItem } from "@/lib/inventory/stock";
 import type {
   Compared,
@@ -59,20 +60,26 @@ const SOURCES = [
  * Tồn kho giả theo từng mã. soldInWindow = số bán 30 ngày gần nhất.
  * Dòng đầu là đúng ví dụ của chủ shop: bán 7 cái/ngày, còn 60 cái, sản xuất 8 ngày → báo động.
  */
-const DEMO_STOCK: StockItem[] = [
-  { sku: "EB-KG2T", name: "Kệ góc nhà tắm inox SUS304 2 tầng", stock: 60, soldInWindow: 210, leadTimeDays: 8, costPrice: 165_000, price: 290_000 },
-  { sku: "EB-MD6", name: "Móc dán tường inox (bộ 6 cái)", stock: 40, soldInWindow: 330, leadTimeDays: 5, costPrice: 32_000, price: 65_000 },
-  { sku: "EB-KKG", name: "Kệ để khăn gấp gọn", stock: 0, soldInWindow: 45, leadTimeDays: 10, costPrice: 120_000, price: 210_000 },
-  { sku: "EB-GTK60", name: "Giá treo khăn inox SUS304 60cm", stock: 95, soldInWindow: 165, leadTimeDays: 10, costPrice: 118_000, price: 220_000 },
-  { sku: "EB-MTA", name: "Móc treo áo choàng 2 nhánh", stock: 24, soldInWindow: 54, leadTimeDays: 9, costPrice: 45_000, price: 89_000 },
-  { sku: "EB-KDG", name: "Kệ để dầu gội gắn tường", stock: 320, soldInWindow: 180, leadTimeDays: 7, costPrice: 88_000, price: 160_000 },
-  { sku: "EB-KBC", name: "Kệ trên bồn cầu 2 tầng", stock: 130, soldInWindow: 120, leadTimeDays: 10, costPrice: 210_000, price: 390_000 },
-  { sku: "EB-HGVS", name: "Hộp đựng giấy vệ sinh inox", stock: 85, soldInWindow: 60, leadTimeDays: 12, costPrice: null, price: 145_000 },
-  { sku: "EB-KG3T", name: "Kệ góc nhà tắm inox SUS304 3 tầng", stock: 140, soldInWindow: 36, leadTimeDays: 10, costPrice: null, price: 420_000 },
-  { sku: "EB-GPD", name: "Giá phơi đồ mini gấp gọn", stock: 410, soldInWindow: 75, leadTimeDays: 14, costPrice: 58_000, price: 115_000 },
-  { sku: "EB-TTR", name: "Thanh treo rèm nhà tắm", stock: 210, soldInWindow: 12, leadTimeDays: 10, costPrice: null, price: 175_000 },
-  { sku: "EB-KXP", name: "Kệ xà phòng đôi", stock: 180, soldInWindow: 0, leadTimeDays: 7, costPrice: 36_000, price: 79_000 },
+const DEMO_PRODUCTS: (Omit<StockItem, "leadTimeDays"> & { internalNote: string })[] = [
+  { sku: "EB-KG2T", name: "Kệ góc nhà tắm inox SUS304 2 tầng", stock: 60, soldInWindow: 210, internalNote: "SX: 8", costPrice: 165_000, price: 290_000 },
+  { sku: "EB-MD6", name: "Móc dán tường inox (bộ 6 cái)", stock: 40, soldInWindow: 330, internalNote: "sx 5 ngày", costPrice: 32_000, price: 65_000 },
+  { sku: "EB-KKG", name: "Kệ để khăn gấp gọn", stock: 0, soldInWindow: 45, internalNote: "Xưởng Bình Dương\nSản xuất: 10 ngày", costPrice: 120_000, price: 210_000 },
+  { sku: "EB-GTK60", name: "Giá treo khăn inox SUS304 60cm", stock: 95, soldInWindow: 165, internalNote: "SX: 10", costPrice: 118_000, price: 220_000 },
+  { sku: "EB-MTA", name: "Móc treo áo choàng 2 nhánh", stock: 24, soldInWindow: 54, internalNote: "9", costPrice: 45_000, price: 89_000 },
+  { sku: "EB-KDG", name: "Kệ để dầu gội gắn tường", stock: 320, soldInWindow: 180, internalNote: "SX: 7", costPrice: 88_000, price: 160_000 },
+  { sku: "EB-KBC", name: "Kệ trên bồn cầu 2 tầng", stock: 130, soldInWindow: 120, internalNote: "Bảo hành 12 tháng", costPrice: 210_000, price: 390_000 },
+  { sku: "EB-HGVS", name: "Hộp đựng giấy vệ sinh inox", stock: 85, soldInWindow: 60, internalNote: "SX: 12", costPrice: null, price: 145_000 },
+  { sku: "EB-KG3T", name: "Kệ góc nhà tắm inox SUS304 3 tầng", stock: 140, soldInWindow: 36, internalNote: "SX: 10", costPrice: null, price: 420_000 },
+  { sku: "EB-GPD", name: "Giá phơi đồ mini gấp gọn", stock: 410, soldInWindow: 75, internalNote: "", costPrice: 58_000, price: 115_000 },
+  { sku: "EB-TTR", name: "Thanh treo rèm nhà tắm", stock: 210, soldInWindow: 12, internalNote: "SX: 10", costPrice: null, price: 175_000 },
+  { sku: "EB-KXP", name: "Kệ xà phòng đôi", stock: 180, soldInWindow: 0, internalNote: "SX: 7", costPrice: 36_000, price: 79_000 },
 ];
+
+/** Đọc thời gian sản xuất từ "Ghi chú nội bộ" giống hệt cách sẽ làm với dữ liệu Pancake thật. */
+const DEMO_STOCK: StockItem[] = DEMO_PRODUCTS.map(({ internalNote, ...product }) => ({
+  ...product,
+  leadTimeDays: parseLeadTime(internalNote),
+}));
 
 export function getDemoOverview(
   range: DateRange,

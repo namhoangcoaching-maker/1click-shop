@@ -49,7 +49,15 @@ export function StockTable({ rows }: { rows: StockAnalysis[] }) {
               >
                 {a.daysOfStock === Infinity ? "Không bán" : `${formatDecimal(a.daysOfStock)} ngày`}
               </td>
-              <td className="px-3 py-2.5 text-right text-muted-foreground">{a.item.leadTimeDays} ngày</td>
+              <td className="px-3 py-2.5 text-right">
+                {a.leadTimeIsDefault ? (
+                  <span className="text-warning" title="Chưa ghi “SX: số ngày” trong Ghi chú nội bộ trên Pancake">
+                    {a.leadTimeDays} ngày (mặc định)
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">{a.leadTimeDays} ngày</span>
+                )}
+              </td>
               <td className="px-3 py-2.5">
                 <OrderDeadline analysis={a} />
               </td>

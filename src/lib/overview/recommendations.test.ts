@@ -47,7 +47,7 @@ describe("buildRecommendations", () => {
     );
     expect(recs[0].id).toBe("restock-urgent");
     expect(recs[0].reasons[0]).toContain("đủ bán 8,6 ngày, ít hơn 11 ngày");
-    expect(recs[0].actions[0]).toContain("227 cái Kệ góc 2 tầng");
+    expect(recs[0].actions[0]).toContain("164 cái Kệ góc 2 tầng");
     expect(recs.map((r) => r.id)).toContain("clearance");
   });
 

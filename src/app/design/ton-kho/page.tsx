@@ -17,6 +17,7 @@ import {
   summarizeInventory,
   type StockStatus,
 } from "@/lib/inventory/stock";
+import { DEFAULT_LEAD_TIME_DAYS } from "@/lib/inventory/lead-time";
 import { getDemoOverview } from "@/lib/overview/demo-data";
 
 export const metadata: Metadata = { title: "Tồn kho (bản mẫu)" };
@@ -84,7 +85,7 @@ async function Inventory({ searchParams }: Pick<PageProps<"/design/ton-kho">, "s
                 <span className="text-muted-foreground tabular-nums">
                   {a.status === "out"
                     ? `Đã hết hàng, đang bán ${formatDecimal(a.velocity)} cái/ngày`
-                    : `Đủ bán ${formatDecimal(a.daysOfStock)} ngày < cần ${a.requiredDays} ngày (SX ${a.item.leadTimeDays} + dự phòng ${STOCK_RULES.safetyDays})`}
+                    : `Đủ bán ${formatDecimal(a.daysOfStock)} ngày < cần ${a.requiredDays} ngày (SX ${a.leadTimeDays}${a.leadTimeIsDefault ? " mặc định" : ""} + dự phòng ${STOCK_RULES.safetyDays})`}
                   {" · "}
                   <span className="font-semibold text-foreground">
                     Đặt ngay {formatNumber(a.suggestedQuantity)} cái
@@ -124,7 +125,8 @@ async function Inventory({ searchParams }: Pick<PageProps<"/design/ton-kho">, "s
           Báo động khi số ngày đủ bán ít hơn thời gian sản xuất/nhập + {STOCK_RULES.safetyDays} ngày dự phòng.
           Tốc độ bán = trung bình {STOCK_RULES.velocityWindowDays} ngày gần nhất. “Nên sản xuất” = đủ bán{" "}
           {STOCK_RULES.targetCoverDays} ngày sau khi hàng về. Đủ bán quá {STOCK_RULES.slowMovingDays} ngày là bán
-          chậm. Thời gian sản xuất/nhập do bạn nhập trên 1Click vì Pancake không có. Cập nhật ngày{" "}
+          chậm. Thời gian sản xuất/nhập đọc từ ô <b>Ghi chú nội bộ</b> của sản phẩm trên Pancake, ghi theo
+          dạng <b>“SX: 8”</b> (8 là số ngày); mã chưa ghi tạm dùng {DEFAULT_LEAD_TIME_DAYS} ngày. Cập nhật ngày{" "}
           {formatDateVN(today)}.
         </p>
       </Panel>

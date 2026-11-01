@@ -18,7 +18,13 @@ import { TaxSummary } from "@/components/overview/tax-summary";
 import { TopContent } from "@/components/overview/top-content";
 import { TopProducts } from "@/components/overview/top-products";
 import { compareLabel, formatRangeVN, resolveFilter, todayInVN } from "@/lib/date-range";
-import { analyzeInventory, summarizeInventory, type InventoryTotals } from "@/lib/inventory/stock";
+import { DEFAULT_LEAD_TIME_DAYS } from "@/lib/inventory/lead-time";
+import {
+  analyzeInventory,
+  summarizeInventory,
+  type InventoryTotals,
+  type StockAnalysis,
+} from "@/lib/inventory/stock";
 import { getDemoOverview } from "@/lib/overview/demo-data";
 import { buildRecommendations } from "@/lib/overview/recommendations";
 import type { OverviewData } from "@/lib/overview/types";
@@ -29,8 +35,21 @@ const INVENTORY_HREF = "/design/ton-kho";
 
 // Cảnh báo GIẢ cho bản mẫu. Giai đoạn 1 sẽ tự phát hiện từ dữ liệu Pancake.
 // Con số lấy từ cùng bộ dữ liệu với các khối bên dưới để không bao giờ lệch nhau.
-function demoIssues(data: OverviewData, inventory: InventoryTotals): DataIssue[] {
+function demoIssues(
+  data: OverviewData,
+  inventory: InventoryTotals,
+  stock: StockAnalysis[],
+): DataIssue[] {
+  const noLeadTime = stock.filter((a) => a.leadTimeIsDefault);
   return [
+    {
+      title: `${noLeadTime.length} sản phẩm chưa ghi thời gian sản xuất`,
+      impact: `Đang tạm tính ${DEFAULT_LEAD_TIME_DAYS} ngày, báo động sản xuất có thể sớm hoặc muộn hơn thực tế.`,
+      howToFix:
+        "Vào Pancake POS → Sản phẩm → mở sản phẩm → ô Ghi chú nội bộ, ghi “SX: 8” (8 là số ngày sản xuất/nhập hàng).",
+      items: noLeadTime.map((a) => `${a.item.name} (${a.item.sku})`),
+      fixUrl: "https://pos.pages.fm",
+    },
     {
       title: `${inventory.missingCost.length} sản phẩm chưa có giá vốn`,
       impact: "Lợi nhuận bị tính cao hơn thực tế, giá trị tồn kho bị thiếu.",
@@ -109,7 +128,7 @@ async function Overview({ searchParams }: Pick<PageProps<"/design">, "searchPara
 
       <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <Recommendations items={recommendations} />
-        <DataWarnings issues={demoIssues(data, inventory)} />
+        <DataWarnings issues={demoIssues(data, inventory, stock).filter((i) => i.items?.length !== 0)} />
       </div>
 
       <SummaryCards

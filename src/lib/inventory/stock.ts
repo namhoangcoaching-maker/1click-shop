@@ -9,6 +9,7 @@
  * Toàn bộ là phép tính của code, AI không tự tính các con số này.
  */
 import { addDays, type DateString } from "@/lib/date-range";
+import { DEFAULT_LEAD_TIME_DAYS } from "./lead-time";
 
 /** Ngưỡng mặc định. Sau này mỗi doanh nghiệp tự chỉnh trong phần cấu hình. */
 export const STOCK_RULES = {
@@ -18,8 +19,8 @@ export const STOCK_RULES = {
   warningWindowDays: 7,
   /** Đủ bán quá chừng này ngày thì coi là bán chậm, cần kế hoạch đẩy tồn. */
   slowMovingDays: 90,
-  /** Lượng hàng nên có sau khi hàng mới về, tính theo số ngày bán. */
-  targetCoverDays: 30,
+  /** Lượng hàng nên có sau khi hàng mới về, tính theo số ngày bán (21 ngày để tránh tồn nhiều). */
+  targetCoverDays: 21,
   /** Tính tốc độ bán trung bình trên chừng này ngày gần nhất. */
   velocityWindowDays: 30,
 } as const;
@@ -33,8 +34,11 @@ export interface StockItem {
   stock: number;
   /** Số lượng đã bán trong cửa sổ tính tốc độ (mặc định 30 ngày gần nhất). */
   soldInWindow: number;
-  /** Số ngày từ lúc đặt sản xuất/nhập đến khi hàng về kho. Pancake không có, nhập trên 1Click. */
-  leadTimeDays: number;
+  /**
+   * Số ngày từ lúc đặt sản xuất/nhập đến khi hàng về kho, đọc từ "Ghi chú nội bộ" trên Pancake
+   * (xem lead-time.ts). null nếu chưa ghi: dùng DEFAULT_LEAD_TIME_DAYS và cảnh báo.
+   */
+  leadTimeDays: number | null;
   /** Giá vốn, null nếu chưa nhập trên Pancake. */
   costPrice: number | null;
   price: number;
@@ -57,6 +61,10 @@ export interface StockAnalysis {
   velocity: number;
   /** Số ngày còn đủ bán; Infinity nếu không bán được cái nào. */
   daysOfStock: number;
+  /** Thời gian sản xuất dùng để tính (của sản phẩm, hoặc mặc định nếu chưa ghi). */
+  leadTimeDays: number;
+  /** true nếu sản phẩm chưa ghi thời gian sản xuất, đang dùng số mặc định. */
+  leadTimeIsDefault: boolean;
   /** Thời gian sản xuất + dự phòng. */
   requiredDays: number;
   status: StockStatus;
@@ -80,7 +88,8 @@ export function analyzeStock(
 ): StockAnalysis {
   const velocity = item.soldInWindow / rules.velocityWindowDays;
   const daysOfStock = velocity > 0 ? item.stock / velocity : Infinity;
-  const requiredDays = item.leadTimeDays + rules.safetyDays;
+  const leadTimeDays = item.leadTimeDays ?? DEFAULT_LEAD_TIME_DAYS;
+  const requiredDays = leadTimeDays + rules.safetyDays;
 
   let status: StockStatus;
   if (velocity > 0 && item.stock <= 0) status = "out";
@@ -100,6 +109,8 @@ export function analyzeStock(
     item,
     velocity,
     daysOfStock,
+    leadTimeDays,
+    leadTimeIsDefault: item.leadTimeDays === null,
     requiredDays,
     status,
     daysUntilOrder,

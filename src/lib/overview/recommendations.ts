@@ -61,7 +61,7 @@ function stockReason(a: StockAnalysis): string {
   return (
     `${item.name}: còn ${formatNumber(item.stock)}, bán ${formatDecimal(a.velocity)} cái/ngày → ` +
     `đủ bán ${formatDecimal(a.daysOfStock)} ngày, ít hơn ${a.requiredDays} ngày cần có ` +
-    `(sản xuất ${item.leadTimeDays} + dự phòng ${a.requiredDays - item.leadTimeDays})`
+    `(sản xuất ${a.leadTimeDays}${a.leadTimeIsDefault ? " – số mặc định" : ""} + dự phòng ${a.requiredDays - a.leadTimeDays})`
   );
 }
 

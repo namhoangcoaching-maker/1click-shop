@@ -93,7 +93,8 @@ Mỗi bước làm xong đều được lưu lại một "mốc" (commit).
 ### Quy tắc báo động tồn kho và đề xuất
 
 - **Báo động "Sản xuất ngay"** khi: số ngày đủ bán < thời gian sản xuất + 3 ngày dự phòng.
-  Ví dụ: bán 7 cái/ngày, còn 60 cái → đủ bán 8,6 ngày; sản xuất 8 ngày + 3 = 11 ngày → báo động, nên sản xuất 227 cái (đủ bán 30 ngày sau khi hàng về).
+  Ví dụ: bán 7 cái/ngày, còn 60 cái → đủ bán 8,6 ngày; sản xuất 8 ngày + 3 = 11 ngày → báo động, nên sản xuất 164 cái (đủ bán 21 ngày sau khi hàng về).
+- **Thời gian sản xuất của từng sản phẩm** ghi trong Pancake: Sản phẩm → mở sản phẩm → ô **Ghi chú nội bộ**, ghi `SX: 8` (8 là số ngày). Cũng hiểu `SX 8 ngày`, `Sản xuất: 8 ngày`, hoặc ghi chú chỉ có số `8`. Không ghi thì tạm tính 7 ngày và hiện trong "Dữ liệu cần kiểm tra". Lưu ý: phải có dấu `:` hoặc khoảng trắng giữa "SX" và số (viết dính `SX098` sẽ không được hiểu, để tránh nhầm với mã sản phẩm).
 - Tốc độ bán = trung bình 30 ngày gần nhất. Đủ bán quá 90 ngày = bán chậm.
 - Chi phí quảng cáo vượt 12% tổng doanh thu, hoặc 25% doanh thu của một kênh → đề xuất tối ưu.
 - Muốn đổi các con số này: nhờ Claude Code *"Đổi số ngày dự phòng tồn kho thành 5 ngày"*. Sau này mỗi doanh nghiệp sẽ tự chỉnh trong phần cấu hình.

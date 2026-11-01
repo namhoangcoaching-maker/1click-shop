@@ -35,9 +35,24 @@ describe("analyzeStock – ví dụ của chủ shop", () => {
     expect(result.orderBy).toBe(TODAY);
   });
 
-  it("đề xuất số lượng sản xuất đủ bán 30 ngày sau khi hàng về", () => {
-    // 7 × (11 + 30) − 60 = 227
-    expect(result.suggestedQuantity).toBe(227);
+  it("đề xuất số lượng sản xuất đủ bán 21 ngày sau khi hàng về", () => {
+    // 7 × (11 + 21) − 60 = 164
+    expect(result.suggestedQuantity).toBe(164);
+  });
+});
+
+describe("analyzeStock – thời gian sản xuất chưa ghi", () => {
+  it("dùng 7 ngày mặc định và đánh dấu để cảnh báo", () => {
+    const r = analyzeStock(item({ leadTimeDays: null }), TODAY);
+    expect(r.leadTimeDays).toBe(7);
+    expect(r.leadTimeIsDefault).toBe(true);
+    expect(r.requiredDays).toBe(10);
+  });
+
+  it("có ghi thì dùng đúng số đã ghi", () => {
+    const r = analyzeStock(item({ leadTimeDays: 12 }), TODAY);
+    expect(r.leadTimeIsDefault).toBe(false);
+    expect(r.requiredDays).toBe(15);
   });
 });
 
