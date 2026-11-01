@@ -5,6 +5,7 @@
  */
 import type { DateString } from "@/lib/date-range";
 import type { ValueFormat } from "@/lib/format";
+import type { StockItem } from "@/lib/inventory/stock";
 
 /** Giá trị kỳ này và kỳ trước (null khi không so sánh). */
 export interface Compared {
@@ -19,7 +20,14 @@ export interface SeriesPoint {
   previous: number | null;
 }
 
-export type MetricKey = "grossSales" | "revenue" | "profit" | "orders" | "aov" | "adSpend";
+export type MetricKey =
+  | "grossSales"
+  | "revenue"
+  | "profit"
+  | "orders"
+  | "aov"
+  | "adSpend"
+  | "platformFees";
 
 export interface Metric extends Compared {
   key: MetricKey;
@@ -35,17 +43,6 @@ export interface Metric extends Compared {
 export interface OrderTotals {
   amount: Compared;
   count: Compared;
-}
-
-export interface InventorySummary {
-  /** Số lượng có thể bán. */
-  quantity: number;
-  /** Giá trị tồn theo giá vốn (chỉ tính sản phẩm đã có giá vốn). */
-  costValue: number;
-  /** Giá trị tồn theo giá bán. */
-  retailValue: number;
-  /** Số sản phẩm còn tồn nhưng chưa có giá vốn: giá trị tồn đang bị thiếu phần này. */
-  productsMissingCost: number;
 }
 
 export interface OrderSourceRow {
@@ -131,7 +128,8 @@ export interface OverviewData {
   metrics: Metric[];
   closedOrders: OrderTotals;
   returnedOrders: OrderTotals;
-  inventory: InventorySummary;
+  /** Tồn kho theo từng mã. Thẻ Tồn kho, trang Tồn kho và đề xuất đều tính từ danh sách này. */
+  stock: StockItem[];
   sources: OrderSourceRow[];
   topProducts: TopProduct[];
   adCosts: AdChannelCost[];

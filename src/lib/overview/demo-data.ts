@@ -9,6 +9,7 @@ import {
   type DateRange,
   type DateString,
 } from "@/lib/date-range";
+import type { StockItem } from "@/lib/inventory/stock";
 import type {
   Compared,
   Metric,
@@ -54,6 +55,25 @@ const SOURCES = [
   { source: "Khác (Zalo, tại cửa hàng)", share: 0.04, prevShare: 0.04, margin: 0.5, orderShare: 0.04 },
 ];
 
+/**
+ * Tồn kho giả theo từng mã. soldInWindow = số bán 30 ngày gần nhất.
+ * Dòng đầu là đúng ví dụ của chủ shop: bán 7 cái/ngày, còn 60 cái, sản xuất 8 ngày → báo động.
+ */
+const DEMO_STOCK: StockItem[] = [
+  { sku: "EB-KG2T", name: "Kệ góc nhà tắm inox SUS304 2 tầng", stock: 60, soldInWindow: 210, leadTimeDays: 8, costPrice: 165_000, price: 290_000 },
+  { sku: "EB-MD6", name: "Móc dán tường inox (bộ 6 cái)", stock: 40, soldInWindow: 330, leadTimeDays: 5, costPrice: 32_000, price: 65_000 },
+  { sku: "EB-KKG", name: "Kệ để khăn gấp gọn", stock: 0, soldInWindow: 45, leadTimeDays: 10, costPrice: 120_000, price: 210_000 },
+  { sku: "EB-GTK60", name: "Giá treo khăn inox SUS304 60cm", stock: 95, soldInWindow: 165, leadTimeDays: 10, costPrice: 118_000, price: 220_000 },
+  { sku: "EB-MTA", name: "Móc treo áo choàng 2 nhánh", stock: 24, soldInWindow: 54, leadTimeDays: 9, costPrice: 45_000, price: 89_000 },
+  { sku: "EB-KDG", name: "Kệ để dầu gội gắn tường", stock: 320, soldInWindow: 180, leadTimeDays: 7, costPrice: 88_000, price: 160_000 },
+  { sku: "EB-KBC", name: "Kệ trên bồn cầu 2 tầng", stock: 130, soldInWindow: 120, leadTimeDays: 10, costPrice: 210_000, price: 390_000 },
+  { sku: "EB-HGVS", name: "Hộp đựng giấy vệ sinh inox", stock: 85, soldInWindow: 60, leadTimeDays: 12, costPrice: null, price: 145_000 },
+  { sku: "EB-KG3T", name: "Kệ góc nhà tắm inox SUS304 3 tầng", stock: 140, soldInWindow: 36, leadTimeDays: 10, costPrice: null, price: 420_000 },
+  { sku: "EB-GPD", name: "Giá phơi đồ mini gấp gọn", stock: 410, soldInWindow: 75, leadTimeDays: 14, costPrice: 58_000, price: 115_000 },
+  { sku: "EB-TTR", name: "Thanh treo rèm nhà tắm", stock: 210, soldInWindow: 12, leadTimeDays: 10, costPrice: null, price: 175_000 },
+  { sku: "EB-KXP", name: "Kệ xà phòng đôi", stock: 180, soldInWindow: 0, leadTimeDays: 7, costPrice: 36_000, price: 79_000 },
+];
+
 export function getDemoOverview(
   range: DateRange,
   previousRange: DateRange | null,
@@ -85,6 +105,8 @@ export function getDemoOverview(
   const prevOrders = Math.round(orders * 0.9);
   const adSpend = revenue * 0.14;
   const prevAdSpend = prevRevenue * 0.12;
+  const platformFees = revenue * 0.06;
+  const prevPlatformFees = prevRevenue * 0.058;
 
   function series(total: number, prevTotal: number, seed: number): SeriesPoint[] {
     const cur = distribute(total, points, seed, hourly);
@@ -159,6 +181,15 @@ export function getDemoOverview(
       ...compared(adSpend, hasPrev ? prevAdSpend : null),
       series: series(adSpend, prevAdSpend, 6),
     },
+    {
+      key: "platformFees",
+      label: "Phí sàn",
+      format: "vnd",
+      positiveIsGood: false,
+      hint: "Phí cố định, phí thanh toán, phí dịch vụ của Shopee, TikTok Shop…",
+      ...compared(platformFees, hasPrev ? prevPlatformFees : null),
+      series: series(platformFees, prevPlatformFees, 7),
+    },
   ];
 
   // --- Các khối khác ---
@@ -168,7 +199,7 @@ export function getDemoOverview(
     { label: "Nhập hàng", amount: revenue * 0.38 },
     { label: "Quảng cáo", amount: adSpend },
     { label: "Lương nhân sự", amount: payrollPerDay * days },
-    { label: "Phí sàn", amount: revenue * 0.06 },
+    { label: "Phí sàn", amount: platformFees },
     { label: "Chi khác (phiếu chi)", amount: 350_000 * days },
   ];
   const expense = expenseBreakdown.reduce((sum, e) => sum + e.amount, 0);
@@ -187,16 +218,11 @@ export function getDemoOverview(
       amount: compared(grossSales * 0.05, hasPrev ? prevGrossSales * 0.07 : null),
       count: compared(Math.max(1, Math.round(orders * 0.04)), hasPrev ? Math.max(1, Math.round(prevOrders * 0.06)) : null),
     },
-    inventory: {
-      quantity: 7_214,
-      costValue: 412_350_000,
-      retailValue: 1_062_480_000,
-      productsMissingCost: 7,
-    },
+    stock: DEMO_STOCK,
     sources,
     topProducts: [
-      { name: "Kệ góc nhà tắm inox SUS304 2 tầng", sku: "EB-KG2T", quantity: 9 * days, revenue: 2_610_000 * days, linked: true },
-      { name: "Giá treo khăn inox SUS304 60cm", sku: "EB-GTK60", quantity: 7 * days, revenue: 1_540_000 * days, linked: true },
+      { name: "Kệ góc nhà tắm inox SUS304 2 tầng", sku: "EB-KG2T", quantity: 7 * days, revenue: 2_030_000 * days, linked: true },
+      { name: "Giá treo khăn inox SUS304 60cm", sku: "EB-GTK60", quantity: Math.round(5.5 * days), revenue: 1_210_000 * days, linked: true },
       { name: "—", sku: null, quantity: 5 * days, revenue: 1_120_000 * days, linked: false },
       { name: "Kệ để dầu gội gắn tường", sku: "EB-KDG", quantity: 6 * days, revenue: 960_000 * days, linked: true },
       { name: "Móc dán tường inox (bộ 6 cái)", sku: "EB-MD6", quantity: 11 * days, revenue: 715_000 * days, linked: true },

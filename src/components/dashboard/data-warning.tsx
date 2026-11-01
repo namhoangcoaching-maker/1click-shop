@@ -1,4 +1,4 @@
-import { ChevronDownIcon, ExternalLinkIcon, TriangleAlertIcon } from "lucide-react";
+import { ChevronRightIcon, ExternalLinkIcon, TriangleAlertIcon } from "lucide-react";
 
 export interface DataIssue {
   title: string;
@@ -14,20 +14,17 @@ export interface DataIssue {
 const MAX_ITEMS = 5;
 
 /**
- * Khung cảnh báo dữ liệu sai hoặc thiếu (PROJECT_BRIEF mục 4).
- * Không được im lặng tính sai: mỗi lỗi nói rõ hậu quả, bấm vào để xem danh sách và cách sửa.
+ * Khung nhỏ "Dữ liệu cần kiểm tra" (PROJECT_BRIEF mục 4).
+ * Không được im lặng tính sai: mỗi lỗi một dòng, bấm vào để xem hậu quả, danh sách và cách sửa.
  */
 export function DataWarnings({ issues }: { issues: DataIssue[] }) {
   if (issues.length === 0) return null;
 
   return (
-    <section
-      aria-label="Dữ liệu cần kiểm tra"
-      className="overflow-hidden rounded-lg border border-warning/40 bg-card"
-    >
-      <header className="flex items-center gap-2 bg-warning/10 px-4 py-2 text-sm font-semibold">
-        <TriangleAlertIcon className="size-4 text-warning" aria-hidden />
-        Dữ liệu cần kiểm tra ({issues.length}) – một số con số bên dưới có thể chưa chính xác
+    <section aria-label="Dữ liệu cần kiểm tra" className="rounded-lg border border-warning/40 bg-card">
+      <header className="flex items-center gap-1.5 border-b border-warning/30 bg-warning/10 px-3 py-1.5 text-[13px] font-semibold">
+        <TriangleAlertIcon className="size-3.5 text-warning" aria-hidden />
+        Dữ liệu cần kiểm tra ({issues.length})
       </header>
       <ul className="divide-y">
         {issues.map((issue) => (
@@ -46,21 +43,18 @@ function DataIssueRow({ issue }: { issue: DataIssue }) {
   const hidden = items.length - shown.length;
 
   return (
-    <details className="group text-sm">
-      <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-2.5 hover:bg-muted/60 [&::-webkit-details-marker]:hidden">
-        <span className="font-medium">{issue.title}</span>
-        <span className="hidden min-w-0 flex-1 truncate text-muted-foreground sm:block">
-          {issue.impact}
-        </span>
-        <span className="ml-auto flex shrink-0 items-center gap-1 text-primary">
-          Chi tiết
-          <ChevronDownIcon className="size-4 transition-transform group-open:rotate-180" aria-hidden />
-        </span>
+    <details className="group text-[13px]">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-1.5 hover:bg-muted/60 [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0 flex-1 truncate">{issue.title}</span>
+        <ChevronRightIcon
+          className="size-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
+          aria-hidden
+        />
       </summary>
-      <div className="space-y-2 px-4 pb-3 pl-4 text-foreground/80">
-        <p className="sm:hidden">{issue.impact}</p>
+      <div className="space-y-1.5 px-3 pb-2.5 text-foreground/80">
+        <p>{issue.impact}</p>
         {shown.length > 0 && (
-          <ul className="list-disc space-y-0.5 pl-5 text-foreground">
+          <ul className="list-disc pl-4 text-foreground">
             {shown.map((item) => (
               <li key={item}>{item}</li>
             ))}
@@ -79,7 +73,7 @@ function DataIssueRow({ issue }: { issue: DataIssue }) {
             className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
           >
             Mở Pancake để sửa
-            <ExternalLinkIcon className="size-3.5" aria-hidden />
+            <ExternalLinkIcon className="size-3" aria-hidden />
           </a>
         )}
       </div>

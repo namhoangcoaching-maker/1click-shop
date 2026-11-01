@@ -40,6 +40,13 @@ export function formatNumber(value: number): string {
   return integerFormat.format(roundSafe(value));
 }
 
+const decimalFormat = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
+
+/** 8.5714 → "8,6" (số ngày, tốc độ bán…). */
+export function formatDecimal(value: number): string {
+  return decimalFormat.format(value);
+}
+
 /** Kiểu hiển thị của một chỉ số: tiền hoặc số lượng. */
 export type ValueFormat = "vnd" | "number";
 

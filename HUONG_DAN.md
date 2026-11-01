@@ -20,6 +20,11 @@
 | `src/components/dashboard/panel.tsx` | Khung **thẻ trắng** có biểu tượng tròn, ô xám bên trong, thanh tiến độ. |
 | `src/components/dashboard/metric-strip.tsx` | **Dải chỉ số** Doanh số / Doanh thu / Lợi nhuận… bấm vào để đổi biểu đồ. |
 | `src/components/dashboard/trend-chart.tsx` | **Biểu đồ đường** kỳ này (xanh) và kỳ trước (xám nét đứt). |
+| `src/app/design/ton-kho/page.tsx` | **Bản mẫu trang Tồn kho** (`/design/ton-kho`): báo động mã cần sản xuất, bảng tồn theo mã, lọc theo trạng thái. |
+| `src/components/inventory/` | Bảng tồn kho và nhãn trạng thái (Hết hàng, Sản xuất ngay, Sắp đến hạn, Bán chậm, Đủ hàng). |
+| `src/lib/inventory/stock.ts` | **Công thức tồn kho**: tốc độ bán, số ngày đủ bán, khi nào phải sản xuất, nên sản xuất bao nhiêu. Các ngưỡng nằm ở `STOCK_RULES` đầu file. |
+| `src/lib/overview/recommendations.ts` | **Quy tắc "Đề xuất của AI"**: cần sản xuất, tập trung content, xả kho, chi phí quảng cáo cao. Các ngưỡng nằm ở `RECOMMENDATION_RULES` đầu file. |
+| `src/components/overview/recommendations.tsx` | Giao diện khối Đề xuất. |
 | `src/lib/overview/types.ts` | Danh sách các con số mà trang Tổng quan cần. |
 | `src/lib/overview/demo-data.ts` | **Số liệu giả** cho bản mẫu. Giai đoạn 1 sẽ thay bằng dữ liệu Pancake thật. |
 | `src/app/globals.css` | **Màu sắc** toàn web (xanh dương nhấn, xanh lá tăng, đỏ giảm, cam cảnh báo, nền xám). Đổi màu thì sửa phần `:root` ở đây. |
@@ -83,7 +88,18 @@ Mỗi bước làm xong đều được lưu lại một "mốc" (commit).
 - **Quay lại một mốc cũ nhưng vẫn giữ lịch sử** (an toàn): nhờ Claude Code *"Hoàn tác commit <mã> giúp tôi"*. Lệnh dùng là `git revert <mã>`.
 - Không chắc chắn thì hỏi Claude Code trước, đừng tự chạy lệnh có chữ `--hard` hay `--force`.
 
-## 5. Mở rộng hệ thống (sẽ bổ sung ở các giai đoạn sau)
+## 5. Mở rộng hệ thống
+
+### Quy tắc báo động tồn kho và đề xuất
+
+- **Báo động "Sản xuất ngay"** khi: số ngày đủ bán < thời gian sản xuất + 3 ngày dự phòng.
+  Ví dụ: bán 7 cái/ngày, còn 60 cái → đủ bán 8,6 ngày; sản xuất 8 ngày + 3 = 11 ngày → báo động, nên sản xuất 227 cái (đủ bán 30 ngày sau khi hàng về).
+- Tốc độ bán = trung bình 30 ngày gần nhất. Đủ bán quá 90 ngày = bán chậm.
+- Chi phí quảng cáo vượt 12% tổng doanh thu, hoặc 25% doanh thu của một kênh → đề xuất tối ưu.
+- Muốn đổi các con số này: nhờ Claude Code *"Đổi số ngày dự phòng tồn kho thành 5 ngày"*. Sau này mỗi doanh nghiệp sẽ tự chỉnh trong phần cấu hình.
+- Các con số đều do code tính và có unit test; AI chỉ diễn giải, không tự tính.
+
+### Sẽ bổ sung ở các giai đoạn sau
 
 - Thêm quy tắc thuế mới: *(Giai đoạn 7)*
 - Thêm mẫu KPI mới: *(Giai đoạn 6)*

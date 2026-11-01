@@ -2,7 +2,7 @@ import { WalletIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { InsetBox, Panel, ProgressBar } from "@/components/dashboard/panel";
 import { TrendBadge } from "@/components/dashboard/trend-badge";
-import { formatVND, percentChange, ratio } from "@/lib/format";
+import { formatPercent, formatVND, percentChange, ratio } from "@/lib/format";
 import type { CashflowSummary as CashflowData } from "@/lib/overview/types";
 
 /** Dòng tiền tóm tắt: tổng thu, tổng chi, kết quả âm hay dương, chi tiết các khoản chi. */
@@ -37,20 +37,39 @@ export function CashflowSummary({ cashflow }: { cashflow: CashflowData }) {
         </InsetBox>
       </div>
 
-      <h3 className="mt-3 mb-1 text-sm font-medium">Các khoản chi</h3>
+      <div className="mt-3 mb-1 flex items-baseline justify-between text-sm">
+        <h3 className="font-medium">Các khoản chi</h3>
+        <span className="text-xs text-muted-foreground">% trên tổng thu</span>
+      </div>
       <ul className="space-y-1.5">
-        {cashflow.expenseBreakdown.map((item) => (
-          <li key={item.label} className="grid grid-cols-[1fr_auto] items-center gap-x-3 text-sm">
-            <span className="text-muted-foreground">{item.label}</span>
-            <span className="text-right font-medium tabular-nums">{formatVND(item.amount)}</span>
-            <ProgressBar
-              value={ratio(item.amount, expense.value)}
-              label={`Tỷ trọng ${item.label}`}
-              className="col-span-2 mt-0.5 h-1"
-            />
-          </li>
-        ))}
+        {cashflow.expenseBreakdown.map((item) => {
+          const share = ratio(item.amount, income.value);
+          return (
+            <li key={item.label} className="grid grid-cols-[1fr_auto_3.5rem] items-center gap-x-3 text-sm">
+              <span className="text-muted-foreground">{item.label}</span>
+              <span className="text-right font-medium tabular-nums">{formatVND(item.amount)}</span>
+              <span className="text-right text-muted-foreground tabular-nums">{formatPercent(share, 1)}</span>
+              <ProgressBar
+                value={share}
+                label={`${item.label} chiếm ${formatPercent(share, 1)} tổng thu`}
+                className="col-span-3 mt-0.5 h-1"
+              />
+            </li>
+          );
+        })}
       </ul>
+      <div className="mt-2 grid grid-cols-[1fr_auto_3.5rem] items-baseline gap-x-3 border-t pt-2 text-sm font-semibold">
+        <span>Tổng cộng</span>
+        <span className="text-right tabular-nums">{formatVND(expense.value)}</span>
+        <span
+          className={cn(
+            "text-right tabular-nums",
+            ratio(expense.value, income.value) > 100 && "text-destructive",
+          )}
+        >
+          {formatPercent(ratio(expense.value, income.value), 1)}
+        </span>
+      </div>
 
       {cashflow.unreconciledCod > 0 && (
         <p className="mt-3 rounded-md bg-warning/10 px-3 py-2 text-sm">

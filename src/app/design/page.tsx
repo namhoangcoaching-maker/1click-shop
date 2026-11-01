@@ -11,34 +11,31 @@ import { Skeleton } from "@/components/dashboard/stat-card";
 import { AdCosts } from "@/components/overview/ad-costs";
 import { CashflowSummary } from "@/components/overview/cashflow-summary";
 import { OrderSources } from "@/components/overview/order-sources";
+import { Recommendations } from "@/components/overview/recommendations";
 import { StaffSummary } from "@/components/overview/staff-summary";
 import { SummaryCards } from "@/components/overview/summary-cards";
 import { TaxSummary } from "@/components/overview/tax-summary";
 import { TopContent } from "@/components/overview/top-content";
 import { TopProducts } from "@/components/overview/top-products";
 import { compareLabel, formatRangeVN, resolveFilter, todayInVN } from "@/lib/date-range";
+import { analyzeInventory, summarizeInventory, type InventoryTotals } from "@/lib/inventory/stock";
 import { getDemoOverview } from "@/lib/overview/demo-data";
+import { buildRecommendations } from "@/lib/overview/recommendations";
 import type { OverviewData } from "@/lib/overview/types";
 
 export const metadata: Metadata = { title: "Tổng quan (bản mẫu)" };
 
+const INVENTORY_HREF = "/design/ton-kho";
+
 // Cảnh báo GIẢ cho bản mẫu. Giai đoạn 1 sẽ tự phát hiện từ dữ liệu Pancake.
 // Con số lấy từ cùng bộ dữ liệu với các khối bên dưới để không bao giờ lệch nhau.
-function demoIssues(data: OverviewData): DataIssue[] {
+function demoIssues(data: OverviewData, inventory: InventoryTotals): DataIssue[] {
   return [
     {
-      title: `${data.inventory.productsMissingCost} sản phẩm chưa có giá vốn`,
+      title: `${inventory.missingCost.length} sản phẩm chưa có giá vốn`,
       impact: "Lợi nhuận bị tính cao hơn thực tế, giá trị tồn kho bị thiếu.",
       howToFix: "Vào Pancake POS → Sản phẩm, mở từng sản phẩm dưới đây và nhập Giá vốn.",
-      items: [
-        "Kệ góc nhà tắm inox SUS304 3 tầng",
-        "Thanh treo rèm nhà tắm",
-        "Hộp đựng giấy vệ sinh inox",
-        "Kệ xà phòng đôi",
-        "Móc treo áo choàng 2 nhánh",
-        "Kệ để khăn gấp gọn",
-        "Giá phơi đồ mini",
-      ],
+      items: inventory.missingCost.map((item) => `${item.name} (${item.sku})`),
       fixUrl: "https://pos.pages.fm",
     },
     {
@@ -83,6 +80,16 @@ async function Overview({ searchParams }: Pick<PageProps<"/design">, "searchPara
   const filter = resolveFilter(await searchParams, today);
   const data = getDemoOverview(filter.range, filter.previousRange, today);
   const totalRevenue = data.sources.reduce((sum, s) => sum + s.revenue.value, 0);
+  const stock = analyzeInventory(data.stock, today);
+  const inventory = summarizeInventory(data.stock);
+  const urgentCount = stock.filter((a) => a.status === "out" || a.status === "urgent").length;
+  const recommendations = buildRecommendations({
+    totalRevenue,
+    topProducts: data.topProducts,
+    adCosts: data.adCosts,
+    stock,
+    inventoryHref: INVENTORY_HREF,
+  });
 
   const datesText = filter.previousRange
     ? `${formatRangeVN(filter.range)} · so với ${formatRangeVN(filter.previousRange)}`
@@ -100,9 +107,18 @@ async function Overview({ searchParams }: Pick<PageProps<"/design">, "searchPara
         <RefreshButton />
       </div>
 
-      <DataWarnings issues={demoIssues(data)} />
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <Recommendations items={recommendations} />
+        <DataWarnings issues={demoIssues(data, inventory)} />
+      </div>
 
-      <SummaryCards closed={data.closedOrders} returned={data.returnedOrders} inventory={data.inventory} />
+      <SummaryCards
+        closed={data.closedOrders}
+        returned={data.returnedOrders}
+        inventory={inventory}
+        urgentCount={urgentCount}
+        inventoryHref={INVENTORY_HREF}
+      />
 
       <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-4">
@@ -137,6 +153,7 @@ function OverviewSkeleton() {
   return (
     <div className="space-y-4">
       <Skeleton className="h-9 w-96 max-w-full" />
+      <Skeleton className="h-64 bg-card" />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {[0, 1, 2].map((i) => (
           <Skeleton key={i} className="h-32 bg-card" />
