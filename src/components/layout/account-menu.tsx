@@ -1,9 +1,12 @@
+import { connection } from "next/server";
 import { LogOutIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/lib/auth/actions";
 
 /** Email người đang đăng nhập + nút Đăng xuất, ở cuối menu trái. */
 export async function AccountMenu() {
+  // Thư viện Supabase dùng giờ hiện tại để kiểm tra hạn phiên → báo Next.js tính lúc mở trang.
+  await connection();
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const email = typeof data?.claims?.email === "string" ? data.claims.email : "";
