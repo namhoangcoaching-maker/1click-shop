@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { ArrowLeftIcon, OctagonAlertIcon, WarehouseIcon } from "lucide-react";
+import { OctagonAlertIcon, WarehouseIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Panel } from "@/components/dashboard/panel";
 import { Skeleton } from "@/components/dashboard/stat-card";
@@ -20,25 +20,16 @@ import {
 import { DEFAULT_LEAD_TIME_DAYS } from "@/lib/inventory/lead-time";
 import { getDemoOverview } from "@/lib/overview/demo-data";
 
-export const metadata: Metadata = { title: "Tồn kho (bản mẫu)" };
+export const metadata: Metadata = { title: "Tồn kho" };
 
-const PAGE_HREF = "/design/ton-kho";
+const PAGE_HREF = "/ton-kho";
 const STATUSES = Object.keys(STATUS_PRIORITY) as StockStatus[];
 
-export default function InventoryPrototypePage({ searchParams }: PageProps<"/design/ton-kho">) {
+export default function InventoryPrototypePage({ searchParams }: PageProps<"/ton-kho">) {
   return (
     <main className="mx-auto w-full max-w-[1440px] space-y-4 px-4 py-4 md:px-6">
       <header className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/design"
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeftIcon className="size-4" aria-hidden />
-            Tổng quan
-          </Link>
-          <h1 className="text-xl font-bold">Tồn kho</h1>
-        </div>
+        <h1 className="text-xl font-bold">Tồn kho</h1>
         <span className="rounded-md bg-warning/15 px-2 py-1 text-xs font-medium text-warning">
           Bản mẫu · số liệu giả
         </span>
@@ -51,7 +42,7 @@ export default function InventoryPrototypePage({ searchParams }: PageProps<"/des
   );
 }
 
-async function Inventory({ searchParams }: Pick<PageProps<"/design/ton-kho">, "searchParams">) {
+async function Inventory({ searchParams }: Pick<PageProps<"/ton-kho">, "searchParams">) {
   await connection();
   const today = todayInVN();
   const params = await searchParams;

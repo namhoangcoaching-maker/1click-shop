@@ -29,9 +29,9 @@ import { getDemoOverview } from "@/lib/overview/demo-data";
 import { buildRecommendations } from "@/lib/overview/recommendations";
 import type { OverviewData } from "@/lib/overview/types";
 
-export const metadata: Metadata = { title: "Tổng quan (bản mẫu)" };
+export const metadata: Metadata = { title: "Tổng quan" };
 
-const INVENTORY_HREF = "/design/ton-kho";
+const INVENTORY_HREF = "/ton-kho";
 
 // Cảnh báo GIẢ cho bản mẫu. Giai đoạn 1 sẽ tự phát hiện từ dữ liệu Pancake.
 // Con số lấy từ cùng bộ dữ liệu với các khối bên dưới để không bao giờ lệch nhau.
@@ -74,7 +74,7 @@ function demoIssues(
   ];
 }
 
-export default function OverviewPrototypePage({ searchParams }: PageProps<"/design">) {
+export default function OverviewPrototypePage({ searchParams }: PageProps<"/">) {
   return (
     <main className="mx-auto w-full max-w-[1440px] space-y-4 px-4 py-4 md:px-6">
       <header className="flex flex-wrap items-center justify-between gap-2">
@@ -92,7 +92,7 @@ export default function OverviewPrototypePage({ searchParams }: PageProps<"/desi
   );
 }
 
-async function Overview({ searchParams }: Pick<PageProps<"/design">, "searchParams">) {
+async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) {
   // "Hôm nay" thay đổi theo thời điểm mở trang, nên phần này không được dựng sẵn trước.
   await connection();
   const today = todayInVN();

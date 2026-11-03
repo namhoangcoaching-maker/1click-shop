@@ -2,7 +2,7 @@
 
 > File này luôn được cập nhật sau mỗi bước. Nếu thấy chỗ nào không khớp với thực tế, hãy nhắn Claude Code: *"HUONG_DAN.md đang sai ở mục …, sửa lại giúp tôi"*.
 
-**Tiến độ:** Giai đoạn 0 – Bước 0.1 (khởi tạo dự án) ✅ · Bước 0.2 (hệ thống thiết kế) ✅
+**Tiến độ:** Giai đoạn 0 – Bước 0.1 (khởi tạo dự án) ✅ · Bước 0.2 (hệ thống thiết kế) ✅ · Bước 0.3 (menu trái) ✅
 
 ---
 
@@ -14,13 +14,17 @@
 | `HUONG_DAN.md` | File bạn đang đọc. |
 | `src/app/` | **Các trang web.** Mỗi thư mục con là một đường dẫn, ví dụ `src/app/thue/page.tsx` là trang `/thue`. |
 | `src/app/layout.tsx` | Khung chung của mọi trang: font chữ, tiêu đề tab trình duyệt. |
-| `src/app/page.tsx` | Trang chủ (`/`). Hiện là trang chào tạm. |
-| `src/app/design/page.tsx` | **Bản mẫu trang Tổng quan** (`/design`) với số liệu giả: thứ tự và cách xếp các khối trên trang nằm ở đây. |
+| `src/app/(app)/` | **Các trang có menu trái.** Thư mục `(app)` có ngoặc nên không hiện trên đường dẫn: `src/app/(app)/thue/page.tsx` là trang `/thue`. |
+| `src/app/(app)/layout.tsx` | Khung chung có menu trái; tên shop đang hiện ở góc trên menu. |
+| `src/app/(app)/page.tsx` | **Trang Tổng quan** (`/`, trang chủ), hiện dùng số liệu giả: thứ tự và cách xếp các khối nằm ở đây. |
+| `src/app/(app)/content`, `tao-noi-dung`, `nhan-su`, `thue`, `dong-tien`, `ket-noi` | Các trang "Đang xây dựng", mỗi trang ghi sẵn tính năng sẽ có. |
+| `src/components/layout/nav-items.ts` | **Danh sách mục menu trái**: thêm, bớt, đổi tên, đổi thứ tự, đổi biểu tượng ở đây. |
+| `src/components/layout/app-shell.tsx` | Giao diện menu trái và nút ☰ trên điện thoại. |
 | `src/components/overview/` | **Từng khối của trang Tổng quan**, mỗi khối một file: `summary-cards` (Hàng chốt, Hàng hoàn, Tồn kho), `order-sources` (Nguồn đơn), `cashflow-summary` (Dòng tiền), `tax-summary` (Thuế), `top-products` (Top 5 SP), `ad-costs` (Chi phí QC), `top-content` (Content), `staff-summary` (Nhân sự). |
 | `src/components/dashboard/panel.tsx` | Khung **thẻ trắng** có biểu tượng tròn, ô xám bên trong, thanh tiến độ. |
 | `src/components/dashboard/metric-strip.tsx` | **Dải chỉ số** Doanh số / Doanh thu / Lợi nhuận… bấm vào để đổi biểu đồ. |
 | `src/components/dashboard/trend-chart.tsx` | **Biểu đồ đường** kỳ này (xanh) và kỳ trước (xám nét đứt). |
-| `src/app/design/ton-kho/page.tsx` | **Bản mẫu trang Tồn kho** (`/design/ton-kho`): báo động mã cần sản xuất, bảng tồn theo mã, lọc theo trạng thái. |
+| `src/app/(app)/ton-kho/page.tsx` | **Trang Tồn kho** (`/ton-kho`, số liệu giả): báo động mã cần sản xuất, bảng tồn theo mã, lọc theo trạng thái. |
 | `src/components/inventory/` | Bảng tồn kho và nhãn trạng thái (Hết hàng, Sản xuất ngay, Sắp đến hạn, Bán chậm, Đủ hàng). |
 | `src/lib/inventory/stock.ts` | **Công thức tồn kho**: tốc độ bán, số ngày đủ bán, khi nào phải sản xuất, nên sản xuất bao nhiêu. Các ngưỡng nằm ở `STOCK_RULES` đầu file. |
 | `src/lib/overview/recommendations.ts` | **Quy tắc "Đề xuất của AI"**: cần sản xuất, tập trung content, xả kho, chi phí quảng cáo cao. Các ngưỡng nằm ở `RECOMMENDATION_RULES` đầu file. |
@@ -46,10 +50,15 @@
 ## 2. Chạy, dừng, xem lỗi
 
 **Chạy web trên máy:**
-1. Trong VS Code, mở Terminal: menu **Terminal → New Terminal** (hoặc phím tắt ``Ctrl + ` ``).
-2. Gõ `npm run dev` rồi Enter.
-3. Khi thấy dòng `Local: http://localhost:3000`, mở trình duyệt vào địa chỉ đó.
-4. Sửa code và lưu file (`Ctrl + S`): trình duyệt tự cập nhật, không cần chạy lại.
+1. Mở VS Code **đúng thư mục dự án**: File → Open Folder → `Documents\1click`.
+2. Mở Terminal: menu **Terminal → New Terminal** (hoặc phím tắt ``Ctrl + ` ``). Dòng nhắc phải kết thúc bằng `\1click>`; nếu không, gõ `cd C:\Users\Admin\Documents\1click`.
+3. Gõ `npm run dev` rồi Enter.
+4. Khi thấy dòng `Local: http://localhost:3000`, mở trình duyệt vào địa chỉ đó.
+5. Sửa code và lưu file (`Ctrl + S`): trình duyệt tự cập nhật, không cần chạy lại.
+
+**Gặp lỗi đỏ "running scripts is disabled on this system"?** Windows đang chặn lệnh `npm`. Gõ `npm.cmd run dev` thay cho `npm run dev`; hoặc sửa hẳn một lần bằng lệnh `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned` (gõ `Y` khi được hỏi).
+
+**Gặp "Another next dev server is already running"?** Web đã đang chạy sẵn (ví dụ do Claude Code bật), cứ mở http://localhost:3000 là được.
 
 **Dừng:** bấm vào cửa sổ Terminal đó rồi nhấn `Ctrl + C`.
 
@@ -70,8 +79,9 @@ Mẫu câu hay dùng:
 - *"Ở trang Tổng quan, đổi thẻ Doanh thu thành hiển thị thêm số đơn. Làm xong cho tôi xem cách kiểm tra."*
 - *"Tôi gặp lỗi sau khi bấm nút Lưu ở trang Kết nối: (dán lỗi). Tìm nguyên nhân và sửa."*
 - *"Giải thích cho tôi file src/app/layout.tsx làm gì, bằng tiếng Việt dễ hiểu."*
-- *"Đổi màu nhấn của web từ xanh dương sang xanh ngọc, cho tôi xem ở trang /design."*
+- *"Đổi màu nhấn của web từ xanh dương sang xanh ngọc, cho tôi xem ở trang Tổng quan."*
 - *"Ở trang Tổng quan, đưa khối Dòng tiền lên ngay dưới Kinh doanh."*
+- *"Đưa mục Dòng tiền lên ngay dưới Tổng quan trong menu trái."*
 - *"Thêm lựa chọn 'Quý này' vào bộ lọc thời gian, có unit test."*
 - *"Commit những thay đổi vừa rồi với message rõ ràng."*
 - *"Tiếp tục bước tiếp theo trong lộ trình của PROJECT_BRIEF.md."*
