@@ -26,11 +26,13 @@ Dự án: web SaaS **1Click** giúp shop nhỏ ở Việt Nam quản trị vận
 - Thời gian sản xuất mỗi sản phẩm đọc từ ô **"Ghi chú nội bộ"** trên Pancake, quy ước `SX: 8`; chưa ghi → 7 ngày mặc định + cảnh báo. Tên trường trong API Pancake **chưa xác minh** (chờ API key, Giai đoạn 1).
 - Ngưỡng tồn kho: dự phòng 3 ngày; bán chậm khi đủ bán > 90 ngày; sản xuất đủ bán **21 ngày** (sợ tồn). Quảng cáo cao khi > 12% tổng doanh thu hoặc > 25% doanh thu một kênh.
 - Đăng nhập: email + mật khẩu và Google. Số điện thoại để sau (cần nhà cung cấp SMS trả phí).
-- Supabase dùng bản trên mạng (project `1click-dev`, region Singapore), không cài trên máy.
+- **Chưa mở đăng ký công khai** (chủ dự án chọn): "Allow new users to sign up" trên Supabase để TẮT, không làm trang Đăng ký; tài khoản do chủ dự án tạo tay (Authentication → Users → Add user, tích Auto Confirm). Xác nhận email đang bật.
+- Supabase dùng bản trên mạng (project **1Click**, region Seoul `ap-northeast-2`, gói Free), không cài trên máy. Khóa đã điền trong `.env.local` (URL, publishable, secret).
 - Repo GitHub tên `1click` **đã bị dự án khác dùng** (idea.1click, ở `Documents\1click-tim-bai-hot`) → khi đưa dự án này lên GitHub ở Bước 0.7 phải đặt tên khác (ví dụ `1click-shop`), hỏi chủ dự án trước.
 
 ## Tiến độ
 
 - ✅ 0.1 Khởi tạo · ✅ 0.2 Thiết kế kiểu Pancake + bản mẫu Tổng quan, Tồn kho, Đề xuất · ✅ 0.3 Menu trái
-- ⏭️ **Đang làm 0.4 – Supabase + đăng nhập.** Đã tạo sẵn `.env.local` (trống). Đang chờ chủ dự án: (1) dán `NEXT_PUBLIC_SUPABASE_URL` và `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` vào `.env.local`; (2) trả lời có bắt xác nhận email khi đăng ký không (đã khuyên: có).
+- ✅ 0.4 đợt 1: đăng nhập email + mật khẩu (`/dang-nhap`, `src/proxy.ts` chặn trang khi chưa đăng nhập, nút Đăng xuất cuối menu). Chưa kiểm tra được màn hình sau đăng nhập vì chưa có tài khoản: chờ chủ dự án tạo tài khoản và tự thử.
+- ⏭️ 0.4 đợt 2: đăng nhập Google (cần tạo OAuth client trên Google Cloud, hướng dẫn chủ dự án), có thể thêm trang đổi mật khẩu.
 - Sau đó: 0.5 schema nhiều doanh nghiệp + RLS + test · 0.6 trang Kết nối (lưu key Pancake mã hóa) · 0.7 GitHub + Vercel.

@@ -2,7 +2,7 @@
 
 > File này luôn được cập nhật sau mỗi bước. Nếu thấy chỗ nào không khớp với thực tế, hãy nhắn Claude Code: *"HUONG_DAN.md đang sai ở mục …, sửa lại giúp tôi"*.
 
-**Tiến độ:** Giai đoạn 0 – Bước 0.1 (khởi tạo dự án) ✅ · Bước 0.2 (hệ thống thiết kế) ✅ · Bước 0.3 (menu trái) ✅
+**Tiến độ:** Giai đoạn 0 – Bước 0.1 (khởi tạo dự án) ✅ · Bước 0.2 (hệ thống thiết kế) ✅ · Bước 0.3 (menu trái) ✅ · Bước 0.4 (đăng nhập email, đợt 1) ✅
 
 ---
 
@@ -15,7 +15,12 @@
 | `src/app/` | **Các trang web.** Mỗi thư mục con là một đường dẫn, ví dụ `src/app/thue/page.tsx` là trang `/thue`. |
 | `src/app/layout.tsx` | Khung chung của mọi trang: font chữ, tiêu đề tab trình duyệt. |
 | `src/app/(app)/` | **Các trang có menu trái.** Thư mục `(app)` có ngoặc nên không hiện trên đường dẫn: `src/app/(app)/thue/page.tsx` là trang `/thue`. |
-| `src/app/(app)/layout.tsx` | Khung chung có menu trái; tên shop đang hiện ở góc trên menu. |
+| `src/app/(app)/layout.tsx` | Khung chung có menu trái; tên shop đang hiện ở góc trên menu, email người đăng nhập + nút Đăng xuất ở cuối menu. |
+| `src/app/dang-nhap/` | **Trang Đăng nhập** (`/dang-nhap`): `page.tsx` là khung trang, `login-form.tsx` là ô nhập và nút. |
+| `src/proxy.ts` | **Người gác cổng**: chạy trước mỗi lượt mở trang, chưa đăng nhập thì đưa về `/dang-nhap` (sau khi đăng nhập sẽ quay lại đúng trang định mở). |
+| `src/lib/auth/` | Đăng nhập/đăng xuất (`actions.ts`), kiểm tra ô nhập và câu báo lỗi tiếng Việt (`login.ts`), danh sách trang không cần đăng nhập (`paths.ts`). |
+| `src/lib/supabase/` | Kết nối tới Supabase (cơ sở dữ liệu + tài khoản). Thường không cần sửa. |
+| `src/components/layout/account-menu.tsx` | Khối email + nút Đăng xuất ở cuối menu trái. |
 | `src/app/(app)/page.tsx` | **Trang Tổng quan** (`/`, trang chủ), hiện dùng số liệu giả: thứ tự và cách xếp các khối nằm ở đây. |
 | `src/app/(app)/content`, `tao-noi-dung`, `nhan-su`, `thue`, `dong-tien`, `ket-noi` | Các trang "Đang xây dựng", mỗi trang ghi sẵn tính năng sẽ có. |
 | `src/components/layout/nav-items.ts` | **Danh sách mục menu trái**: thêm, bớt, đổi tên, đổi thứ tự, đổi biểu tượng ở đây. |
@@ -43,7 +48,7 @@
 | `src/lib/*.test.ts` | **Unit test**: kiểm tra tự động các công thức. Mỗi file `abc.ts` có file `abc.test.ts` đi kèm. |
 | `public/` | Ảnh, logo tĩnh. |
 | `.env.example` | **Mẫu** danh sách khóa bí mật cần có. Không chứa giá trị thật. |
-| `.env.local` | **Khóa bí mật thật** (sẽ tạo ở bước 0.4). Chỉ nằm trên máy bạn, không bao giờ lên GitHub. |
+| `.env.local` | **Khóa bí mật thật** (địa chỉ + khóa Supabase đã điền). Chỉ nằm trên máy bạn, không bao giờ lên GitHub. Sửa file này xong phải tắt `npm run dev` (`Ctrl + C`) và chạy lại mới có hiệu lực. |
 | `package.json` | Danh sách thư viện và các lệnh `npm run …`. |
 | `node_modules/` | Thư viện đã tải về. Không sửa. Lỡ xóa thì chạy `npm install` để tải lại. |
 
@@ -73,7 +78,23 @@
 
 **Vì sao số liệu hiện khung xám một chút rồi mới ra số?** Đây là chủ ý: khung trang (tiêu đề, menu) hiện ngay, phần số liệu tải sau. Nhờ vậy trang luôn mở nhanh, kể cả khi lấy dữ liệu từ Pancake mất vài giây.
 
-## 3. Nhờ Claude Code sửa hoặc thêm tính năng
+## 3. Tài khoản đăng nhập (Supabase)
+
+Hiện **chưa mở đăng ký công khai**: chỉ người được bạn tạo tài khoản mới vào được web. Mọi trang (trừ `/dang-nhap`) đều bắt đăng nhập.
+
+**Tạo tài khoản cho một người dùng:**
+1. Vào supabase.com → project **1Click** → menu trái **Authentication** → **Users**.
+2. Bấm **Add user** → **Create new user**.
+3. Nhập email và mật khẩu, **tích ô "Auto Confirm User"** (nếu không tích, người đó phải bấm link xác nhận trong email mới đăng nhập được).
+4. Bấm **Create user**, rồi gửi email + mật khẩu cho người đó (qua Zalo, nói họ đổi mật khẩu sau khi có tính năng đổi mật khẩu).
+
+**Quên mật khẩu / đổi mật khẩu cho ai đó:** Authentication → Users → bấm vào người đó → **Reset password** (gửi email đặt lại) hoặc xóa và tạo lại.
+
+**Khóa một người:** Authentication → Users → bấm dấu ⋮ ở dòng người đó → **Ban user** (hoặc **Delete user**).
+
+**Giữ nguyên cài đặt:** Authentication → Sign In / Providers → **Allow new users to sign up** đang **TẮT**. Đừng bật cho đến khi quyết định mở đăng ký công khai.
+
+## 4. Nhờ Claude Code sửa hoặc thêm tính năng
 
 Mẫu câu hay dùng:
 - *"Ở trang Tổng quan, đổi thẻ Doanh thu thành hiển thị thêm số đơn. Làm xong cho tôi xem cách kiểm tra."*
@@ -88,7 +109,7 @@ Mẫu câu hay dùng:
 
 Mẹo: mô tả **cái bạn thấy** và **cái bạn muốn thấy**, không cần biết code.
 
-## 4. Quay lại phiên bản cũ bằng git
+## 5. Quay lại phiên bản cũ bằng git
 
 Mỗi bước làm xong đều được lưu lại một "mốc" (commit).
 
@@ -98,7 +119,7 @@ Mỗi bước làm xong đều được lưu lại một "mốc" (commit).
 - **Quay lại một mốc cũ nhưng vẫn giữ lịch sử** (an toàn): nhờ Claude Code *"Hoàn tác commit <mã> giúp tôi"*. Lệnh dùng là `git revert <mã>`.
 - Không chắc chắn thì hỏi Claude Code trước, đừng tự chạy lệnh có chữ `--hard` hay `--force`.
 
-## 5. Mở rộng hệ thống
+## 6. Mở rộng hệ thống
 
 ### Quy tắc báo động tồn kho và đề xuất
 
@@ -116,6 +137,6 @@ Mỗi bước làm xong đều được lưu lại một "mốc" (commit).
 - Thêm mẫu KPI mới: *(Giai đoạn 6)*
 - Thêm nền tảng content mới: *(Giai đoạn 4)*
 
-## 6. Deploy bản mới lên Vercel
+## 7. Deploy bản mới lên Vercel
 
 *(Bổ sung ở Bước 0.7)*

@@ -19,7 +19,16 @@ interface Shop {
  * Khung chung của mọi trang sau khi đăng nhập: menu trái kiểu Pancake + nội dung.
  * Trên điện thoại, menu thu vào nút ☰ ở thanh trên cùng.
  */
-export function AppShell({ shop, children }: { shop: Shop; children: React.ReactNode }) {
+export function AppShell({
+  shop,
+  account,
+  children,
+}: {
+  shop: Shop;
+  /** Khối tài khoản (email + Đăng xuất) ở cuối menu, do layout máy chủ truyền vào. */
+  account?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -35,7 +44,7 @@ export function AppShell({ shop, children }: { shop: Shop; children: React.React
     <div className="flex min-h-dvh">
       {/* Menu cố định bên trái trên màn hình lớn */}
       <aside className="sticky top-0 hidden h-dvh w-56 shrink-0 border-r bg-card lg:block">
-        <Sidebar shop={shop} pathname={pathname} />
+        <Sidebar shop={shop} account={account} pathname={pathname} />
       </aside>
 
       {/* Menu trượt ra trên điện thoại */}
@@ -56,7 +65,12 @@ export function AppShell({ shop, children }: { shop: Shop; children: React.React
             >
               <XIcon className="size-5" />
             </button>
-            <Sidebar shop={shop} pathname={pathname} onNavigate={() => setMenuOpen(false)} />
+            <Sidebar
+              shop={shop}
+              account={account}
+              pathname={pathname}
+              onNavigate={() => setMenuOpen(false)}
+            />
           </aside>
         </div>
       )}
@@ -81,10 +95,12 @@ export function AppShell({ shop, children }: { shop: Shop; children: React.React
 
 function Sidebar({
   shop,
+  account,
   pathname,
   onNavigate,
 }: {
   shop: Shop;
+  account?: React.ReactNode;
   pathname: string;
   onNavigate?: () => void;
 }) {
@@ -120,6 +136,8 @@ function Sidebar({
           <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onNavigate} />
         ))}
       </ul>
+
+      {account && <div className="border-t px-1 py-2">{account}</div>}
     </nav>
   );
 }
