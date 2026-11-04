@@ -36,7 +36,10 @@ function sizeRank(size: string): number {
   return i === -1 ? SIZE_ORDER.length : i;
 }
 
-export function compareVariants(a: StockAnalysis, b: StockAnalysis): number {
+export function compareVariants(
+  a: { item: { variant?: string | null } },
+  b: { item: { variant?: string | null } },
+): number {
   const va = splitVariant(a.item.variant);
   const vb = splitVariant(b.item.variant);
   return (

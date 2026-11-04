@@ -355,6 +355,45 @@ describe("Dữ liệu bán hàng từ Pancake (chỉ đọc, theo shop)", () => 
   });
 });
 
+describe("Hàng sắp về (Chủ/Quản lý nhập)", () => {
+  const row = (org_id: string) => ({ org_id, variation_id: "v-A", quantity: 40, eta: "2026-12-01" });
+
+  it("Chủ shop A thêm, sửa, xóa được hàng sắp về của shop mình", async () => {
+    const ins = await ownerA.from("incoming_stock").insert(row(orgA)).select("id").single();
+    expect(ins.error).toBeNull();
+    const upd = await ownerA.from("incoming_stock").update({ quantity: 50 }).eq("id", ins.data!.id).select("quantity");
+    expect(upd.data).toEqual([{ quantity: 50 }]);
+    const del = await ownerA.from("incoming_stock").delete().eq("id", ins.data!.id).select("id");
+    expect(del.data).toHaveLength(1);
+  });
+
+  it("Nhân viên xem được nhưng không thêm/xóa được", async () => {
+    await admin.from("incoming_stock").insert(row(orgA));
+    const read = await staffA.from("incoming_stock").select("quantity");
+    expect(read.data).toEqual([{ quantity: 40 }]);
+    const ins = await staffA.from("incoming_stock").insert(row(orgA));
+    expect(ins.error).not.toBeNull();
+    const del = await staffA.from("incoming_stock").delete().eq("org_id", orgA).select("id");
+    expect(del.data ?? []).toEqual([]);
+  });
+
+  it("shop B không thấy, không thêm vào shop A; database chặn số lượng vô lý", async () => {
+    const read = await ownerB.from("incoming_stock").select("id").eq("org_id", orgA);
+    expect(read.data).toEqual([]);
+    const ins = await ownerB.from("incoming_stock").insert(row(orgA));
+    expect(ins.error).not.toBeNull();
+    const bad = await ownerA.from("incoming_stock").insert({ ...row(orgA), quantity: 0 });
+    expect(bad.error).not.toBeNull();
+  });
+
+  it("cấu hình kế hoạch đặt hàng: Chủ lưu được, database chặn mức 2 ≤ mức 1", async () => {
+    const ok = await ownerA.from("inventory_settings").update({ moq_per_size: 25, tier3_days: 15 }).eq("org_id", orgA).select("moq_per_size");
+    expect(ok.data).toEqual([{ moq_per_size: 25 }]);
+    const bad = await ownerA.from("inventory_settings").update({ tier1_qty: 200, tier2_qty: 150 }).eq("org_id", orgA);
+    expect(bad.error).not.toBeNull();
+  });
+});
+
 describe("Người chưa đăng nhập", () => {
   it("không đọc được gì", async () => {
     const anon = createClient(URL, PUBLISHABLE, noSession);
@@ -366,7 +405,7 @@ describe("Người chưa đăng nhập", () => {
     expect(conns.data ?? []).toEqual([]);
     const settings = await anon.from("inventory_settings").select("org_id");
     expect(settings.data ?? []).toEqual([]);
-    for (const table of ["products", "orders", "order_items", "sync_state"]) {
+    for (const table of ["products", "orders", "order_items", "sync_state", "incoming_stock"]) {
       const r = await anon.from(table).select("org_id");
       expect(r.data ?? []).toEqual([]);
     }

@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { LoaderCircleIcon, SlidersHorizontalIcon, XIcon } from "lucide-react";
 import { SETTING_FIELDS } from "@/lib/inventory/settings";
 import { saveStockRules, type SettingsState } from "@/lib/inventory/settings-actions";
-import type { StockRules } from "@/lib/inventory/stock";
+import type { ShopRules } from "@/lib/inventory/settings";
 import { cn } from "@/lib/utils";
 
 /** Nút "Cấu hình" + khung chỉnh các con số tồn kho. Không phải Chủ shop thì chỉ xem. */
@@ -13,7 +13,7 @@ export function StockSettings({
   canEdit,
   isDefault,
 }: {
-  rules: StockRules;
+  rules: ShopRules;
   canEdit: boolean;
   isDefault: boolean;
 }) {
@@ -50,7 +50,7 @@ export function StockSettings({
               <h2 className="text-[15px] font-semibold">Cấu hình tồn kho</h2>
               <p className="text-sm text-muted-foreground">
                 {canEdit
-                  ? "Các con số dùng để tính báo động sản xuất và đề xuất. Đơn vị: ngày."
+                  ? "Các con số dùng để lập kế hoạch đặt hàng (cuối tháng, ngày 16, ngày 10, ngày 20) và báo cần sản xuất ngay."
                   : "Chỉ Chủ shop mới sửa được các con số này."}
                 {isDefault && " Shop đang dùng số mặc định."}
               </p>
@@ -92,7 +92,7 @@ export function StockSettings({
                           error && "border-destructive",
                         )}
                       />
-                      <span className="text-sm text-muted-foreground">ngày</span>
+                      <span className="text-sm text-muted-foreground">{f.unit}</span>
                     </div>
                     {error && <p className="text-xs text-destructive">{error}</p>}
                     <p id={`${f.key}-help`} className="text-xs text-muted-foreground">

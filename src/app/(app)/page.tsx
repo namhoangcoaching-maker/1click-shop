@@ -25,7 +25,9 @@ import { SummaryCards } from "@/components/overview/summary-cards";
 import { TopProducts } from "@/components/overview/top-products";
 import { compareLabel, formatDateTimeVN, formatRangeVN, resolveFilter, todayInVN } from "@/lib/date-range";
 import { formatNumber } from "@/lib/format";
-import { groupStockAlarms } from "@/lib/inventory/alarms";
+import { toPlanItems } from "@/lib/inventory/incoming";
+import { getIncoming } from "@/lib/inventory/incoming-db";
+import { buildOrderPlan } from "@/lib/inventory/plan";
 import { getShopStockRules } from "@/lib/inventory/settings-db";
 import { analyzeInventory, summarizeInventory, type StockAnalysis } from "@/lib/inventory/stock";
 import { getCurrentOrg } from "@/lib/org/current";
@@ -37,26 +39,10 @@ export const metadata: Metadata = { title: "Tổng quan" };
 const INVENTORY_HREF = "/ton-kho";
 const PANCAKE_URL = "https://pos.pages.fm";
 
-/** Tên mẫu (không lặp lại khi nhiều size cùng mẫu). */
-function productNames(list: StockAnalysis[]): string[] {
-  return [...new Set(list.map((a) => a.item.name))];
-}
-
 /** "Dữ liệu cần kiểm tra": tự phát hiện từ dữ liệu Pancake đã đồng bộ. */
-function dataIssues(data: RealOverview, stock: StockAnalysis[], defaultLeadTimeDays: number): DataIssue[] {
-  const noLeadTime = productNames(stock.filter((a) => a.leadTimeIsDefault));
+function dataIssues(data: RealOverview, stock: StockAnalysis[]): DataIssue[] {
   const noCost = stock.filter((a) => a.item.costPrice === null && a.item.stock > 0);
   const issues: DataIssue[] = [];
-  if (noLeadTime.length > 0) {
-    issues.push({
-      title: `${noLeadTime.length} mẫu chưa ghi thời gian sản xuất`,
-      impact: `Đang tạm tính ${defaultLeadTimeDays} ngày (số mặc định trong Tồn kho → Cấu hình), báo động sản xuất có thể sớm hoặc muộn hơn thực tế.`,
-      howToFix:
-        "Vào Pancake POS → Sản phẩm → mở sản phẩm → ô Ghi chú nội bộ, ghi “SX: 15” (15 là số ngày từ lúc đặt xưởng tới lúc hàng về).",
-      items: noLeadTime,
-      fixUrl: PANCAKE_URL,
-    });
-  }
   if (noCost.length > 0) {
     issues.push({
       title: `${noCost.length} mã còn hàng chưa có giá vốn`,
@@ -118,7 +104,10 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
   const active = data.stock.filter((i) => !i.inactive);
   const stock = analyzeInventory(active, today, rules);
   const inventory = summarizeInventory(active);
-  const urgentProducts = groupStockAlarms(stock).length;
+  const incoming = await getIncoming(org.id);
+  const plan = buildOrderPlan(toPlanItems(active, incoming, rules.velocityWindowDays, today), today, rules);
+  const urgentPlan = plan.urgent.filter((p) => !p.slow);
+  const nextDay = plan.days.find((d) => d.products.some((p) => !p.slow));
   const stats = data.stats;
   const revenue = stats?.metrics.find((m) => m.key === "revenue")?.value ?? 0;
   const recommendations = buildRecommendations({
@@ -127,6 +116,14 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
     adCosts: [],
     stock,
     inventoryHref: INVENTORY_HREF,
+    plan: {
+      urgent: urgentPlan,
+      nextDay: nextDay && {
+        label: nextDay.day.label,
+        date: nextDay.day.date,
+        products: nextDay.products.filter((p) => !p.slow),
+      },
+    },
   });
 
   const datesText = filter.previousRange
@@ -152,7 +149,7 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
 
       <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <Recommendations items={recommendations} />
-        <DataWarnings issues={dataIssues(data, stock, rules.defaultLeadTimeDays)} />
+        <DataWarnings issues={dataIssues(data, stock)} />
       </div>
 
       {data.statsError && (
@@ -166,7 +163,7 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
         closed={stats.closedOrders}
         returned={stats.returnedOrders}
         inventory={inventory}
-        urgentCount={urgentProducts}
+        urgentCount={urgentPlan.length}
         inventoryHref={INVENTORY_HREF}
       />
       )}

@@ -7,6 +7,7 @@
  */
 import { formatDateVN } from "@/lib/date-range";
 import { groupStockAlarms } from "@/lib/inventory/alarms";
+import type { ProductSuggestion } from "@/lib/inventory/plan";
 import type { StockAnalysis } from "@/lib/inventory/stock";
 import { formatDecimal, formatNumber, formatPercent, formatVND, ratio } from "@/lib/format";
 import type { AdChannelCost, TopProduct } from "./types";
@@ -52,6 +53,11 @@ export interface RecommendationInput {
   stock: StockAnalysis[];
   /** Đường dẫn trang chi tiết tồn kho. */
   inventoryHref: string;
+  /**
+   * Kế hoạch đặt hàng theo lịch (dữ liệu thật). Có thì báo theo kế hoạch: "cần sản xuất ngay"
+   * và lần đặt sắp tới; không có thì dùng cách báo cũ theo trạng thái tồn kho (dữ liệu thử).
+   */
+  plan?: { urgent: ProductSuggestion[]; nextDay?: { label: string; date: string; products: ProductSuggestion[] } };
 }
 
 function stockReason(a: StockAnalysis): string {
@@ -77,68 +83,116 @@ export function buildRecommendations(
   const result: Recommendation[] = [];
   const stockLink = { href: input.inventoryHref, label: "Xem trang Tồn kho" };
 
+  if (input.plan) {
+    // 1. Theo kế hoạch đặt hàng: cần sản xuất ngay + lần đặt sắp tới.
+    const { urgent, nextDay } = input.plan;
+    if (urgent.length > 0) {
+      const shown = urgent.slice(0, rules.maxListed);
+      result.push({
+        id: "restock-urgent",
+        priority: "urgent",
+        category: "restock",
+        title: `${urgent.length} mẫu cần sản xuất ngay`,
+        reasons: [
+          ...shown.map(
+            (p) =>
+              `${p.name}: đợi tới ngày đặt kế tiếp sẽ bán âm kho quá giới hạn (` +
+              p.variants
+                .filter((v) => v.suggested > 0)
+                .map((v) => `${v.item.variant ?? v.item.sku} hết ${v.stockout ? formatDateVN(v.stockout).slice(0, 5) : "—"}`)
+                .join(", ") +
+              ")",
+          ),
+          ...(urgent.length > shown.length ? [`và ${urgent.length - shown.length} mẫu khác – xem trang Tồn kho`] : []),
+        ],
+        actions: shown.map(
+          (p) => `Đặt ngay ${formatNumber(p.total)} cái ${p.name} (SX ${p.leadTimeDays} ngày, về ~${formatDateVN(p.arrival).slice(0, 5)})`,
+        ),
+        link: stockLink,
+      });
+    }
+    if (nextDay && nextDay.products.length > 0) {
+      const total = nextDay.products.reduce((s, p) => s + p.total, 0);
+      result.push({
+        id: "restock-soon",
+        priority: "important",
+        category: "restock",
+        title: `${nextDay.label} (${formatDateVN(nextDay.date).slice(0, 5)}): đặt ${nextDay.products.length} mẫu, ${formatNumber(total)} cái`,
+        reasons: [
+          ...nextDay.products.slice(0, rules.maxListed).map((p) => `${p.name}: gợi ý ${formatNumber(p.total)} cái`),
+          ...(nextDay.products.length > rules.maxListed
+            ? [`và ${nextDay.products.length - rules.maxListed} mẫu khác – xem trang Tồn kho`]
+            : []),
+        ],
+        actions: ["Xem gợi ý từng size ở trang Tồn kho, đặt xưởng rồi bấm “Đã đặt” để 1Click tính hàng sắp về"],
+        link: stockLink,
+      });
+    }
+  } else {
   // 1. Sắp hết hàng: gom theo MẪU (một size thiếu là báo cả mẫu), giống trang Tồn kho.
-  const groups = groupStockAlarms(input.stock);
-  if (groups.length > 0) {
-    const shown = groups.slice(0, rules.maxListed);
-    const sizes = groups.reduce((n, g) => n + g.alarmCount, 0);
-    result.push({
-      id: "restock-urgent",
-      priority: "urgent",
-      category: "restock",
-      title:
-        sizes === groups.length
-          ? `${groups.length} mã cần sản xuất ngay`
-          : `${groups.length} mẫu cần sản xuất ngay (${sizes} màu/size thiếu)`,
-      reasons: [
-        ...shown.map((g) =>
+    const groups = groupStockAlarms(input.stock);
+    if (groups.length > 0) {
+      const shown = groups.slice(0, rules.maxListed);
+      const sizes = groups.reduce((n, g) => n + g.alarmCount, 0);
+      result.push({
+        id: "restock-urgent",
+        priority: "urgent",
+        category: "restock",
+        title:
+          sizes === groups.length
+            ? `${groups.length} mã cần sản xuất ngay`
+            : `${groups.length} mẫu cần sản xuất ngay (${sizes} màu/size thiếu)`,
+        reasons: [
+          ...shown.map((g) =>
+            g.variants.length === 1
+              ? stockReason(g.variants[0])
+              : `${g.name}: ${g.alarmCount}/${g.variants.length} size thiếu – ` +
+                g.variants
+                  .filter((v) => v.status === "out" || v.status === "urgent")
+                  .map((v) =>
+                    v.status === "out"
+                      ? `${v.item.variant ?? v.item.sku} đã hết`
+                      : `${v.item.variant ?? v.item.sku} đủ bán ${formatDecimal(v.daysOfStock)} ngày`,
+                  )
+                  .join(", "),
+          ),
+          ...(groups.length > shown.length ? [`và ${groups.length - shown.length} mẫu khác – xem trang Tồn kho`] : []),
+        ],
+        actions: shown.map((g) =>
           g.variants.length === 1
-            ? stockReason(g.variants[0])
-            : `${g.name}: ${g.alarmCount}/${g.variants.length} size thiếu – ` +
+            ? `Đặt sản xuất ngay ${formatNumber(g.totalSuggested)} cái ${g.name} (${g.variants[0].item.sku})`
+            : `Đặt sản xuất ngay ${formatNumber(g.totalSuggested)} cái ${g.name} (` +
               g.variants
-                .filter((v) => v.status === "out" || v.status === "urgent")
-                .map((v) =>
-                  v.status === "out"
-                    ? `${v.item.variant ?? v.item.sku} đã hết`
-                    : `${v.item.variant ?? v.item.sku} đủ bán ${formatDecimal(v.daysOfStock)} ngày`,
-                )
-                .join(", "),
+                .filter((v) => v.suggestedQuantity > 0)
+                .map((v) => `${v.item.variant ?? v.item.sku}: ${formatNumber(v.suggestedQuantity)}`)
+                .join(", ") +
+              ")",
         ),
-        ...(groups.length > shown.length ? [`và ${groups.length - shown.length} mẫu khác – xem trang Tồn kho`] : []),
-      ],
-      actions: shown.map((g) =>
-        g.variants.length === 1
-          ? `Đặt sản xuất ngay ${formatNumber(g.totalSuggested)} cái ${g.name} (${g.variants[0].item.sku})`
-          : `Đặt sản xuất ngay ${formatNumber(g.totalSuggested)} cái ${g.name} (` +
-            g.variants
-              .filter((v) => v.suggestedQuantity > 0)
-              .map((v) => `${v.item.variant ?? v.item.sku}: ${formatNumber(v.suggestedQuantity)}`)
-              .join(", ") +
-            ")",
-      ),
-      link: stockLink,
-    });
-  }
+        link: stockLink,
+      });
+    }
 
-  const soon = input.stock.filter((a) => a.status === "soon");
-  if (soon.length > 0) {
-    const shown = soon.slice(0, rules.maxListed);
-    result.push({
-      id: "restock-soon",
-      priority: "important",
-      category: "restock",
-      title: `${soon.length} mã sắp đến hạn đặt sản xuất`,
-      reasons: [
-        ...shown.map(
-          (a) =>
-            `${a.item.name}: đủ bán ${formatDecimal(a.daysOfStock)} ngày, ` +
-            `phải đặt chậm nhất ${a.orderBy ? formatDateVN(a.orderBy) : "—"}`,
-        ),
-        ...moreSuffix(soon.length, shown.length),
-      ],
-      actions: ["Lên kế hoạch sản xuất trong tuần này để không bị đứt hàng"],
-      link: stockLink,
-    });
+    const soon = input.stock.filter((a) => a.status === "soon");
+    if (soon.length > 0) {
+      const shown = soon.slice(0, rules.maxListed);
+      result.push({
+        id: "restock-soon",
+        priority: "important",
+        category: "restock",
+        title: `${soon.length} mã sắp đến hạn đặt sản xuất`,
+        reasons: [
+          ...shown.map(
+            (a) =>
+              `${a.item.name}: đủ bán ${formatDecimal(a.daysOfStock)} ngày, ` +
+              `phải đặt chậm nhất ${a.orderBy ? formatDateVN(a.orderBy) : "—"}`,
+          ),
+          ...moreSuffix(soon.length, shown.length),
+        ],
+        actions: ["Lên kế hoạch sản xuất trong tuần này để không bị đứt hàng"],
+        link: stockLink,
+      });
+    }
+
   }
 
   // 2. Sản phẩm bán chạy nhất: tập trung content, phát triển sản phẩm tương tự.
