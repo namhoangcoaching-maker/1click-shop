@@ -2,7 +2,7 @@
 
 > File này luôn được cập nhật sau mỗi bước. Nếu thấy chỗ nào không khớp với thực tế, hãy nhắn Claude Code: *"HUONG_DAN.md đang sai ở mục …, sửa lại giúp tôi"*.
 
-**Tiến độ:** Giai đoạn 0 – Bước 0.1 (khởi tạo dự án) ✅ · Bước 0.2 (hệ thống thiết kế) ✅ · Bước 0.3 (menu trái) ✅ · Bước 0.4 (đăng nhập email, đợt 1) ✅ · Bước 0.5 (nhiều shop + khóa bảo vệ dữ liệu) ✅
+**Tiến độ:** Giai đoạn 0 – Bước 0.1 (khởi tạo dự án) ✅ · Bước 0.2 (hệ thống thiết kế) ✅ · Bước 0.3 (menu trái) ✅ · Bước 0.4 (đăng nhập email, đợt 1) ✅ · Bước 0.5 (nhiều shop + khóa bảo vệ dữ liệu) ✅ · Bước 0.6 (trang Kết nối Pancake POS) ✅
 
 ---
 
@@ -18,8 +18,9 @@
 | `src/app/(app)/layout.tsx` | Khung chung có menu trái: tên shop + vai trò (đọc từ database) ở góc trên, email + nút Đăng xuất ở cuối menu. |
 | `src/components/layout/shop-card.tsx` | Ô tên shop + vai trò (Chủ shop / Quản lý / Nhân viên) ở đầu menu trái. |
 | `src/components/layout/no-org-notice.tsx` | Dải thông báo vàng "Tài khoản chưa được gắn vào shop". |
-| `src/lib/org/` | Lấy shop của người đang đăng nhập (`current.ts`), tên vai trò tiếng Việt (`roles.ts`), **test khóa bảo vệ dữ liệu** trên database thật (`rls.dbtest.ts`). |
-| `supabase/migrations/` | **Cấu trúc database**, mỗi file `.sql` là một lần thay đổi, đánh số thứ tự. `0001_organizations.sql`: bảng Doanh nghiệp, Thành viên và các khóa bảo vệ. Không sửa file đã chạy rồi; muốn đổi thì nhờ Claude Code tạo file mới. |
+| `src/lib/org/` | Lấy shop của người đang đăng nhập (`current.ts`), tên vai trò tiếng Việt (`roles.ts`). |
+| `src/lib/rls.dbtest.ts` | **Test khóa bảo vệ dữ liệu** trên database thật, mỗi bảng một nhóm test. |
+| `supabase/migrations/` | **Cấu trúc database**, mỗi file `.sql` là một lần thay đổi, đánh số thứ tự. `0001_organizations.sql`: bảng Doanh nghiệp, Thành viên và các khóa bảo vệ. `0002_connections.sql`: bảng Kết nối (khóa Pancake đã mã hóa). Không sửa file đã chạy rồi; muốn đổi thì nhờ Claude Code tạo file mới. |
 | `scripts/` | Lệnh quản trị chạy trên máy: áp cấu trúc database (`db-migrate.mjs`), gắn người vào shop (`db-add-member.mjs`). |
 | `src/app/dang-nhap/` | **Trang Đăng nhập** (`/dang-nhap`): `page.tsx` là khung trang, `login-form.tsx` là ô nhập và nút. |
 | `src/proxy.ts` | **Người gác cổng**: chạy trước mỗi lượt mở trang, chưa đăng nhập thì đưa về `/dang-nhap` (sau khi đăng nhập sẽ quay lại đúng trang định mở). |
@@ -27,7 +28,11 @@
 | `src/lib/supabase/` | Kết nối tới Supabase (cơ sở dữ liệu + tài khoản). Thường không cần sửa. |
 | `src/components/layout/account-menu.tsx` | Khối email + nút Đăng xuất ở cuối menu trái. |
 | `src/app/(app)/page.tsx` | **Trang Tổng quan** (`/`, trang chủ), hiện dùng số liệu giả: thứ tự và cách xếp các khối nằm ở đây. |
-| `src/app/(app)/content`, `tao-noi-dung`, `nhan-su`, `thue`, `dong-tien`, `ket-noi` | Các trang "Đang xây dựng", mỗi trang ghi sẵn tính năng sẽ có. |
+| `src/app/(app)/content`, `tao-noi-dung`, `nhan-su`, `thue`, `dong-tien` | Các trang "Đang xây dựng", mỗi trang ghi sẵn tính năng sẽ có. |
+| `src/app/(app)/ket-noi/` | **Trang Kết nối** (`/ket-noi`): `page.tsx` khung trang + danh sách "Sắp có", `pancake-form.tsx` ô dán khóa Pancake và nút Kiểm tra & lưu. |
+| `src/lib/connections/` | Lưu / ngắt kết nối (`actions.ts`, chỉ Chủ shop), đọc trạng thái kết nối (`queries.ts`, không bao giờ đọc khóa). |
+| `src/lib/pancake/shops.ts` | Gọi Pancake POS để kiểm tra khóa (lệnh "Thông tin cửa hàng") và câu báo lỗi tiếng Việt. Tài liệu API Pancake: https://docs.pancake.biz/pos/api/en |
+| `src/lib/crypto/secret-box.ts` | **Mã hóa khóa API của khách** trước khi lưu (AES-256-GCM, dùng `ENCRYPTION_KEY`). |
 | `src/components/layout/nav-items.ts` | **Danh sách mục menu trái**: thêm, bớt, đổi tên, đổi thứ tự, đổi biểu tượng ở đây. |
 | `src/components/layout/app-shell.tsx` | Giao diện menu trái và nút ☰ trên điện thoại. |
 | `src/components/overview/` | **Từng khối của trang Tổng quan**, mỗi khối một file: `summary-cards` (Hàng chốt, Hàng hoàn, Tồn kho), `order-sources` (Nguồn đơn), `cashflow-summary` (Dòng tiền), `tax-summary` (Thuế), `top-products` (Top 5 SP), `ad-costs` (Chi phí QC), `top-content` (Content), `staff-summary` (Nhân sự). |
@@ -77,7 +82,7 @@
 - Lỗi trên trang: Next.js hiện khung lỗi đỏ ngay trên trình duyệt; ngoài ra có thể nhấn `F12` → tab **Console**.
 - Cách nhanh nhất: copy nguyên đoạn lỗi, dán cho Claude Code kèm câu *"Tôi gặp lỗi này khi …"*.
 
-**Chạy test khóa bảo vệ dữ liệu trên database thật:** `npm run test:db` (cần mạng). Lệnh này tạo tạm vài tài khoản `@test.1click.local`, kiểm tra shop A không đọc/sửa được dữ liệu shop B, rồi tự xóa. Phải ra `13 passed` (hoặc nhiều hơn khi có thêm bảng).
+**Chạy test khóa bảo vệ dữ liệu trên database thật:** `npm run test:db` (cần mạng). Lệnh này tạo tạm vài tài khoản `@test.1click.local`, kiểm tra shop A không đọc/sửa được dữ liệu shop B, rồi tự xóa. Phải ra `20 passed` (hoặc nhiều hơn khi có thêm bảng).
 
 **Chạy unit test:** `npm test`. Dòng cuối phải là `Tests  N passed`. Nếu có dòng `failed` nghĩa là một công thức đang tính sai: đừng đưa lên mạng, dán kết quả cho Claude Code.
 
@@ -113,6 +118,16 @@ Database của web này là project Supabase **"Doanh nghiệp 1 người"** (m�
 
 **Giữ nguyên cài đặt:** Authentication → Sign In / Providers → **Allow new users to sign up** đang **TẮT**. Đừng bật cho đến khi quyết định mở đăng ký công khai.
 
+### Kết nối Pancake POS
+
+1. Trên Pancake POS: **Cấu hình → Ứng dụng**, khung **API KEY** bấm **Thêm mới**, sao chép khóa.
+2. Trên 1Click: menu **Kết nối** → dán khóa vào ô **Khóa API**. Shop ID để trống nếu khóa chỉ có một shop.
+3. Bấm **Kiểm tra & lưu**: 1Click gọi thử Pancake, khóa đúng mới lưu (đã mã hóa), sau đó chỉ hiện 4 ký tự cuối.
+- Chỉ **Chủ shop** thấy ô nhập và nút **Đổi khóa API / Ngắt kết nối**; Quản lý, Nhân viên chỉ xem trạng thái.
+- **Không bao giờ dán khóa Pancake vào khung chat** với Claude Code.
+
+**⚠️ `ENCRYPTION_KEY` trong `.env.local` là chìa khóa mở mọi khóa Pancake đã lưu.** Mất hoặc đổi nó thì mọi shop phải dán lại khóa Pancake. Hãy chép giá trị này lưu vào nơi an toàn (trình quản lý mật khẩu); khi đưa web lên Vercel (Bước 0.7) phải điền đúng giá trị này.
+
 ## 4. Nhờ Claude Code sửa hoặc thêm tính năng
 
 Mẫu câu hay dùng:
@@ -143,7 +158,7 @@ Mỗi bước làm xong đều được lưu lại một "mốc" (commit).
 ### Thay đổi cấu trúc database
 
 - Mọi thay đổi bảng nằm trong `supabase/migrations/`, áp lên Supabase bằng `npm.cmd run db:migrate` (file đã chạy rồi sẽ tự bỏ qua).
-- Mọi bảng dữ liệu shop sau này đều có cột `org_id` + khóa bảo vệ + test trong `src/lib/org/rls.dbtest.ts` (quy ước ghi ở đầu file `0001_organizations.sql`).
+- Mọi bảng dữ liệu shop sau này đều có cột `org_id` + khóa bảo vệ + test trong `src/lib/rls.dbtest.ts` (quy ước ghi ở đầu file `0001_organizations.sql`).
 
 ### Quy tắc báo động tồn kho và đề xuất
 

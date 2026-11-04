@@ -4,6 +4,7 @@ import {
   compareLabel,
   compareRange,
   daysUntil,
+  formatDateTimeVN,
   formatRangeVN,
   listDays,
   presetRange,
@@ -118,5 +119,12 @@ describe("resolveFilter", () => {
     const f = resolveFilter({ range: "last7", compare: "none" }, "2026-11-01");
     expect(f.range).toEqual({ from: "2026-10-26", to: "2026-11-01" });
     expect(f.previousRange).toBeNull();
+  });
+});
+
+describe("formatDateTimeVN", () => {
+  it("đổi giờ quốc tế sang giờ Việt Nam (+7)", () => {
+    expect(formatDateTimeVN("2026-11-04T12:44:53.226Z")).toBe("04/11/2026 19:44");
+    expect(formatDateTimeVN("2026-12-31T17:30:00Z")).toBe("01/01/2027 00:30");
   });
 });

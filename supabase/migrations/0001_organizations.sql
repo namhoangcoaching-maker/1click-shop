@@ -5,7 +5,7 @@
 --   1. Có cột  org_id uuid not null references public.organizations(id) on delete cascade
 --   2. Bật RLS:  alter table ... enable row level security;
 --   3. Policy đọc tối thiểu:  using (public.is_org_member(org_id))
---   4. Thêm test trong src/lib/org/rls.dbtest.ts chứng minh shop A không thấy dữ liệu shop B.
+--   4. Thêm test trong src/lib/rls.dbtest.ts chứng minh shop A không thấy dữ liệu shop B.
 -- =============================================================================
 
 create type public.org_role as enum ('owner', 'manager', 'staff');

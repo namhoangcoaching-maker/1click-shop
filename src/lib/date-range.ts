@@ -185,3 +185,21 @@ export function resolveFilter(
     compareLabel: compareLabel(range, compare),
   };
 }
+
+const dateTimeParts = new Intl.DateTimeFormat("en-GB", {
+  timeZone: TIMEZONE,
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/** Mốc thời gian (từ database, giờ quốc tế) → giờ Việt Nam "04/11/2026 19:44". */
+export function formatDateTimeVN(value: string | Date): string {
+  const p = Object.fromEntries(
+    dateTimeParts.formatToParts(new Date(value)).map((part) => [part.type, part.value]),
+  );
+  return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}`;
+}

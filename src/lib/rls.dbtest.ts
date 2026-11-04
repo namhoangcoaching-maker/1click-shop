@@ -1,5 +1,6 @@
 /**
  * Chứng minh khóa bảo vệ (RLS) trên database thật: shop A không đọc/sửa được dữ liệu shop B.
+ * Mỗi bảng dữ liệu shop mới phải có thêm một nhóm test ở đây.
  * Tạo tạm 3 tài khoản @test.1click.local + 2 shop, tự xóa hết khi xong.
  * Chạy: npm run test:db
  */
@@ -162,6 +163,66 @@ describe("Quyền trong cùng một shop", () => {
   });
 });
 
+describe("Kết nối Pancake (khóa đã mã hóa)", () => {
+  const row = (org_id: string) => ({
+    org_id,
+    provider: "pancake_pos",
+    external_id: "123",
+    external_name: "Shop thử",
+    secret_ciphertext: "v1:ban-ma-gia",
+    secret_hint: "••••1234",
+  });
+
+  beforeAll(async () => {
+    const { error } = await admin.from("connections").insert(row(orgB));
+    if (error) throw error;
+  });
+
+  it("Chủ shop A lưu được kết nối cho shop mình", async () => {
+    const { error } = await ownerA.from("connections").insert(row(orgA));
+    expect(error).toBeNull();
+  });
+
+  it("không ai đọc được cột bản mã khóa qua trình duyệt, kể cả Chủ", async () => {
+    const { error } = await ownerA.from("connections").select("secret_ciphertext");
+    expect(error).not.toBeNull();
+    const star = await ownerA.from("connections").select("*");
+    expect(star.error).not.toBeNull();
+  });
+
+  it("shop A không thấy kết nối của shop B", async () => {
+    const { data } = await ownerA.from("connections").select("org_id, secret_hint");
+    expect(data!.map((c) => c.org_id)).toEqual([orgA]);
+  });
+
+  it("shop A không ghi đè, không xóa được kết nối shop B", async () => {
+    await ownerA.from("connections").update({ external_id: "hack" }).eq("org_id", orgB);
+    await ownerA.from("connections").delete().eq("org_id", orgB);
+    const check = await admin.from("connections").select("external_id").eq("org_id", orgB).single();
+    expect(check.data!.external_id).toBe("123");
+  });
+
+  it("shop A không chèn kết nối vào shop B", async () => {
+    const { error } = await ownerA.from("connections").insert({ ...row(orgB), provider: "pancake_pos" });
+    expect(error).not.toBeNull();
+  });
+
+  it("Nhân viên xem được trạng thái nhưng không đổi, không xóa được", async () => {
+    const read = await staffA.from("connections").select("external_id");
+    expect(read.data).toEqual([{ external_id: "123" }]);
+    const upd = await staffA.from("connections").update({ external_id: "999" }).eq("org_id", orgA).select("id");
+    expect(upd.data ?? []).toEqual([]);
+    await staffA.from("connections").delete().eq("org_id", orgA);
+    const check = await admin.from("connections").select("external_id").eq("org_id", orgA).single();
+    expect(check.data!.external_id).toBe("123");
+  });
+
+  it("không chuyển được kết nối sang shop khác", async () => {
+    const { error } = await ownerA.from("connections").update({ org_id: orgB }).eq("org_id", orgA);
+    expect(error).not.toBeNull();
+  });
+});
+
 describe("Người chưa đăng nhập", () => {
   it("không đọc được gì", async () => {
     const anon = createClient(URL, PUBLISHABLE, noSession);
@@ -169,5 +230,7 @@ describe("Người chưa đăng nhập", () => {
     expect(orgs.data ?? []).toEqual([]);
     const members = await anon.from("memberships").select("user_id");
     expect(members.data ?? []).toEqual([]);
+    const conns = await anon.from("connections").select("id");
+    expect(conns.data ?? []).toEqual([]);
   });
 });
