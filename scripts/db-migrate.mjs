@@ -37,6 +37,10 @@ try {
       throw err;
     }
   }
+  if (applied) {
+    // Báo Supabase (PostgREST) đọc lại danh sách bảng ngay, tránh lỗi "Could not find the table … in the schema cache".
+    await client.query("notify pgrst, 'reload schema'");
+  }
   console.log(applied ? `Đã áp ${applied} file.` : "Database đã mới nhất, không có gì để áp.");
 } finally {
   await client.end();
