@@ -220,6 +220,17 @@ export interface TransactionRow {
   account: string | null;
   order_display_id: string | null;
   is_canceled: boolean;
+  /** Mã phiếu hiển thị trên Pancake (ví dụ IHE24776). */
+  display_id: string | null;
+  /** Mã thẻ gắn trên phiếu (Pancake chỉ trả mã, không trả tên). */
+  tag_ids: string[];
+  /** Thời điểm phát sinh khoản chi (shop chọn khi tạo phiếu). */
+  time_incurred: string | null;
+  /** "shop_transactions_order" (trả trước theo đơn), "debts" (hoàn cho đơn), null (phiếu tạo tay)… */
+  table_name: string | null;
+  /** null = VND; "USD" thì số tiền tính bằng cent. */
+  currency: string | null;
+  status: number | null;
 }
 
 /** Một dòng Thu chi của Pancake → dòng bảng cash_transactions. */
@@ -236,5 +247,11 @@ export function mapTransaction(raw: Raw): TransactionRow | null {
     account: raw.account == null ? null : String(raw.account),
     order_display_id: raw.ref_display_id == null ? null : String(raw.ref_display_id),
     is_canceled: raw.is_canceled === true,
+    display_id: str(raw.display_id),
+    tag_ids: Array.isArray(raw.tag_ids) ? (raw.tag_ids as unknown[]).filter((t): t is string => typeof t === "string" && t !== "") : [],
+    time_incurred: parsePancakeTime(raw.time_incurred),
+    table_name: str(raw.table_name),
+    currency: str(raw.currency),
+    status: raw.status == null ? null : int(raw.status),
   };
 }

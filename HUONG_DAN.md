@@ -35,7 +35,9 @@
 | `src/app/(app)/ket-noi/` | **Trang Kết nối** (`/ket-noi`): `page.tsx` khung trang + danh sách "Sắp có", `pancake-form.tsx` ô dán khóa Pancake và nút Kiểm tra & lưu. |
 | `src/lib/connections/` | Lưu / ngắt kết nối (`actions.ts`, chỉ Chủ shop), đọc trạng thái kết nối (`queries.ts`, không bao giờ đọc khóa). |
 | `src/lib/pancake/shops.ts` | Gọi Pancake POS để kiểm tra khóa (lệnh "Thông tin cửa hàng") và câu báo lỗi tiếng Việt. Tài liệu API Pancake: https://docs.pancake.biz/pos/api/en |
-| `src/app/(app)/dong-tien/page.tsx` | **Trang Dòng tiền** (`/dong-tien`): phần **Tiền về** (dự kiến 7 ngày tới; bảng chi tiết theo ngày/kênh bấm mới mở) + Chi phí, Công nợ, Thu – chi (Giai đoạn 3). |
+| `src/app/(app)/dong-tien/page.tsx` | **Trang Dòng tiền** (`/dong-tien`): phần **Tiền về** (dự kiến 7 ngày tới; bảng chi tiết theo ngày/kênh bấm mới mở) + **Kết quả theo tháng** (Lợi nhuận kinh doanh, Dòng tiền thực tế, Thẻ chi phí) + Công nợ (sau). |
+| `src/lib/finance/`, `src/components/finance/` | Tính và hiện Lợi nhuận kinh doanh / Dòng tiền thực tế theo tháng (`month.ts` có unit test), đặt tên thẻ phiếu chi (`tag-actions.ts`). |
+| `src/lib/fx/` | Tỷ giá USD Vietcombank theo ngày (đổi tiền Shopify), lưu bảng `fx_rates`. |
 | `src/app/(app)/bao-cao/page.tsx`, `src/components/report/daily-report.tsx` | **Báo cáo hằng ngày 8:00**: trang Báo cáo (30 ngày) và khối đầu trang Tổng quan. |
 | `src/lib/report/` | Ghép báo cáo (`build.ts`: kết quả hôm qua, tiền về, đặt hàng, việc cần làm) và lập/lưu báo cáo (`generate.ts`). |
 | `src/app/api/cron/daily-report/route.ts` | Địa chỉ lịch 8:00 gọi vào (đồng bộ nhanh rồi lập báo cáo cho mọi shop). |
@@ -161,12 +163,24 @@ Database của web này là project Supabase **"Doanh nghiệp 1 người"** (m�
 | TikTok | ngày khách nhận + 7 | tiền sàn trả |
 | Ngoại sàn qua SPX, J&T, Viettel Post… | ngày khách nhận + 3 | COD − phí ship (phí ship đã trả riêng trong Thu chi thì không trừ) |
 | Không qua đơn vị vận chuyển | ngày khách nhận | COD |
-| Chuyển khoản trước, Shopify | ngày giao dịch (Thu chi Pancake) | số tiền, đã trừ các dòng hủy/hoàn/đổi số tiền trả trước |
+| Chuyển khoản trước | ngày giao dịch (Thu chi Pancake) | số tiền, đã trừ các dòng hủy/hoàn/đổi số tiền trả trước |
+| Shopify (USD) | ngày giao dịch | đổi ra đồng theo **tỷ giá mua chuyển khoản Vietcombank** của ngày đó (lưu bảng `fx_rates`) |
 | Đã nhận rồi mới hoàn | **trừ** vào ngày đơn sang "Đã hoàn" | trừ tiền hàng đã cộng (hoàn một phần: theo phần hoàn) |
 
 - "Ngày khách nhận" = lần đầu đơn chuyển sang **Đã nhận** trên Pancake. Số **dự kiến** của ngày tới chỉ gồm đơn khách đã nhận; đơn đang giao sẽ cộng thêm khi khách nhận.
 - Muốn đổi số ngày của một kênh: nhờ Claude Code sửa `CASH_RULES` trong `src/lib/cash/compute.ts` (chưa có ô cấu hình).
 - Đây là ước tính theo luật; có thể lệch vài ngày với tiền thật về tài khoản.
+- **Phiếu chi có gắn thẻ** (Sản xuất, Quay chụp, Lương…) là **chi phí**, KHÔNG trừ vào Tiền về; chúng hiện tách từng loại ở phần "Kết quả theo tháng".
+
+### Kết quả theo tháng (trang Dòng tiền)
+
+- Chọn tháng bằng các nút "Tháng MM/YYYY" (6 tháng gần nhất).
+- **Lợi nhuận kinh doanh** = Doanh thu Pancake (đã trừ chiết khấu, hàng hoàn, phí sàn) − từng loại chi phí theo thẻ − Quảng cáo.
+- **Dòng tiền thực tế** = Tiền về trong tháng − từng loại chi phí theo thẻ − Phí ship trả riêng − Quảng cáo. Tháng đang chạy hiện thêm tiền về dự kiến tới cuối tháng.
+- Chi phí = **chỉ phiếu chi Pancake có gắn thẻ**, tính theo **ngày phát sinh** của phiếu. Phiếu Pancake tự sinh theo đơn (trả trước, hoàn, đổi số tiền) không phải chi phí. Trả xưởng / nhập hàng: tạo phiếu chi thẻ **Sản xuất** đúng số tiền trả (không dùng phiếu nhập hàng).
+- Bấm vào một loại chi phí để xem từng phiếu (ngày, mã phiếu, nội dung, số tiền).
+- **Thẻ chi phí**: Pancake chỉ cho biết mã thẻ, không cho tên → Chủ shop đặt tên thẻ một lần ở khung "Thẻ chi phí" (thẻ mới chưa đặt tên viền vàng, khung tự mở).
+- Quảng cáo: chưa kết nối (bước 3.2 Facebook/Instagram, 3.3 TikTok/Shopee). Lương từ chấm công: Giai đoạn 6; hiện phiếu chi thẻ Lương vẫn được tính.
 
 ### Cách tính số trên trang Tổng quan
 

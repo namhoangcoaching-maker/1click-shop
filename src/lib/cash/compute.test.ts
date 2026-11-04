@@ -128,3 +128,34 @@ describe("cashByDay", () => {
     expect(channelsOf(cashByDay(events, "2026-11-07", "2026-11-09"))).toEqual(["Shopee", "TikTok", "Chuyển khoản trước"]);
   });
 });
+
+describe("cashEvents – phiếu chi có thẻ, ngoại tệ", () => {
+  it("phiếu chi có thẻ (Sản xuất −30 triệu) KHÔNG trừ vào tiền về", () => {
+    const events = cashEvents(
+      [],
+      [{ posted_at: "2026-11-04T18:05:11Z", amount: -30_000_000, name: "Sản xuất", order_display_id: null, tag_ids: ["45f7"] }],
+    );
+    expect(events).toEqual([]);
+  });
+
+  it("trả trước bằng USD (Shopify, $82.00 = 8200 cent) đổi theo tỷ giá VCB của ngày đó", () => {
+    const events = cashEvents(
+      [],
+      [
+        { posted_at: "2026-11-04T08:00:00Z", amount: 8_200, name: "Trả trước", order_display_id: "42116", currency: "USD" },
+        { posted_at: "2026-11-05T08:00:00Z", amount: -1_000, name: "Hoàn", order_display_id: "42116", currency: "USD" },
+      ],
+      new Map([["2026-11-04", 25_500]]),
+    );
+    // $82 × 25.500 = 2.091.000 ₫; ngày 05/11 chưa có tỷ giá thì dùng ngày gần nhất trước đó
+    expect(events.map((e) => [e.date, e.amount, e.channel])).toEqual([
+      ["2026-11-04", 2_091_000, "Shopify (USD)"],
+      ["2026-11-05", -255_000, "Shopify (USD)"],
+    ]);
+  });
+
+  it("không có tỷ giá nào thì bỏ khoản USD (không cộng sai thành vài nghìn đồng)", () => {
+    const events = cashEvents([], [{ posted_at: "2026-11-04T08:00:00Z", amount: 8_200, name: "x", order_display_id: null, currency: "USD" }]);
+    expect(events).toEqual([]);
+  });
+});

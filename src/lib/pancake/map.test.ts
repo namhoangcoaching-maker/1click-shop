@@ -187,6 +187,31 @@ describe("lịch sử trạng thái, tiền về", () => {
 });
 
 describe("mapTransaction (Thu chi Pancake)", () => {
+  it("phiếu chi có thẻ (Sản xuất) như Pancake trả thật", () => {
+    expect(
+      mapTransaction({
+        id: "bf67",
+        display_id: "IHE24776",
+        name: "Sản xuất",
+        amount: -30_000_000,
+        type_transaction: 2,
+        tag_ids: ["45f7-f9ce-d213-b854-5492-1cfc-4019"],
+        posted_at: "2026-11-04T18:05:11",
+        time_incurred: "2026-11-04T18:04:53",
+        table_name: null,
+        currency: null,
+        status: 1,
+      }),
+    ).toMatchObject({
+      display_id: "IHE24776",
+      amount: -30_000_000,
+      tag_ids: ["45f7-f9ce-d213-b854-5492-1cfc-4019"],
+      time_incurred: "2026-11-04T18:04:53.000Z",
+      table_name: null,
+      status: 1,
+    });
+  });
+
   it("đọc khoản trả trước và khoản hoàn (âm)", () => {
     expect(
       mapTransaction({
@@ -208,6 +233,12 @@ describe("mapTransaction (Thu chi Pancake)", () => {
       account: "igo_178",
       order_display_id: "42035",
       is_canceled: false,
+      display_id: null,
+      tag_ids: [],
+      time_incurred: null,
+      table_name: null,
+      currency: null,
+      status: null,
     });
     expect(mapTransaction({ id: "t2", posted_at: null, inserted_at: "2026-11-04T10:00:00", amount: -500_000 })?.amount).toBe(-500_000);
     expect(mapTransaction({ id: "", posted_at: "2026-11-04T10:00:00" })).toBeNull();

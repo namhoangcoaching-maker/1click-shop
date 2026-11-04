@@ -2,7 +2,8 @@ import "server-only";
 import { addDays, type DateString } from "@/lib/date-range";
 import { createClient } from "@/lib/supabase/server";
 import type { AnySupabase } from "@/lib/supabase/types";
-import { cashByDay, cashEvents, type CashDay, type CashOrder, type CashTransaction } from "./compute";
+import { getUsdRates } from "@/lib/fx/rates";
+import { cashByDay, cashEvents, vnDate, type CashDay, type CashOrder, type CashTransaction } from "./compute";
 
 const PAGE = 1000;
 
@@ -59,7 +60,7 @@ export async function getCashDays(
       (s) =>
         s
           .from("cash_transactions")
-          .select("posted_at, amount, name, order_display_id", { count: "exact" })
+          .select("posted_at, amount, name, order_display_id, tag_ids, currency", { count: "exact" })
           .eq("org_id", orgId)
           .gte("posted_at", txStart)
           .lt("posted_at", endIso)
@@ -67,5 +68,7 @@ export async function getCashDays(
       supabase,
     ),
   ]);
-  return cashByDay(cashEvents(orders, transactions), from, to);
+  // Khoản trả trước bằng USD (Shopify): tỷ giá Vietcombank của từng ngày.
+  const usdRates = await getUsdRates(transactions.filter((t) => t.currency === "USD").map((t) => vnDate(t.posted_at)));
+  return cashByDay(cashEvents(orders, transactions, usdRates), from, to);
 }

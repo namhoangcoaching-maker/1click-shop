@@ -1,24 +1,28 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { ChevronDownIcon, HandCoinsIcon, ReceiptIcon, ScaleIcon, WalletIcon } from "lucide-react";
+import { ChevronDownIcon, HandCoinsIcon, TagsIcon, WalletIcon } from "lucide-react";
 import { CashTable, NextDaysList } from "@/components/cash/cash-in";
 import { NoDataPanel } from "@/components/dashboard/no-data-panel";
 import { Panel } from "@/components/dashboard/panel";
 import { Skeleton } from "@/components/dashboard/stat-card";
+import { MonthFinanceView, MonthSelector } from "@/components/finance/month-finance";
+import { TagNames } from "@/components/finance/tag-names";
 import { CASH_RULES } from "@/lib/cash/compute";
 import { getCashDays } from "@/lib/cash/data";
 import { addDays, todayInVN } from "@/lib/date-range";
+import { getMonthFinance } from "@/lib/finance/data";
+import { recentMonths, resolveMonth } from "@/lib/finance/month";
 import { formatVND } from "@/lib/format";
 import { getCurrentOrg } from "@/lib/org/current";
 
 export const metadata: Metadata = { title: "Dòng tiền" };
 
-/** Bảng chi tiết: số ngày xem lại và xem trước. */
+/** Bảng chi tiết tiền về: số ngày xem lại và xem trước. */
 const PAST_DAYS = 14;
 const FUTURE_DAYS = 10;
 
-export default function CashflowPage() {
+export default function CashflowPage({ searchParams }: PageProps<"/dong-tien">) {
   return (
     <main className="mx-auto w-full max-w-[1440px] space-y-4 px-4 py-4 md:px-6">
       <h1 className="text-xl font-bold">Dòng tiền</h1>
@@ -27,28 +31,61 @@ export default function CashflowPage() {
         <CashIn />
       </Suspense>
 
-      {/* Các phần còn lại của Dòng tiền (Giai đoạn 3). */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <NoDataPanel
-          title="Chi phí"
-          icon={ReceiptIcon}
-          stage="Giai đoạn 3"
-          note="Lương, quảng cáo từng kênh, phiếu chi Pancake, nhập hàng, phí sàn, phí vận chuyển shop trả."
-        />
-        <NoDataPanel
-          title="Công nợ"
-          icon={HandCoinsIcon}
-          stage="Giai đoạn 3"
-          note="Phải thu khách hàng, phải trả nhà cung cấp / xưởng."
-        />
-        <NoDataPanel
-          title="Thu – chi"
-          icon={ScaleIcon}
-          stage="Giai đoạn 3"
-          note="Kết quả thu trừ chi theo ngày và tháng, dự báo và cảnh báo sắp thiếu tiền."
-        />
-      </div>
+      <Suspense fallback={<Skeleton className="h-96 bg-card" />}>
+        <Month searchParams={searchParams} />
+      </Suspense>
+
+      <NoDataPanel
+        title="Công nợ"
+        icon={HandCoinsIcon}
+        stage="Giai đoạn 3"
+        note="Phải thu khách hàng, phải trả nhà cung cấp / xưởng."
+      />
     </main>
+  );
+}
+
+/** Lợi nhuận kinh doanh + Dòng tiền thực tế theo tháng, và tên thẻ phiếu chi. */
+async function Month({ searchParams }: Pick<PageProps<"/dong-tien">, "searchParams">) {
+  await connection();
+  const org = await getCurrentOrg();
+  if (!org) return null;
+  const today = todayInVN();
+  const month = resolveMonth((await searchParams).thang, today);
+  const { finance, pancakeError, tags } = await getMonthFinance(org.id, month, today);
+  const unnamed = tags.filter((t) => !t.name).length;
+
+  return (
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-[15px] font-semibold">Kết quả theo tháng</h2>
+        <MonthSelector months={recentMonths(today, 6)} current={month} />
+      </div>
+      <MonthFinanceView f={finance} pancakeError={pancakeError} />
+
+      <details className="group rounded-lg bg-card" open={unnamed > 0} suppressHydrationWarning>
+        <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2.5 [&::-webkit-details-marker]:hidden">
+          <TagsIcon className="size-4 text-primary" aria-hidden />
+          <span className="font-semibold">Thẻ chi phí</span>
+          <span className="text-sm text-muted-foreground">
+            {tags.length} thẻ{unnamed > 0 ? ` · ${unnamed} thẻ chưa đặt tên` : ""}
+          </span>
+          <ChevronDownIcon className="ml-auto size-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
+        </summary>
+        <div className="space-y-2 px-4 pb-4 text-sm">
+          <p className="text-muted-foreground">
+            Chi phí lấy từ <b>phiếu chi có gắn thẻ</b> trên Pancake (Thu chi): thẻ “Sản xuất” = trả xưởng / nhập hàng,
+            “Quay chụp”, “Phần mềm”, “Giao hàng”, “Mặt bằng”, “Lương”, “Khác”… Phiếu Pancake tự sinh theo đơn (trả trước,
+            hoàn, đổi số tiền) không phải chi phí. Pancake chỉ cho biết mã thẻ, nên Chủ shop đặt tên thẻ một lần ở đây.
+          </p>
+          {tags.length === 0 ? (
+            <p className="text-muted-foreground">Chưa có phiếu chi nào gắn thẻ.</p>
+          ) : (
+            <TagNames tags={tags} canEdit={org.role === "owner"} />
+          )}
+        </div>
+      </details>
+    </>
   );
 }
 
@@ -95,8 +132,12 @@ async function CashIn() {
               Ngoại sàn qua đơn vị vận chuyển (SPX, J&amp;T, Viettel Post…): COD trừ phí ship, về ngày khách nhận +{" "}
               {CASH_RULES.carrierDelay} ngày (phí ship đã trả riêng thì không trừ).
             </li>
-            <li>Khách chuyển khoản trước, Shopify: theo Thu chi Pancake, đúng ngày giao dịch (đã trừ hủy/hoàn).</li>
+            <li>
+              Khách chuyển khoản trước: theo Thu chi Pancake, đúng ngày giao dịch (đã trừ hủy/hoàn). Đơn Shopify bằng USD
+              đổi theo tỷ giá mua chuyển khoản Vietcombank của ngày đó.
+            </li>
             <li>Đã nhận rồi mới hoàn: trừ vào ngày đơn chuyển “Đã hoàn”.</li>
+            <li>Phiếu chi có thẻ (Sản xuất, Quay chụp…) là chi phí, không trừ vào tiền về.</li>
             <li>
               Số dự kiến chỉ gồm đơn khách đã nhận; đơn đang giao được cộng khi khách nhận. Là ước tính theo luật, có thể
               lệch vài ngày với tiền thật về tài khoản.

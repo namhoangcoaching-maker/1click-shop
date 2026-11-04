@@ -13,6 +13,7 @@
  *    (hoàn một phần: trừ theo tỷ lệ giá trị hàng hoàn).
  */
 import { addDays, type DateString } from "@/lib/date-range";
+import { rateOn } from "@/lib/fx/vcb";
 
 export const CASH_RULES = {
   /** Số ngày sàn trả tiền sau khi khách nhận, theo tên nguồn đơn trên Pancake. */
@@ -55,6 +56,10 @@ export interface CashTransaction {
   amount: number;
   name: string | null;
   order_display_id: string | null;
+  /** Phiếu có thẻ = chi phí (Sản xuất, Quay chụp…), KHÔNG phải tiền về. */
+  tag_ids?: string[];
+  /** null/"VND" hoặc "USD" (đơn Shopify, số tiền tính bằng cent). */
+  currency?: string | null;
 }
 
 export interface CashEvent {
@@ -85,8 +90,19 @@ function channelOf(o: CashOrder): { channel: string; delay: number; marketplace:
   return { channel: "Giao trực tiếp", delay: 0, marketplace: false };
 }
 
-/** Tất cả khoản tiền về (dương) và bị trừ (âm), mỗi khoản một ngày. */
-export function cashEvents(orders: CashOrder[], transactions: CashTransaction[]): CashEvent[] {
+/** Phiếu chi có thẻ (chi phí shop tự tạo) – tách khỏi tiền về. */
+export const isTaggedExpense = (t: CashTransaction) => (t.tag_ids?.length ?? 0) > 0;
+const isForeign = (t: CashTransaction) => t.currency != null && t.currency !== "VND";
+
+/**
+ * Tất cả khoản tiền về (dương) và bị trừ (âm), mỗi khoản một ngày.
+ * `usdRates`: tỷ giá USD→VND theo ngày (Vietcombank) cho khoản trả trước bằng USD (đơn Shopify, tính bằng cent).
+ */
+export function cashEvents(
+  orders: CashOrder[],
+  transactions: CashTransaction[],
+  usdRates: Map<DateString, number> = new Map(),
+): CashEvent[] {
   // Đơn đã trả phí ship riêng trong Thu chi: không trừ phí ship khỏi COD nữa.
   const feePaidSeparately = new Set(
     transactions.filter(isShippingFeeLine).map((t) => t.order_display_id).filter((x): x is string => x !== null),
@@ -115,8 +131,18 @@ export function cashEvents(orders: CashOrder[], transactions: CashTransaction[])
   }
 
   for (const t of transactions) {
-    if (isShippingFeeLine(t) || t.amount === 0) continue; // phí ship là tiền đi ra, thuộc Chi phí
-    events.push({ date: vnDate(t.posted_at), amount: t.amount, channel: "Chuyển khoản trước", kind: "prepaid" });
+    // Phí ship trả riêng, phiếu chi có thẻ: là tiền đi ra (Chi phí), không phải tiền về.
+    if (isShippingFeeLine(t) || isTaggedExpense(t) || t.amount === 0) continue;
+    let amount = t.amount;
+    const date = vnDate(t.posted_at);
+    if (isForeign(t)) {
+      // Đơn Shopify trả bằng USD (cent): đổi theo tỷ giá Vietcombank của ngày đó.
+      if (t.currency !== "USD") continue;
+      const rate = rateOn(usdRates, date);
+      if (rate === null) continue;
+      amount = Math.round((t.amount / 100) * rate);
+    }
+    events.push({ date, amount, channel: isForeign(t) ? "Shopify (USD)" : "Chuyển khoản trước", kind: "prepaid" });
   }
   return events;
 }
