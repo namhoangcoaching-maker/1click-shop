@@ -329,6 +329,24 @@ describe("Dữ liệu bán hàng từ Pancake (chỉ đọc, theo shop)", () => 
     expect(anon.data ?? []).toEqual([]);
   });
 
+  it("hàm số liệu Tổng quan (overview_orders, product_sales): chỉ ra dữ liệu shop mình", async () => {
+    const args = (org: string) => ({
+      p_org_id: org,
+      p_start: new Date(Date.now() - 86_400_000).toISOString(),
+      p_end: new Date(Date.now() + 60_000).toISOString(),
+      p_statuses: [3],
+    });
+    for (const fn of ["overview_orders", "product_sales"]) {
+      const mine = await ownerA.rpc(fn, args(orgA));
+      expect(mine.error).toBeNull();
+      expect(mine.data).toHaveLength(1);
+      const other = await ownerA.rpc(fn, args(orgB));
+      expect(other.data ?? []).toEqual([]);
+    }
+    const o = await ownerA.rpc("overview_orders", args(orgA));
+    expect(o.data![0]).toMatchObject({ order_id: "DON-A", total_price: 100, returned_value: 0 });
+  });
+
   it("không chèn được đơn giả vào shop B", async () => {
     const { error } = await ownerA
       .from("orders")

@@ -51,6 +51,24 @@ describe("buildRecommendations", () => {
     expect(recs.map((r) => r.id)).toContain("clearance");
   });
 
+  it("dữ liệu thật: gom theo mẫu, liệt kê size thiếu và số đặt từng size", () => {
+    const recs = buildRecommendations(
+      input({
+        stock: analyzeInventory(
+          [
+            stock({ sku: "V-S", productId: "V", name: "Vanis Skirt", variant: "Kem / S", stock: 3, soldInWindow: 48 }),
+            stock({ sku: "V-M", productId: "V", name: "Vanis Skirt", variant: "Kem / M", stock: 0, soldInWindow: 27 }),
+            stock({ sku: "V-L", productId: "V", name: "Vanis Skirt", variant: "Kem / L", stock: 40, soldInWindow: 30 }),
+          ],
+          TODAY,
+        ),
+      }),
+    );
+    expect(recs[0].title).toBe("1 mẫu cần sản xuất ngay (2 màu/size thiếu)");
+    expect(recs[0].reasons[0]).toBe("Vanis Skirt: 2/3 size thiếu – Kem / S đủ bán 1,9 ngày, Kem / M đã hết");
+    expect(recs[0].actions[0]).toMatch(/^Đặt sản xuất ngay \d+ cái Vanis Skirt \(Kem \/ S: \d+, Kem \/ M: \d+/);
+  });
+
   it("đề xuất tập trung content cho sản phẩm bán chạy và nhắc nếu nó sắp hết hàng", () => {
     const recs = buildRecommendations(
       input({

@@ -90,7 +90,7 @@ export function SummaryCards({
             className="mt-3 flex items-center gap-1.5 rounded-md bg-destructive/10 px-2.5 py-1.5 text-[13px] font-medium text-destructive hover:bg-destructive/15"
           >
             <OctagonAlertIcon className="size-3.5" aria-hidden />
-            {urgentCount} mã cần sản xuất ngay
+            {urgentCount} mẫu cần sản xuất ngay
           </Link>
         )}
       </Panel>

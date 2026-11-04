@@ -6,6 +6,7 @@
  * chi tiết hơn dựa trên chính các đề xuất này, không tự tính lại.
  */
 import { formatDateVN } from "@/lib/date-range";
+import { groupStockAlarms } from "@/lib/inventory/alarms";
 import type { StockAnalysis } from "@/lib/inventory/stock";
 import { formatDecimal, formatNumber, formatPercent, formatVND, ratio } from "@/lib/format";
 import type { AdChannelCost, TopProduct } from "./types";
@@ -76,18 +77,44 @@ export function buildRecommendations(
   const result: Recommendation[] = [];
   const stockLink = { href: input.inventoryHref, label: "Xem trang Tồn kho" };
 
-  // 1. Sắp hết hàng: tốc độ bán nhanh hơn khả năng sản xuất kịp.
-  const urgent = input.stock.filter((a) => a.status === "out" || a.status === "urgent");
-  if (urgent.length > 0) {
-    const shown = urgent.slice(0, rules.maxListed);
+  // 1. Sắp hết hàng: gom theo MẪU (một size thiếu là báo cả mẫu), giống trang Tồn kho.
+  const groups = groupStockAlarms(input.stock);
+  if (groups.length > 0) {
+    const shown = groups.slice(0, rules.maxListed);
+    const sizes = groups.reduce((n, g) => n + g.alarmCount, 0);
     result.push({
       id: "restock-urgent",
       priority: "urgent",
       category: "restock",
-      title: `${urgent.length} mã cần sản xuất ngay`,
-      reasons: [...shown.map(stockReason), ...moreSuffix(urgent.length, shown.length)],
-      actions: shown.map(
-        (a) => `Đặt sản xuất ngay ${formatNumber(a.suggestedQuantity)} cái ${a.item.name} (${a.item.sku})`,
+      title:
+        sizes === groups.length
+          ? `${groups.length} mã cần sản xuất ngay`
+          : `${groups.length} mẫu cần sản xuất ngay (${sizes} màu/size thiếu)`,
+      reasons: [
+        ...shown.map((g) =>
+          g.variants.length === 1
+            ? stockReason(g.variants[0])
+            : `${g.name}: ${g.alarmCount}/${g.variants.length} size thiếu – ` +
+              g.variants
+                .filter((v) => v.status === "out" || v.status === "urgent")
+                .map((v) =>
+                  v.status === "out"
+                    ? `${v.item.variant ?? v.item.sku} đã hết`
+                    : `${v.item.variant ?? v.item.sku} đủ bán ${formatDecimal(v.daysOfStock)} ngày`,
+                )
+                .join(", "),
+        ),
+        ...(groups.length > shown.length ? [`và ${groups.length - shown.length} mẫu khác – xem trang Tồn kho`] : []),
+      ],
+      actions: shown.map((g) =>
+        g.variants.length === 1
+          ? `Đặt sản xuất ngay ${formatNumber(g.totalSuggested)} cái ${g.name} (${g.variants[0].item.sku})`
+          : `Đặt sản xuất ngay ${formatNumber(g.totalSuggested)} cái ${g.name} (` +
+            g.variants
+              .filter((v) => v.suggestedQuantity > 0)
+              .map((v) => `${v.item.variant ?? v.item.sku}: ${formatNumber(v.suggestedQuantity)}`)
+              .join(", ") +
+            ")",
       ),
       link: stockLink,
     });
@@ -118,8 +145,11 @@ export function buildRecommendations(
   const top = input.topProducts.find((p) => p.linked);
   const topShare = top ? ratio(top.revenue, input.totalRevenue) : 0;
   if (top && topShare >= rules.minTopProductShare) {
-    const topStock = input.stock.find((a) => a.item.sku === top.sku);
-    const runningOut = topStock && (topStock.status === "out" || topStock.status === "urgent");
+    // Dữ liệu thật: so theo mẫu (mọi size); dữ liệu giả: so theo mã.
+    const topStock = input.stock.filter((a) =>
+      top.productId ? a.item.productId === top.productId : a.item.sku === top.sku,
+    );
+    const runningOut = topStock.some((a) => a.status === "out" || a.status === "urgent");
     result.push({
       id: "content-top-product",
       priority: "opportunity",

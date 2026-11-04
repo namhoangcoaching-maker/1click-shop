@@ -18,7 +18,7 @@ Dự án: web SaaS **1Click** giúp shop nhỏ ở Việt Nam quản trị vận
 - Tailwind 4, shadcn style base-nova (dựa trên Base UI, không phải Radix), Recharts, Vitest (`src/**/*.test.ts`).
 - Trang có menu nằm trong `src/app/(app)/`; menu ở `src/components/layout/nav-items.ts`.
 - **Mọi phép tính tiền/tồn kho/thuế do code làm và có unit test**; "Đề xuất của AI" là quy tắc trong code, AI chỉ diễn giải.
-- Số liệu hiện là **giả** (`src/lib/overview/demo-data.ts`); kiểu dữ liệu thật ở `src/lib/overview/types.ts`.
+- Số liệu Tổng quan/Tồn kho là **thật** (Pancake → Supabase). `demo-data.ts` đã xóa. Các khối Dòng tiền, Thuế, Content, Nhân sự, Quảng cáo hiện `NoDataPanel` (component cũ `cashflow-summary`, `tax-summary`, `top-content`, `staff-summary`, `ad-costs` giữ lại cho giai đoạn sau).
 
 ## Quyết định đã chốt
 
@@ -49,4 +49,5 @@ Dự án: web SaaS **1Click** giúp shop nhỏ ở Việt Nam quản trị vận
 - ✅ 1.2: Tồn kho số thật (`getRealInventory`: products + RPC `variation_sales` (security invoker, migration 0006) song song; số bán = đơn chốt − return_quantity; ẩn mã ngừng kinh doanh mặc định, `?all=1`; tồn âm → 0; `formatVelocity` "<0,1"). Sugar Crush: 426 mã, 33 ẩn, 47 báo động (nhiều mã bán <0,1/ngày vẫn báo hết hàng → có thể cần ngưỡng tối thiểu, chờ chủ dự án quyết). Mọi mã đang dùng SX mặc định 7 ngày (chưa ghi "SX:").
 - Hiệu năng: database ở Sydney, mỗi lượt PostgREST từ VN ~250–500 ms → luôn hỏi song song; `vercel.json` regions `syd1`. Dev trên máy chậm (5–12 s/trang) là bình thường.
 - Báo động tồn kho **gom theo mẫu** (chủ dự án yêu cầu): `groupStockAlarms` theo `productId`, `<details>` xổ ra mọi size (sắp xếp màu rồi `SIZE_ORDER`). Sugar Crush: 35 mẫu / 47 size thiếu.
-- ⏭️ Tiếp theo: 1.3 Tổng quan số thật. Sau đó Giai đoạn 1 (đồng bộ đơn/sản phẩm/tồn kho từ Pancake; đọc bản mã bằng khóa secret ở máy chủ). Để sau: đăng nhập Google, trang đổi mật khẩu.
+- ✅ 1.3: Tổng quan số thật. Chủ dự án chốt: Doanh thu giống Pancake (đã trừ phí sàn), Lợi nhuận = Doanh thu − giá vốn; đơn hoàn không tính phí %, trừ phí cố định Shopee `RETURN_FEE_PER_ORDER` = 2.700 (PiShip theo Sapo, CHƯA xác nhận chính thức – nhờ chủ dự án đối chiếu). RPC `overview_orders`/`product_sales` (0007) chỉ gom, công thức ở `compute.ts`. Hàng hoàn tính theo ngày tạo đơn gốc. Nút Tải lại = `syncPancakeNow` + refresh. Recommendations gom restock theo mẫu.
+- ⏭️ Tiếp theo: chờ chủ dự án đối chiếu số với Pancake. Sau đó Giai đoạn 2 (báo cáo Telegram). Sau đó Giai đoạn 1 (đồng bộ đơn/sản phẩm/tồn kho từ Pancake; đọc bản mã bằng khóa secret ở máy chủ). Để sau: đăng nhập Google, trang đổi mật khẩu.

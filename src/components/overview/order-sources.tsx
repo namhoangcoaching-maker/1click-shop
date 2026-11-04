@@ -11,6 +11,7 @@ export function OrderSources({ rows }: { rows: OrderSourceRow[] }) {
   const totalPrevious = rows.reduce((sum, r) => sum + (r.revenue.previous ?? 0), 0);
   const totalProfit = rows.reduce((sum, r) => sum + r.profit, 0);
   const totalOrders = rows.reduce((sum, r) => sum + r.orders, 0);
+  const totalGross = rows.reduce((sum, r) => sum + r.gross, 0);
 
   return (
     <Panel
@@ -58,7 +59,7 @@ export function OrderSources({ rows }: { rows: OrderSourceRow[] }) {
                   <td className="px-3 py-2.5 text-right">{formatVND(row.profit)}</td>
                   <td className="px-3 py-2.5 text-right">{formatNumber(row.orders)}</td>
                   <td className="px-3 py-2.5 text-right">
-                    {formatVND(row.orders ? row.revenue.value / row.orders : 0)}
+                    {formatVND(row.orders ? row.gross / row.orders : 0)}
                   </td>
                   <td className="py-2.5 pl-3">
                     <div className="flex items-center gap-2">
@@ -84,7 +85,7 @@ export function OrderSources({ rows }: { rows: OrderSourceRow[] }) {
               <td className="px-3 py-2.5 text-right">{formatVND(totalProfit)}</td>
               <td className="px-3 py-2.5 text-right">{formatNumber(totalOrders)}</td>
               <td className="px-3 py-2.5 text-right">
-                {formatVND(totalOrders ? totalRevenue / totalOrders : 0)}
+                {formatVND(totalOrders ? totalGross / totalOrders : 0)}
               </td>
               <td className="py-2.5 pl-3" />
             </tr>

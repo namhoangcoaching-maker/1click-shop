@@ -2,7 +2,7 @@
 
 > File này luôn được cập nhật sau mỗi bước. Nếu thấy chỗ nào không khớp với thực tế, hãy nhắn Claude Code: *"HUONG_DAN.md đang sai ở mục …, sửa lại giúp tôi"*.
 
-**Tiến độ:** Giai đoạn 0 – Bước 0.1 (khởi tạo dự án) ✅ · Bước 0.2 (hệ thống thiết kế) ✅ · Bước 0.3 (menu trái) ✅ · Bước 0.4 (đăng nhập email, đợt 1) ✅ · Bước 0.5 (nhiều shop + khóa bảo vệ dữ liệu) ✅ · Bước 0.6 (trang Kết nối Pancake POS) ✅ · Cấu hình tồn kho theo shop ✅ · Bước 0.7 (GitHub + Vercel + tên miền) ✅ · **Giai đoạn 1** – Bước 1.1 (đồng bộ Pancake) ✅ · Bước 1.2 (Tồn kho số thật) ✅
+**Tiến độ:** Giai đoạn 0 – Bước 0.1 (khởi tạo dự án) ✅ · Bước 0.2 (hệ thống thiết kế) ✅ · Bước 0.3 (menu trái) ✅ · Bước 0.4 (đăng nhập email, đợt 1) ✅ · Bước 0.5 (nhiều shop + khóa bảo vệ dữ liệu) ✅ · Bước 0.6 (trang Kết nối Pancake POS) ✅ · Cấu hình tồn kho theo shop ✅ · Bước 0.7 (GitHub + Vercel + tên miền) ✅ · **Giai đoạn 1** – Bước 1.1 (đồng bộ Pancake) ✅ · Bước 1.2 (Tồn kho số thật) ✅ · Bước 1.3 (Tổng quan số thật) ✅
 
 ---
 
@@ -20,14 +20,17 @@
 | `src/components/layout/no-org-notice.tsx` | Dải thông báo vàng "Tài khoản chưa được gắn vào shop". |
 | `src/lib/org/` | Lấy shop của người đang đăng nhập (`current.ts`), tên vai trò tiếng Việt (`roles.ts`). |
 | `src/lib/rls.dbtest.ts` | **Test khóa bảo vệ dữ liệu** trên database thật, mỗi bảng một nhóm test. |
-| `supabase/migrations/` | **Cấu trúc database**, mỗi file `.sql` là một lần thay đổi, đánh số thứ tự. `0001_organizations.sql`: bảng Doanh nghiệp, Thành viên và các khóa bảo vệ. `0002_connections.sql`: bảng Kết nối (khóa Pancake đã mã hóa). `0003_inventory_settings.sql`: bảng Cấu hình tồn kho. `0004`, `0005`: bảng Sản phẩm, Đơn hàng, Dòng hàng, Tiến độ đồng bộ. `0006`: hàm tính số đã bán theo mã. Không sửa file đã chạy rồi; muốn đổi thì nhờ Claude Code tạo file mới. |
+| `supabase/migrations/` | **Cấu trúc database**, mỗi file `.sql` là một lần thay đổi, đánh số thứ tự. `0001_organizations.sql`: bảng Doanh nghiệp, Thành viên và các khóa bảo vệ. `0002_connections.sql`: bảng Kết nối (khóa Pancake đã mã hóa). `0003_inventory_settings.sql`: bảng Cấu hình tồn kho. `0004`, `0005`: bảng Sản phẩm, Đơn hàng, Dòng hàng, Tiến độ đồng bộ. `0006`: hàm tính số đã bán theo mã. `0007`: hàm lấy số liệu Tổng quan (theo đơn, theo mã). Không sửa file đã chạy rồi; muốn đổi thì nhờ Claude Code tạo file mới. |
 | `scripts/` | Lệnh quản trị chạy trên máy: áp cấu trúc database (`db-migrate.mjs`), gắn người vào shop (`db-add-member.mjs`). |
 | `src/app/dang-nhap/` | **Trang Đăng nhập** (`/dang-nhap`): `page.tsx` là khung trang, `login-form.tsx` là ô nhập và nút. |
 | `src/proxy.ts` | **Người gác cổng**: chạy trước mỗi lượt mở trang, chưa đăng nhập thì đưa về `/dang-nhap` (sau khi đăng nhập sẽ quay lại đúng trang định mở). |
 | `src/lib/auth/` | Đăng nhập/đăng xuất (`actions.ts`), kiểm tra ô nhập và câu báo lỗi tiếng Việt (`login.ts`), danh sách trang không cần đăng nhập (`paths.ts`). |
 | `src/lib/supabase/` | Kết nối tới Supabase (cơ sở dữ liệu + tài khoản). Thường không cần sửa. |
 | `src/components/layout/account-menu.tsx` | Khối email + nút Đăng xuất ở cuối menu trái. |
-| `src/app/(app)/page.tsx` | **Trang Tổng quan** (`/`, trang chủ), hiện dùng số liệu giả: thứ tự và cách xếp các khối nằm ở đây. |
+| `src/app/(app)/page.tsx` | **Trang Tổng quan** (`/`, trang chủ, **số liệu thật** từ Pancake): thứ tự và cách xếp các khối, danh sách "Dữ liệu cần kiểm tra". |
+| `src/lib/overview/compute.ts` | **Công thức tiền**: Doanh số, Doanh thu, Lợi nhuận, Phí sàn, Hàng hoàn, Nguồn đơn, Top sản phẩm. Phí sàn cho mỗi đơn hoàn (Shopee PiShip 2.700 ₫) nằm ở `RETURN_FEE_PER_ORDER` đầu file. |
+| `src/lib/overview/real-data.ts` | Lấy số liệu thật cho Tổng quan (đọc database, chạy song song). |
+| `src/components/dashboard/no-data-panel.tsx` | Khối "Chưa có dữ liệu" cho mục chưa có nguồn (Dòng tiền, Thuế, Content, Nhân sự, Quảng cáo). |
 | `src/app/(app)/content`, `tao-noi-dung`, `nhan-su`, `thue`, `dong-tien` | Các trang "Đang xây dựng", mỗi trang ghi sẵn tính năng sẽ có. |
 | `src/app/(app)/ket-noi/` | **Trang Kết nối** (`/ket-noi`): `page.tsx` khung trang + danh sách "Sắp có", `pancake-form.tsx` ô dán khóa Pancake và nút Kiểm tra & lưu. |
 | `src/lib/connections/` | Lưu / ngắt kết nối (`actions.ts`, chỉ Chủ shop), đọc trạng thái kết nối (`queries.ts`, không bao giờ đọc khóa). |
@@ -54,13 +57,12 @@
 | `src/lib/overview/recommendations.ts` | **Quy tắc "Đề xuất của AI"**: cần sản xuất, tập trung content, xả kho, chi phí quảng cáo cao. Các ngưỡng nằm ở `RECOMMENDATION_RULES` đầu file. |
 | `src/components/overview/recommendations.tsx` | Giao diện khối Đề xuất. |
 | `src/lib/overview/types.ts` | Danh sách các con số mà trang Tổng quan cần. |
-| `src/lib/overview/demo-data.ts` | **Số liệu giả** cho bản mẫu. Giai đoạn 1 sẽ thay bằng dữ liệu Pancake thật. |
 | `src/app/globals.css` | **Màu sắc** toàn web (xanh dương nhấn, xanh lá tăng, đỏ giảm, cam cảnh báo, nền xám). Đổi màu thì sửa phần `:root` ở đây. |
 | `src/components/ui/` | Các khối giao diện có sẵn (nút, ô nhập, thẻ…) của shadcn/ui. Thường không cần sửa. |
 | `src/components/dashboard/stat-card.tsx` | **Khối số** (nhãn xám, số to, ↑/↓ %). Rê chuột để xem giá trị kỳ trước. |
 | `src/components/dashboard/trend-badge.tsx` | Mũi tên ↑/↓ % màu xanh/đỏ, dùng trong thẻ và bảng. |
 | `src/components/dashboard/date-filter.tsx` | **Bộ lọc thời gian** "Hôm nay / 7 ngày qua…" và "So sánh với". |
-| `src/components/dashboard/refresh-button.tsx` | Nút **Tải lại**. |
+| `src/components/dashboard/refresh-button.tsx` | Nút **Tải lại**: lấy đơn/tồn kho mới nhất từ Pancake rồi tính lại số. |
 | `src/components/dashboard/data-warning.tsx` | **Khung "Dữ liệu cần kiểm tra"** (thiếu giá vốn, đơn không gán nhân viên…), bấm "Chi tiết" để xem cách sửa. |
 | `src/lib/format.ts` | Cách hiển thị **tiền** (`1.250.000 ₫`), số, phần trăm (`42,37%`), và công thức % tăng giảm. |
 | `src/lib/date-range.ts` | Tính khoảng ngày theo **giờ Việt Nam**: Hôm nay, 7 ngày qua, Tháng này… và kỳ so sánh. Muốn thêm lựa chọn thời gian mới thì sửa ở đây. |
@@ -91,7 +93,7 @@
 - Lỗi trên trang: Next.js hiện khung lỗi đỏ ngay trên trình duyệt; ngoài ra có thể nhấn `F12` → tab **Console**.
 - Cách nhanh nhất: copy nguyên đoạn lỗi, dán cho Claude Code kèm câu *"Tôi gặp lỗi này khi …"*.
 
-**Chạy test khóa bảo vệ dữ liệu trên database thật:** `npm run test:db` (cần mạng). Lệnh này tạo tạm vài tài khoản `@test.1click.local`, kiểm tra shop A không đọc/sửa được dữ liệu shop B, rồi tự xóa. Phải ra `35 passed` (hoặc nhiều hơn khi có thêm bảng).
+**Chạy test khóa bảo vệ dữ liệu trên database thật:** `npm run test:db` (cần mạng). Lệnh này tạo tạm vài tài khoản `@test.1click.local`, kiểm tra shop A không đọc/sửa được dữ liệu shop B, rồi tự xóa. Phải ra `36 passed` (hoặc nhiều hơn khi có thêm bảng).
 
 **Chạy unit test:** `npm test`. Dòng cuối phải là `Tests  N passed`. Nếu có dòng `failed` nghĩa là một công thức đang tính sai: đừng đưa lên mạng, dán kết quả cho Claude Code.
 
@@ -135,6 +137,18 @@ Database của web này là project Supabase **"Doanh nghiệp 1 người"** (m�
 - **Không lưu thông tin cá nhân của khách** (tên, SĐT, địa chỉ), chỉ lưu số liệu đơn.
 - Đổi khóa sang **shop Pancake khác** thì dữ liệu shop cũ bị xóa để không trộn số.
 - Cài lại / tắt lịch: `npm.cmd run db:setup-cron` (hoặc `npm.cmd run db:setup-cron -- off`). Xem lịch đã chạy chưa: Supabase → **Integrations → Cron** (hoặc **Database → Cron Jobs**).
+
+### Cách tính số trên trang Tổng quan (chủ dự án chốt 04/11/2026)
+
+| Chỉ số | Cách tính |
+|---|---|
+| Đơn chốt | Đơn từ "Đã xác nhận" trở đi (kể cả đơn hoàn); không tính Mới, Chờ hàng, Đã hủy. Tính theo **ngày tạo đơn**. |
+| Doanh số | Tổng giá bán × số lượng của đơn chốt. |
+| Hàng hoàn | Giá trị hàng khách trả lại (số lượng hoàn × giá bán), tính vào ngày tạo đơn gốc. |
+| Phí sàn | Phí Pancake ghi × phần hàng khách giữ (đơn hoàn hết = 0) + **2.700 ₫ mỗi đơn Shopee bị hoàn** (phí PiShip, theo Sapo; đối chiếu Kênh Người Bán, khác thì nhờ Claude Code sửa). |
+| Doanh thu | (Doanh số − chiết khấu) × phần khách giữ − phí sàn. Giống "Doanh thu" của Pancake (đã trừ phí sàn). |
+| Lợi nhuận | Doanh thu − giá vốn hàng khách giữ (giá nhập trung bình **hiện tại**). Chưa trừ quảng cáo, lương, mặt bằng. |
+| GTTB | Doanh số ÷ số đơn chốt. |
 
 ### Kết nối Pancake POS
 

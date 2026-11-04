@@ -47,12 +47,16 @@ export interface OrderTotals {
 
 export interface OrderSourceRow {
   source: string;
+  /** Doanh số (để tính GTTB giống chỉ số GTTB ở dải Kinh doanh). */
+  gross: number;
   revenue: Compared;
   profit: number;
   orders: number;
 }
 
 export interface TopProduct {
+  /** Mã mẫu trên Pancake (gộp mọi màu/size); không có với dữ liệu giả hoặc hàng chưa liên kết. */
+  productId?: string;
   name: string;
   sku: string | null;
   quantity: number;
