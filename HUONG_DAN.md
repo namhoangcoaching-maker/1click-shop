@@ -2,7 +2,7 @@
 
 > File này luôn được cập nhật sau mỗi bước. Nếu thấy chỗ nào không khớp với thực tế, hãy nhắn Claude Code: *"HUONG_DAN.md đang sai ở mục …, sửa lại giúp tôi"*.
 
-**Tiến độ:** Giai đoạn 0 – Bước 0.1 (khởi tạo dự án) ✅ · Bước 0.2 (hệ thống thiết kế) ✅ · Bước 0.3 (menu trái) ✅ · Bước 0.4 (đăng nhập email, đợt 1) ✅ · Bước 0.5 (nhiều shop + khóa bảo vệ dữ liệu) ✅ · Bước 0.6 (trang Kết nối Pancake POS) ✅ · Cấu hình tồn kho theo shop ✅ · Bước 0.7 (GitHub + Vercel + tên miền) ✅ · **Giai đoạn 1** – Bước 1.1 (đồng bộ Pancake) ✅
+**Tiến độ:** Giai đoạn 0 – Bước 0.1 (khởi tạo dự án) ✅ · Bước 0.2 (hệ thống thiết kế) ✅ · Bước 0.3 (menu trái) ✅ · Bước 0.4 (đăng nhập email, đợt 1) ✅ · Bước 0.5 (nhiều shop + khóa bảo vệ dữ liệu) ✅ · Bước 0.6 (trang Kết nối Pancake POS) ✅ · Cấu hình tồn kho theo shop ✅ · Bước 0.7 (GitHub + Vercel + tên miền) ✅ · **Giai đoạn 1** – Bước 1.1 (đồng bộ Pancake) ✅ · Bước 1.2 (Tồn kho số thật) ✅
 
 ---
 
@@ -20,7 +20,7 @@
 | `src/components/layout/no-org-notice.tsx` | Dải thông báo vàng "Tài khoản chưa được gắn vào shop". |
 | `src/lib/org/` | Lấy shop của người đang đăng nhập (`current.ts`), tên vai trò tiếng Việt (`roles.ts`). |
 | `src/lib/rls.dbtest.ts` | **Test khóa bảo vệ dữ liệu** trên database thật, mỗi bảng một nhóm test. |
-| `supabase/migrations/` | **Cấu trúc database**, mỗi file `.sql` là một lần thay đổi, đánh số thứ tự. `0001_organizations.sql`: bảng Doanh nghiệp, Thành viên và các khóa bảo vệ. `0002_connections.sql`: bảng Kết nối (khóa Pancake đã mã hóa). `0003_inventory_settings.sql`: bảng Cấu hình tồn kho. `0004`, `0005`: bảng Sản phẩm, Đơn hàng, Dòng hàng, Tiến độ đồng bộ. Không sửa file đã chạy rồi; muốn đổi thì nhờ Claude Code tạo file mới. |
+| `supabase/migrations/` | **Cấu trúc database**, mỗi file `.sql` là một lần thay đổi, đánh số thứ tự. `0001_organizations.sql`: bảng Doanh nghiệp, Thành viên và các khóa bảo vệ. `0002_connections.sql`: bảng Kết nối (khóa Pancake đã mã hóa). `0003_inventory_settings.sql`: bảng Cấu hình tồn kho. `0004`, `0005`: bảng Sản phẩm, Đơn hàng, Dòng hàng, Tiến độ đồng bộ. `0006`: hàm tính số đã bán theo mã. Không sửa file đã chạy rồi; muốn đổi thì nhờ Claude Code tạo file mới. |
 | `scripts/` | Lệnh quản trị chạy trên máy: áp cấu trúc database (`db-migrate.mjs`), gắn người vào shop (`db-add-member.mjs`). |
 | `src/app/dang-nhap/` | **Trang Đăng nhập** (`/dang-nhap`): `page.tsx` là khung trang, `login-form.tsx` là ô nhập và nút. |
 | `src/proxy.ts` | **Người gác cổng**: chạy trước mỗi lượt mở trang, chưa đăng nhập thì đưa về `/dang-nhap` (sau khi đăng nhập sẽ quay lại đúng trang định mở). |
@@ -44,7 +44,8 @@
 | `src/components/dashboard/panel.tsx` | Khung **thẻ trắng** có biểu tượng tròn, ô xám bên trong, thanh tiến độ. |
 | `src/components/dashboard/metric-strip.tsx` | **Dải chỉ số** Doanh số / Doanh thu / Lợi nhuận… bấm vào để đổi biểu đồ. |
 | `src/components/dashboard/trend-chart.tsx` | **Biểu đồ đường** kỳ này (xanh) và kỳ trước (xám nét đứt). |
-| `src/app/(app)/ton-kho/page.tsx` | **Trang Tồn kho** (`/ton-kho`, số liệu giả): báo động mã cần sản xuất, bảng tồn theo mã, lọc theo trạng thái. |
+| `src/app/(app)/ton-kho/page.tsx` | **Trang Tồn kho** (`/ton-kho`, **số liệu thật** từ Pancake): báo động mã cần sản xuất, bảng tồn theo mã (màu/size), lọc theo trạng thái, ẩn/hiện mã ngừng kinh doanh. |
+| `src/lib/inventory/real-data.ts`, `real-stock.ts` | Lấy tồn kho thật: sản phẩm + số bán thực (đơn chốt trừ hàng hoàn) theo từng mã; quy tắc "ngừng kinh doanh" (hết hàng và 90 ngày không bán, hoặc ẩn trên Pancake). |
 | `src/components/inventory/` | Bảng tồn kho và nhãn trạng thái (Hết hàng, Sản xuất ngay, Sắp đến hạn, Bán chậm, Đủ hàng). |
 | `src/lib/inventory/stock.ts` | **Công thức tồn kho**: tốc độ bán, số ngày đủ bán, khi nào phải sản xuất, nên sản xuất bao nhiêu. Số **mặc định** cho shop chưa cấu hình nằm ở `STOCK_RULES` đầu file. |
 | `src/lib/inventory/settings.ts` | Danh sách 6 ô **Cấu hình tồn kho** (tên, giải thích, giới hạn nhỏ nhất/lớn nhất). Muốn đổi câu giải thích hay giới hạn thì sửa ở đây (giới hạn phải sửa cả trong database, nhờ Claude Code). |
@@ -89,7 +90,7 @@
 - Lỗi trên trang: Next.js hiện khung lỗi đỏ ngay trên trình duyệt; ngoài ra có thể nhấn `F12` → tab **Console**.
 - Cách nhanh nhất: copy nguyên đoạn lỗi, dán cho Claude Code kèm câu *"Tôi gặp lỗi này khi …"*.
 
-**Chạy test khóa bảo vệ dữ liệu trên database thật:** `npm run test:db` (cần mạng). Lệnh này tạo tạm vài tài khoản `@test.1click.local`, kiểm tra shop A không đọc/sửa được dữ liệu shop B, rồi tự xóa. Phải ra `34 passed` (hoặc nhiều hơn khi có thêm bảng).
+**Chạy test khóa bảo vệ dữ liệu trên database thật:** `npm run test:db` (cần mạng). Lệnh này tạo tạm vài tài khoản `@test.1click.local`, kiểm tra shop A không đọc/sửa được dữ liệu shop B, rồi tự xóa. Phải ra `35 passed` (hoặc nhiều hơn khi có thêm bảng).
 
 **Chạy unit test:** `npm test`. Dòng cuối phải là `Tests  N passed`. Nếu có dòng `failed` nghĩa là một công thức đang tính sai: đừng đưa lên mạng, dán kết quả cho Claude Code.
 
@@ -189,6 +190,9 @@ Mỗi bước làm xong đều được lưu lại một "mốc" (commit).
 | Bán chậm khi đủ bán quá | 90 ngày | Tồn nhiều, nên có kế hoạch xả |
 | Tính tốc độ bán trên | 30 ngày | Bán trung bình/ngày = số bán trong chừng này ngày ÷ số ngày |
 
+- **Tốc độ bán** = số bán thực (đơn chốt, tức từ "Đã xác nhận" trở đi, trừ số khách hoàn lại) trong số ngày cấu hình ÷ số ngày. Bán dưới 0,1 cái/ngày hiện là "<0,1".
+- **Mã ngừng kinh doanh** (hết hàng và 90 ngày không bán, hoặc đã ẩn trên Pancake) mặc định bị ẩn; bấm **Hiện tất cả** để xem.
+- **Tồn âm** (Pancake cho bán khi đã hết) được coi như 0.
 - **Ví dụ:** váy size M bán 5 cái/ngày, còn 40 cái → đủ bán 8 ngày. Xưởng may 10 ngày + dự phòng 3 = 13 ngày → 8 < 13 nên **báo động**. Nên đặt = 5 × (10 + 3 + 21) − 40 = **130 cái** (đủ cho thời gian chờ xưởng, dự phòng và 21 ngày bán sau khi hàng về).
 - **Thời gian sản xuất của từng sản phẩm** ghi trong Pancake: Sản phẩm → mở sản phẩm → ô **Ghi chú nội bộ**, ghi `SX: 10` (10 là số ngày từ lúc đặt xưởng đến lúc hàng về kho). Cũng hiểu `SX 10 ngày`, `Sản xuất: 10 ngày`, hoặc ghi chú chỉ có số `10`. Không ghi thì dùng **Thời gian sản xuất mặc định** và hiện trong "Dữ liệu cần kiểm tra". Phải có dấu `:` hoặc khoảng trắng giữa "SX" và số (viết dính `SX098` sẽ không được hiểu, để tránh nhầm với mã sản phẩm).
 - Chi phí quảng cáo vượt 12% tổng doanh thu, hoặc 25% doanh thu của một kênh → đề xuất tối ưu (chưa có ô cấu hình, nhờ Claude Code nếu muốn đổi).
@@ -207,7 +211,7 @@ Mỗi bước làm xong đều được lưu lại một "mốc" (commit).
 | Nơi | Là gì | Ghi chú |
 |---|---|---|
 | GitHub `namhoangcoaching-maker/1click-shop` (Private) | Nơi cất code | Repo `1click` là của web tìm bài hot, **không đụng vào**. |
-| Vercel, team `1click`, project `1click-shop` (gói Hobby) | Máy chủ chạy web | Gói Hobby chỉ cho dùng phi thương mại. Khi thu tiền khách nên nâng gói Pro. |
+| Vercel, team `1click`, project `1click-shop` (gói Hobby), máy chủ đặt ở **Sydney** (`vercel.json`) cạnh database cho nhanh | Máy chủ chạy web | Gói Hobby chỉ cho dùng phi thương mại. Khi thu tiền khách nên nâng gói Pro. |
 | Cloudflare, tên miền `nhankhoitu.com.vn` | Tên miền | Bản ghi **CNAME `shop`** → Vercel, **DNS only (đám mây xám)**. Bản ghi `idea` (web tìm bài hot) và tên miền gốc (trang Tài Chính Cá Nhân) **giữ nguyên**. |
 
 **Đưa bản mới lên mạng:** mỗi lần Claude Code commit và chạy `git push`, Vercel **tự** dựng lại web sau khoảng 1–2 phút. Xem tiến trình: Vercel → project `1click-shop` → **Deployments** (dòng trên cùng phải là **Ready** màu xanh).

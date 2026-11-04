@@ -38,8 +38,12 @@ export const STOCK_RULES: Readonly<StockRules> = Object.freeze({
 });
 
 export interface StockItem {
+  /** Mã duy nhất (mã variation trên Pancake); dữ liệu giả dùng sku. */
+  id?: string;
   sku: string;
   name: string;
+  /** Màu / size, ví dụ "Xám / M". */
+  variant?: string | null;
   /** Số lượng còn có thể bán. */
   stock: number;
   /** Số lượng đã bán trong `velocityWindowDays` ngày gần nhất (mặc định 30). */
@@ -97,7 +101,8 @@ export function analyzeStock(
   rules: StockRules = STOCK_RULES,
 ): StockAnalysis {
   const velocity = item.soldInWindow / rules.velocityWindowDays;
-  const daysOfStock = velocity > 0 ? item.stock / velocity : Infinity;
+  // Pancake cho bán âm kho (tồn −1): coi như còn 0, không để ra "đủ bán −30 ngày".
+  const daysOfStock = velocity > 0 ? Math.max(0, item.stock) / velocity : Infinity;
   const leadTimeDays = item.leadTimeDays ?? rules.defaultLeadTimeDays;
   const requiredDays = leadTimeDays + rules.safetyDays;
 

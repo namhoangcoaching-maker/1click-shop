@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatCompact,
+  formatVelocity,
   formatNumber,
   formatPercent,
   formatVND,
@@ -80,5 +81,14 @@ describe("ratio", () => {
   it("tính tỷ lệ phần trăm, mẫu bằng 0 thì trả về 0", () => {
     expect(ratio(112, 140)).toBe(80);
     expect(ratio(5, 0)).toBe(0);
+  });
+});
+
+describe("formatVelocity", () => {
+  it("bán rất chậm không bị làm tròn thành 0", () => {
+    expect(formatVelocity(0)).toBe("0");
+    expect(formatVelocity(1 / 30)).toBe("<0,1");
+    expect(formatVelocity(0.1)).toBe("0,1");
+    expect(formatVelocity(1.45)).toBe("1,5");
   });
 });

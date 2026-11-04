@@ -314,6 +314,21 @@ describe("Dữ liệu bán hàng từ Pancake (chỉ đọc, theo shop)", () => 
     });
   }
 
+  it("hàm tính số đã bán: shop mình ra số, truyền mã shop B thì không ra gì", async () => {
+    const args = (org: string) => ({
+      p_org_id: org,
+      p_since: new Date(Date.now() - 86_400_000).toISOString(),
+      p_statuses: [3],
+    });
+    const mine = await ownerA.rpc("variation_sales", args(orgA));
+    expect(mine.error).toBeNull();
+    expect(mine.data).toEqual([{ variation_id: "v-A", sold: 1, returned: 0 }]);
+    const other = await ownerA.rpc("variation_sales", args(orgB));
+    expect(other.data ?? []).toEqual([]);
+    const anon = await createClient(URL, PUBLISHABLE, noSession).rpc("variation_sales", args(orgA));
+    expect(anon.data ?? []).toEqual([]);
+  });
+
   it("không chèn được đơn giả vào shop B", async () => {
     const { error } = await ownerA
       .from("orders")

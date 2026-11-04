@@ -121,3 +121,16 @@ describe("summarizeInventory", () => {
     expect(totals.missingCost.map((i) => i.sku)).toEqual(["B"]);
   });
 });
+
+describe("tồn âm (Pancake cho bán khi đã hết)", () => {
+  it("tồn −1 coi như 0: đủ bán 0 ngày, không âm", () => {
+    const a = analyzeStock(
+      { sku: "SC052S", name: "Verra Top", stock: -1, soldInWindow: 30, leadTimeDays: 7, costPrice: 100, price: 200 },
+      "2026-11-04",
+    );
+    expect(a.status).toBe("out");
+    expect(a.daysOfStock).toBe(0);
+    expect(a.daysUntilOrder).toBe(-10);
+    expect(a.suggestedQuantity).toBe(31); // 1/ngày × (7 + 3 + 21), không cộng thêm phần âm
+  });
+});

@@ -81,3 +81,10 @@ export function percentChange(current: number, previous: number): number | null 
 export function ratio(part: number, whole: number): number {
   return whole === 0 ? 0 : (part / whole) * 100;
 }
+
+/** Tốc độ bán mỗi ngày: rất chậm (dưới 0,1) hiện "<0,1" thay vì làm tròn thành 0. */
+export function formatVelocity(perDay: number): string {
+  if (perDay <= 0) return "0";
+  if (perDay < 0.1) return "<0,1";
+  return formatDecimal(perDay);
+}

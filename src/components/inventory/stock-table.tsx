@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { formatDateVN } from "@/lib/date-range";
-import { formatDecimal, formatNumber, formatVND } from "@/lib/format";
+import { formatDecimal, formatNumber, formatVelocity, formatVND } from "@/lib/format";
 import type { StockAnalysis } from "@/lib/inventory/stock";
 import { STOCK_STATUS, StockStatusChip } from "./stock-status";
 
@@ -31,16 +31,19 @@ export function StockTable({ rows }: { rows: StockAnalysis[] }) {
             </tr>
           )}
           {rows.map((a) => (
-            <tr key={a.item.sku} className={cn("border-b last:border-0", STOCK_STATUS[a.status].row)}>
+            <tr key={a.item.id ?? a.item.sku} className={cn("border-b last:border-0", STOCK_STATUS[a.status].row)}>
               <td className="py-2.5 pr-3">
                 <StockStatusChip status={a.status} />
               </td>
               <td className="max-w-72 px-3 py-2.5">
                 <div className="truncate font-medium">{a.item.name}</div>
-                <div className="text-xs text-muted-foreground">{a.item.sku}</div>
+                <div className="truncate text-xs text-muted-foreground">
+                  {a.item.variant ? `${a.item.variant} · ` : ""}
+                  {a.item.sku}
+                </div>
               </td>
               <td className="px-3 py-2.5 text-right font-semibold">{formatNumber(a.item.stock)}</td>
-              <td className="px-3 py-2.5 text-right">{formatDecimal(a.velocity)}</td>
+              <td className="px-3 py-2.5 text-right">{formatVelocity(a.velocity)}</td>
               <td
                 className={cn(
                   "px-3 py-2.5 text-right",
