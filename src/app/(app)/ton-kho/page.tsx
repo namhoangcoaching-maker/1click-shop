@@ -2,15 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { EyeOffIcon, OctagonAlertIcon, PlugIcon, WarehouseIcon } from "lucide-react";
+import { EyeOffIcon, PlugIcon, WarehouseIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Panel } from "@/components/dashboard/panel";
 import { Skeleton } from "@/components/dashboard/stat-card";
 import { STOCK_STATUS } from "@/components/inventory/stock-status";
+import { StockAlarms } from "@/components/inventory/stock-alarms";
 import { StockSettings } from "@/components/inventory/stock-settings";
 import { StockTable } from "@/components/inventory/stock-table";
 import { formatDateTimeVN, todayInVN } from "@/lib/date-range";
-import { formatDecimal, formatNumber, formatVelocity, formatVND } from "@/lib/format";
+import { formatNumber, formatVND } from "@/lib/format";
+import { groupStockAlarms } from "@/lib/inventory/alarms";
 import { getRealInventory } from "@/lib/inventory/real-data";
 import { getShopStockRules } from "@/lib/inventory/settings-db";
 import { STATUS_PRIORITY, analyzeInventory, summarizeInventory, type StockStatus } from "@/lib/inventory/stock";
@@ -76,11 +78,9 @@ async function Inventory({ searchParams }: Pick<PageProps<"/ton-kho">, "searchPa
   const visible = showAll ? inventory.items : inventory.items.filter((i) => !i.inactive);
   const analyses = analyzeInventory(visible, today, rules);
   const totals = summarizeInventory(visible);
-  const alarms = analyses.filter((a) => a.status === "out" || a.status === "urgent");
   const rows = filter ? analyses.filter((a) => a.status === filter) : analyses;
   const countOf = (status: StockStatus) => analyses.filter((a) => a.status === status).length;
   const noLeadTime = analyses.filter((a) => a.leadTimeIsDefault).length;
-  const label = (a: (typeof analyses)[number]) => `${a.item.name}${a.item.variant ? ` · ${a.item.variant}` : ""}`;
 
   return (
     <>
@@ -92,36 +92,7 @@ async function Inventory({ searchParams }: Pick<PageProps<"/ton-kho">, "searchPa
         <StockSettings rules={rules} canEdit={canEdit} isDefault={isDefault} />
       </div>
 
-      {alarms.length > 0 && (
-        <section aria-label="Báo động tồn kho" className="rounded-lg border border-destructive/40 bg-card">
-          <header className="flex items-center gap-2 border-b border-destructive/30 bg-destructive/10 px-4 py-2 font-semibold text-destructive">
-            <OctagonAlertIcon className="size-4" aria-hidden />
-            Báo động: {alarms.length} mã cần sản xuất ngay
-          </header>
-          <ul className="max-h-96 divide-y overflow-y-auto">
-            {alarms.map((a) => (
-              <li
-                key={a.item.id ?? a.item.sku}
-                className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-4 py-2 text-sm"
-              >
-                <span>
-                  <span className="font-medium">{label(a)}</span>{" "}
-                  <span className="text-muted-foreground">({a.item.sku})</span>
-                </span>
-                <span className="text-muted-foreground tabular-nums">
-                  {a.status === "out"
-                    ? `Đã hết hàng, đang bán ${formatVelocity(a.velocity)} cái/ngày`
-                    : `Đủ bán ${formatDecimal(a.daysOfStock)} ngày < cần ${a.requiredDays} ngày (SX ${a.leadTimeDays}${a.leadTimeIsDefault ? " mặc định" : ""} + dự phòng ${rules.safetyDays})`}
-                  {" · "}
-                  <span className="font-semibold text-foreground">
-                    Đặt ngay {formatNumber(a.suggestedQuantity)} cái
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <StockAlarms groups={groupStockAlarms(analyses)} safetyDays={rules.safetyDays} />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <FilterTile label="Tất cả" count={analyses.length} href={filterHref(null, showAll)} active={filter === null} />

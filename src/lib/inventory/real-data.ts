@@ -24,7 +24,7 @@ export async function getRealInventory(orgId: string, velocityWindowDays: number
     for (let from = 0; ; from += PAGE) {
       const { data, error } = await supabase
         .from("products")
-        .select("variation_id, sku, name, variant, retail_price, cost_price, stock, internal_note, is_hidden")
+        .select("variation_id, product_id, sku, name, variant, retail_price, cost_price, stock, internal_note, is_hidden")
         .eq("org_id", orgId)
         .order("variation_id")
         .range(from, from + PAGE - 1);

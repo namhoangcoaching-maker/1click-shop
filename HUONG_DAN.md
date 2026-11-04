@@ -45,6 +45,7 @@
 | `src/components/dashboard/metric-strip.tsx` | **Dải chỉ số** Doanh số / Doanh thu / Lợi nhuận… bấm vào để đổi biểu đồ. |
 | `src/components/dashboard/trend-chart.tsx` | **Biểu đồ đường** kỳ này (xanh) và kỳ trước (xám nét đứt). |
 | `src/app/(app)/ton-kho/page.tsx` | **Trang Tồn kho** (`/ton-kho`, **số liệu thật** từ Pancake): báo động mã cần sản xuất, bảng tồn theo mã (màu/size), lọc theo trạng thái, ẩn/hiện mã ngừng kinh doanh. |
+| `src/lib/inventory/alarms.ts`, `src/components/inventory/stock-alarms.tsx` | **Báo động theo mẫu**: một size thiếu là báo cả mẫu; bấm vào mẫu xổ ra từng màu/size (có thể bán, bán/ngày, đủ bán, nên đặt). Thứ tự size S, M, L… nằm ở `SIZE_ORDER`. |
 | `src/lib/inventory/real-data.ts`, `real-stock.ts` | Lấy tồn kho thật: sản phẩm + số bán thực (đơn chốt trừ hàng hoàn) theo từng mã; quy tắc "ngừng kinh doanh" (hết hàng và 90 ngày không bán, hoặc ẩn trên Pancake). |
 | `src/components/inventory/` | Bảng tồn kho và nhãn trạng thái (Hết hàng, Sản xuất ngay, Sắp đến hạn, Bán chậm, Đủ hàng). |
 | `src/lib/inventory/stock.ts` | **Công thức tồn kho**: tốc độ bán, số ngày đủ bán, khi nào phải sản xuất, nên sản xuất bao nhiêu. Số **mặc định** cho shop chưa cấu hình nằm ở `STOCK_RULES` đầu file. |
@@ -191,6 +192,7 @@ Mỗi bước làm xong đều được lưu lại một "mốc" (commit).
 | Tính tốc độ bán trên | 30 ngày | Bán trung bình/ngày = số bán trong chừng này ngày ÷ số ngày |
 
 - **Tốc độ bán** = số bán thực (đơn chốt, tức từ "Đã xác nhận" trở đi, trừ số khách hoàn lại) trong số ngày cấu hình ÷ số ngày. Bán dưới 0,1 cái/ngày hiện là "<0,1".
+- **Báo động gom theo mẫu**: mẫu nào có ít nhất 1 màu/size hết hàng hoặc cần sản xuất ngay thì hiện cả mẫu, kèm số size thiếu và tổng số nên đặt (cộng mọi size cần đặt, kể cả size sắp đến hạn). Bấm vào mẫu để xem từng size; size âm kho hiện số âm màu đỏ.
 - **Mã ngừng kinh doanh** (hết hàng và 90 ngày không bán, hoặc đã ẩn trên Pancake) mặc định bị ẩn; bấm **Hiện tất cả** để xem.
 - **Tồn âm** (Pancake cho bán khi đã hết) được coi như 0.
 - **Ví dụ:** váy size M bán 5 cái/ngày, còn 40 cái → đủ bán 8 ngày. Xưởng may 10 ngày + dự phòng 3 = 13 ngày → 8 < 13 nên **báo động**. Nên đặt = 5 × (10 + 3 + 21) − 40 = **130 cái** (đủ cho thời gian chờ xưởng, dự phòng và 21 ngày bán sau khi hàng về).

@@ -4,6 +4,7 @@ import { analyzeStock, STOCK_RULES } from "./stock";
 
 const base: ProductRecord = {
   variation_id: "v1",
+  product_id: "p1",
   sku: "SC181M",
   name: "Birdie Top",
   variant: "Xám / M",
@@ -39,6 +40,7 @@ describe("buildStockItems", () => {
     );
     expect(item).toMatchObject({
       id: "v1",
+      productId: "p1",
       sku: "SC181M",
       name: "Birdie Top",
       variant: "Xám / M",

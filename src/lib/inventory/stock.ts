@@ -44,6 +44,8 @@ export interface StockItem {
   name: string;
   /** Màu / size, ví dụ "Xám / M". */
   variant?: string | null;
+  /** Mã sản phẩm (mẫu) trên Pancake: các size/màu của cùng một mẫu có chung mã này. */
+  productId?: string;
   /** Số lượng còn có thể bán. */
   stock: number;
   /** Số lượng đã bán trong `velocityWindowDays` ngày gần nhất (mặc định 30). */

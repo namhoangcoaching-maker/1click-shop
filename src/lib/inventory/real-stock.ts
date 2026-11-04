@@ -7,6 +7,7 @@ import type { StockItem } from "./stock";
 
 export interface ProductRecord {
   variation_id: string;
+  product_id: string;
   sku: string | null;
   name: string;
   variant: string | null;
@@ -48,6 +49,7 @@ export function buildStockItems(
     const sold90 = sales90.get(p.variation_id) ?? 0;
     return {
       id: p.variation_id,
+      productId: p.product_id,
       sku: p.sku ?? p.variation_id.slice(0, 8),
       name: p.name,
       variant: p.variant,
