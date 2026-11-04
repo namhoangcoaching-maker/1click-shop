@@ -1,4 +1,4 @@
-// Cài lịch tự động trên Supabase: mỗi 30 phút gọi web để đồng bộ Pancake cho mọi shop.
+// Cài lịch tự động trên Supabase: mỗi 30 phút đồng bộ Pancake; 8:00 sáng (giờ VN) lập báo cáo hằng ngày.
 // Mật khẩu CRON_SECRET (trong .env.local) được cất vào Supabase Vault, KHÔNG nằm trong code/git.
 // Chạy lại lệnh này khi đổi CRON_SECRET hoặc đổi tên miền.
 //
@@ -11,6 +11,7 @@ import { connect } from "./db.mjs";
 config({ path: ".env.local", quiet: true });
 const arg = process.argv[2] ?? "https://shop.nhankhoitu.com.vn";
 const JOB = "pancake-sync-every-30-min";
+const REPORT_JOB = "daily-report-8am-vn"; // 01:00 giờ quốc tế = 08:00 giờ Việt Nam
 const SECRET_NAME = "cron_secret";
 
 const client = await connect();
@@ -18,11 +19,13 @@ try {
   await client.query("create extension if not exists pg_cron");
   await client.query("create extension if not exists pg_net");
 
-  const existing = await client.query("select jobid from cron.job where jobname = $1", [JOB]);
-  if (existing.rows.length) await client.query("select cron.unschedule($1)", [JOB]);
+  for (const name of [JOB, REPORT_JOB]) {
+    const existing = await client.query("select jobid from cron.job where jobname = $1", [name]);
+    if (existing.rows.length) await client.query("select cron.unschedule($1)", [name]);
+  }
 
   if (arg === "off") {
-    console.log("Đã tắt lịch đồng bộ tự động.");
+    console.log("Đã tắt lịch đồng bộ tự động và báo cáo 8:00.");
   } else {
     const secret = process.env.CRON_SECRET;
     if (!secret || secret.length < 32) throw new Error("Thiếu CRON_SECRET (ít nhất 32 ký tự) trong .env.local");
@@ -44,6 +47,9 @@ try {
       );`;
     await client.query("select cron.schedule($1, $2, $3)", [JOB, "*/30 * * * *", command]);
     console.log(`Đã cài lịch: mỗi 30 phút gọi ${url}`);
+    const reportUrl = `${new URL(arg).origin}/api/cron/daily-report`;
+    await client.query("select cron.schedule($1, $2, $3)", [REPORT_JOB, "0 1 * * *", command.replace(url, reportUrl)]);
+    console.log(`Đã cài lịch: 8:00 sáng (giờ VN) mỗi ngày gọi ${reportUrl}`);
   }
 } catch (err) {
   console.error("LỖI:", err.message);

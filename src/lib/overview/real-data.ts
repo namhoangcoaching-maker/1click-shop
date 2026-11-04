@@ -3,12 +3,12 @@ import { getPancakeCredentials } from "@/lib/connections/credentials";
 import type { DateRange } from "@/lib/date-range";
 import { getRealInventory } from "@/lib/inventory/real-data";
 import type { RealStockItem } from "@/lib/inventory/real-stock";
-import { fetchOrderSources, fetchSaleStats, type SaleRow } from "@/lib/pancake/analytics";
 import { PancakeError } from "@/lib/pancake/client";
 import { CONFIRMED_STATUSES } from "@/lib/pancake/map";
 import { createClient } from "@/lib/supabase/server";
-import { rangeToInstants, rangeToPancake, unlinkedQuantity, type ProductSalesRow } from "./compute";
-import { buildPancakeOverview, type PancakeOverview } from "./pancake-stats";
+import { rangeToInstants, unlinkedQuantity, type ProductSalesRow } from "./compute";
+import { fetchPancakeOverview } from "./pancake-fetch";
+import type { PancakeOverview } from "./pancake-stats";
 
 export interface RealOverview {
   /** Số tiền theo thống kê Pancake; null khi không lấy được (kèm statsError). */
@@ -61,34 +61,7 @@ export async function getRealOverview(
   let statsError: string | null = null;
   if (creds) {
     try {
-      const cur = rangeToPancake(range);
-      const prev = previousRange ? rangeToPancake(previousRange) : null;
-      const timeSplit = range.from === range.to ? "Time.hour" : "Time.day";
-      const prevTimeSplit = previousRange && previousRange.from === previousRange.to ? "Time.hour" : "Time.day";
-      const none: SaleRow[] = [];
-      // Các lượt hỏi Pancake chạy song song (mỗi lượt ~0,2–0,7 giây).
-      const [total, series, bySource, byProduct, sourceNames, prevTotal, prevSeries, prevBySource] = await Promise.all([
-        fetchSaleStats(creds, cur),
-        fetchSaleStats(creds, cur, timeSplit),
-        fetchSaleStats(creds, cur, "Order.order_sources"),
-        fetchSaleStats(creds, cur, "Variation.product_id"),
-        fetchOrderSources(creds),
-        prev ? fetchSaleStats(creds, prev) : none,
-        prev ? fetchSaleStats(creds, prev, prevTimeSplit) : none,
-        prev ? fetchSaleStats(creds, prev, "Order.order_sources") : none,
-      ]);
-      stats = buildPancakeOverview({
-        range,
-        previousRange,
-        total: total[0],
-        previousTotal: prevTotal[0],
-        series,
-        previousSeries: prevSeries,
-        bySource,
-        previousBySource: prevBySource,
-        sourceNames,
-        byProduct,
-      });
+      stats = await fetchPancakeOverview(creds, range, previousRange);
     } catch (err) {
       statsError =
         err instanceof PancakeError

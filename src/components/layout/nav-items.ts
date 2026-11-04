@@ -1,5 +1,6 @@
 import {
   BanknoteIcon,
+  ClipboardListIcon,
   LayoutDashboardIcon,
   LandmarkIcon,
   NewspaperIcon,
@@ -19,6 +20,7 @@ export interface NavItem {
 /** Menu chính bên trái. Muốn thêm/bớt/đổi thứ tự mục menu thì sửa ở đây. */
 export const MAIN_NAV: NavItem[] = [
   { href: "/", label: "Tổng quan", icon: LayoutDashboardIcon },
+  { href: "/bao-cao", label: "Báo cáo", icon: ClipboardListIcon },
   { href: "/ton-kho", label: "Tồn kho", icon: WarehouseIcon },
   { href: "/content", label: "Content", icon: NewspaperIcon },
   { href: "/tao-noi-dung", label: "Tạo nội dung", icon: SparklesIcon },

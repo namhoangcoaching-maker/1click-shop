@@ -1,6 +1,7 @@
 import "server-only";
 import { CONFIRMED_STATUSES } from "@/lib/pancake/map";
 import { createClient } from "@/lib/supabase/server";
+import type { AnySupabase } from "@/lib/supabase/types";
 import { buildStockItems, netSalesByVariation, type ProductRecord, type RealStockItem, type SalesRecord } from "./real-stock";
 
 const DAY = 86_400_000;
@@ -16,8 +17,13 @@ export interface RealInventory {
  * Tồn kho thật của shop (đọc qua RLS bằng phiên người dùng).
  * Tốc độ bán lấy từ đơn chốt trong `velocityWindowDays` ngày gần nhất.
  */
-export async function getRealInventory(orgId: string, velocityWindowDays: number, now: Date): Promise<RealInventory> {
-  const supabase = await createClient();
+export async function getRealInventory(
+  orgId: string,
+  velocityWindowDays: number,
+  now: Date,
+  client?: AnySupabase,
+): Promise<RealInventory> {
+  const supabase = client ?? (await createClient());
 
   const loadProducts = async () => {
     const products: ProductRecord[] = [];

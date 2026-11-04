@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "node:crypto";
+import { isCronAuthorized } from "@/lib/cron-auth";
 import { runAllPancakeSyncs } from "@/lib/pancake/sync";
 
 /**
@@ -7,17 +7,8 @@ import { runAllPancakeSyncs } from "@/lib/pancake/sync";
  */
 export const maxDuration = 60;
 
-function authorized(request: Request): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret || secret.length < 32) return false;
-  const given = request.headers.get("authorization") ?? "";
-  const a = Buffer.from(given);
-  const b = Buffer.from(`Bearer ${secret}`);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
 async function handle(request: Request) {
-  if (!authorized(request)) {
+  if (!isCronAuthorized(request)) {
     return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
   const budget = Number(new URL(request.url).searchParams.get("budget")) || 45_000;

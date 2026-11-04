@@ -2,7 +2,7 @@
 
 > File này luôn được cập nhật sau mỗi bước. Nếu thấy chỗ nào không khớp với thực tế, hãy nhắn Claude Code: *"HUONG_DAN.md đang sai ở mục …, sửa lại giúp tôi"*.
 
-**Tiến độ:** Giai đoạn 0 – Bước 0.1 (khởi tạo dự án) ✅ · Bước 0.2 (hệ thống thiết kế) ✅ · Bước 0.3 (menu trái) ✅ · Bước 0.4 (đăng nhập email, đợt 1) ✅ · Bước 0.5 (nhiều shop + khóa bảo vệ dữ liệu) ✅ · Bước 0.6 (trang Kết nối Pancake POS) ✅ · Cấu hình tồn kho theo shop ✅ · Bước 0.7 (GitHub + Vercel + tên miền) ✅ · **Giai đoạn 1** – Bước 1.1 (đồng bộ Pancake) ✅ · Bước 1.2 (Tồn kho số thật) ✅ · Bước 1.3 (Tổng quan số thật) ✅ · Kế hoạch đặt hàng theo lịch ✅ · Tiền về tự động ✅
+**Tiến độ:** Giai đoạn 0 – Bước 0.1 (khởi tạo dự án) ✅ · Bước 0.2 (hệ thống thiết kế) ✅ · Bước 0.3 (menu trái) ✅ · Bước 0.4 (đăng nhập email, đợt 1) ✅ · Bước 0.5 (nhiều shop + khóa bảo vệ dữ liệu) ✅ · Bước 0.6 (trang Kết nối Pancake POS) ✅ · Cấu hình tồn kho theo shop ✅ · Bước 0.7 (GitHub + Vercel + tên miền) ✅ · **Giai đoạn 1** – Bước 1.1 (đồng bộ Pancake) ✅ · Bước 1.2 (Tồn kho số thật) ✅ · Bước 1.3 (Tổng quan số thật) ✅ · Kế hoạch đặt hàng theo lịch ✅ · Tiền về tự động ✅ · Báo cáo 8:00 hằng ngày ✅
 
 ---
 
@@ -20,7 +20,7 @@
 | `src/components/layout/no-org-notice.tsx` | Dải thông báo vàng "Tài khoản chưa được gắn vào shop". |
 | `src/lib/org/` | Lấy shop của người đang đăng nhập (`current.ts`), tên vai trò tiếng Việt (`roles.ts`). |
 | `src/lib/rls.dbtest.ts` | **Test khóa bảo vệ dữ liệu** trên database thật, mỗi bảng một nhóm test. |
-| `supabase/migrations/` | **Cấu trúc database**, mỗi file `.sql` là một lần thay đổi, đánh số thứ tự. `0001_organizations.sql`: bảng Doanh nghiệp, Thành viên và các khóa bảo vệ. `0002_connections.sql`: bảng Kết nối (khóa Pancake đã mã hóa). `0003_inventory_settings.sql`: bảng Cấu hình tồn kho. `0004`, `0005`: bảng Sản phẩm, Đơn hàng, Dòng hàng, Tiến độ đồng bộ. `0006`: hàm tính số đã bán theo mã. `0007`: hàm lấy số liệu Tổng quan (theo đơn, theo mã). `0008`: cấu hình kế hoạch đặt hàng + bảng Hàng sắp về. `0009`: ngày khách nhận/hoàn của đơn, COD, đơn vị vận chuyển + bảng Thu chi (tiền về). Không sửa file đã chạy rồi; muốn đổi thì nhờ Claude Code tạo file mới. |
+| `supabase/migrations/` | **Cấu trúc database**, mỗi file `.sql` là một lần thay đổi, đánh số thứ tự. `0001_organizations.sql`: bảng Doanh nghiệp, Thành viên và các khóa bảo vệ. `0002_connections.sql`: bảng Kết nối (khóa Pancake đã mã hóa). `0003_inventory_settings.sql`: bảng Cấu hình tồn kho. `0004`, `0005`: bảng Sản phẩm, Đơn hàng, Dòng hàng, Tiến độ đồng bộ. `0006`: hàm tính số đã bán theo mã. `0007`: hàm lấy số liệu Tổng quan (theo đơn, theo mã). `0008`: cấu hình kế hoạch đặt hàng + bảng Hàng sắp về. `0009`: ngày khách nhận/hoàn của đơn, COD, đơn vị vận chuyển + bảng Thu chi (tiền về). `0010`: bảng Báo cáo hằng ngày. Không sửa file đã chạy rồi; muốn đổi thì nhờ Claude Code tạo file mới. |
 | `scripts/` | Lệnh quản trị chạy trên máy: áp cấu trúc database (`db-migrate.mjs`), gắn người vào shop (`db-add-member.mjs`). |
 | `src/app/dang-nhap/` | **Trang Đăng nhập** (`/dang-nhap`): `page.tsx` là khung trang, `login-form.tsx` là ô nhập và nút. |
 | `src/proxy.ts` | **Người gác cổng**: chạy trước mỗi lượt mở trang, chưa đăng nhập thì đưa về `/dang-nhap` (sau khi đăng nhập sẽ quay lại đúng trang định mở). |
@@ -35,7 +35,10 @@
 | `src/app/(app)/ket-noi/` | **Trang Kết nối** (`/ket-noi`): `page.tsx` khung trang + danh sách "Sắp có", `pancake-form.tsx` ô dán khóa Pancake và nút Kiểm tra & lưu. |
 | `src/lib/connections/` | Lưu / ngắt kết nối (`actions.ts`, chỉ Chủ shop), đọc trạng thái kết nối (`queries.ts`, không bao giờ đọc khóa). |
 | `src/lib/pancake/shops.ts` | Gọi Pancake POS để kiểm tra khóa (lệnh "Thông tin cửa hàng") và câu báo lỗi tiếng Việt. Tài liệu API Pancake: https://docs.pancake.biz/pos/api/en |
-| `src/app/(app)/dong-tien/page.tsx` | **Trang Dòng tiền · Tiền về** (`/dong-tien`): tiền về theo ngày (14 ngày qua, 10 ngày tới) chia theo kênh. |
+| `src/app/(app)/dong-tien/page.tsx` | **Trang Dòng tiền** (`/dong-tien`): phần **Tiền về** (dự kiến 7 ngày tới; bảng chi tiết theo ngày/kênh bấm mới mở) + Chi phí, Công nợ, Thu – chi (Giai đoạn 3). |
+| `src/app/(app)/bao-cao/page.tsx`, `src/components/report/daily-report.tsx` | **Báo cáo hằng ngày 8:00**: trang Báo cáo (30 ngày) và khối đầu trang Tổng quan. |
+| `src/lib/report/` | Ghép báo cáo (`build.ts`: kết quả hôm qua, tiền về, đặt hàng, việc cần làm) và lập/lưu báo cáo (`generate.ts`). |
+| `src/app/api/cron/daily-report/route.ts` | Địa chỉ lịch 8:00 gọi vào (đồng bộ nhanh rồi lập báo cáo cho mọi shop). |
 | `src/lib/cash/compute.ts` | **Luật tiền về**: số ngày sau khi khách nhận của từng kênh (`CASH_RULES`: Shopee 4, TikTok 7, ĐVVC ngoại sàn 3), tên đơn vị vận chuyển (`CARRIER_NAMES`), trừ hoàn sau khi nhận. |
 | `src/lib/cash/data.ts`, `src/components/cash/cash-in.tsx` | Đọc dữ liệu tiền về; khối **Tiền về** ở Tổng quan và bảng ở trang Dòng tiền. |
 | `src/lib/pancake/map.ts` | **Đọc dữ liệu Pancake**: tên trường của sản phẩm, đơn hàng; bảng **trạng thái đơn** (Mới, Đã xác nhận, Đã nhận, Đã hoàn…); đơn nào tính là **đơn chốt** (`CONFIRMED_STATUSES`). |
@@ -99,7 +102,7 @@
 - Lỗi trên trang: Next.js hiện khung lỗi đỏ ngay trên trình duyệt; ngoài ra có thể nhấn `F12` → tab **Console**.
 - Cách nhanh nhất: copy nguyên đoạn lỗi, dán cho Claude Code kèm câu *"Tôi gặp lỗi này khi …"*.
 
-**Chạy test khóa bảo vệ dữ liệu trên database thật:** `npm run test:db` (cần mạng). Lệnh này tạo tạm vài tài khoản `@test.1click.local`, kiểm tra shop A không đọc/sửa được dữ liệu shop B, rồi tự xóa. Phải ra `42 passed` (hoặc nhiều hơn khi có thêm bảng).
+**Chạy test khóa bảo vệ dữ liệu trên database thật:** `npm run test:db` (cần mạng). Lệnh này tạo tạm vài tài khoản `@test.1click.local`, kiểm tra shop A không đọc/sửa được dữ liệu shop B, rồi tự xóa. Phải ra `44 passed` (hoặc nhiều hơn khi có thêm bảng).
 
 **Chạy unit test:** `npm test`. Dòng cuối phải là `Tests  N passed`. Nếu có dòng `failed` nghĩa là một công thức đang tính sai: đừng đưa lên mạng, dán kết quả cho Claude Code.
 
@@ -143,6 +146,12 @@ Database của web này là project Supabase **"Doanh nghiệp 1 người"** (m�
 - **Không lưu thông tin cá nhân của khách** (tên, SĐT, địa chỉ), chỉ lưu số liệu đơn.
 - Đổi khóa sang **shop Pancake khác** thì dữ liệu shop cũ bị xóa để không trộn số.
 - Cài lại / tắt lịch: `npm.cmd run db:setup-cron` (hoặc `npm.cmd run db:setup-cron -- off`). Xem lịch đã chạy chưa: Supabase → **Integrations → Cron** (hoặc **Database → Cron Jobs**).
+
+### Báo cáo hằng ngày 8:00 (không gửi Telegram)
+
+- **8:00 sáng** mỗi ngày Supabase gọi web (`/api/cron/daily-report`): đồng bộ nhanh Pancake rồi lập báo cáo cho mọi shop và lưu lại.
+- Báo cáo gồm: **kết quả hôm qua** (số Pancake, so với hôm kia, nguồn đơn, 3 sản phẩm bán chạy), **tiền về** (dự kiến 7 ngày tới, hôm nay), **đặt hàng** (ngày đặt gần nhất, số mẫu/cái; hôm nay là ngày đặt thì ghi rõ), **việc cần làm**.
+- Xem ở **đầu trang Tổng quan** (bấm tiêu đề để thu gọn) và trang **Báo cáo** (30 ngày gần nhất). Trước 8:00 hiện báo cáo của sáng hôm trước. Nếu 8:00 lịch bị lỗi, mở web sau 8:00 sẽ tự lập ngay.
 
 ### Tiền về (tự động, không cần đối soát)
 

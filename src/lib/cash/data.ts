@@ -1,11 +1,12 @@
 import "server-only";
 import { addDays, type DateString } from "@/lib/date-range";
 import { createClient } from "@/lib/supabase/server";
+import type { AnySupabase } from "@/lib/supabase/types";
 import { cashByDay, cashEvents, type CashDay, type CashOrder, type CashTransaction } from "./compute";
 
 const PAGE = 1000;
 
-type Supabase = Awaited<ReturnType<typeof createClient>>;
+type Supabase = AnySupabase;
 
 /** Lấy đủ mọi trang (Supabase trả tối đa 1.000 dòng mỗi lần), các trang sau chạy song song. */
 async function fetchAll<T>(
@@ -28,8 +29,13 @@ async function fetchAll<T>(
  * Tiền về theo ngày trong [from, to] (giờ Việt Nam), đọc qua RLS.
  * Lấy đơn khách nhận từ (from − 8 ngày) để tính khoản TikTok +7 ngày rơi vào khoảng này.
  */
-export async function getCashDays(orgId: string, from: DateString, to: DateString): Promise<CashDay[]> {
-  const supabase = await createClient();
+export async function getCashDays(
+  orgId: string,
+  from: DateString,
+  to: DateString,
+  client?: AnySupabase,
+): Promise<CashDay[]> {
+  const supabase = client ?? (await createClient());
   const startIso = new Date(`${addDays(from, -8)}T00:00:00+07:00`).toISOString();
   const endIso = new Date(`${addDays(to, 1)}T00:00:00+07:00`).toISOString();
   const txStart = new Date(`${from}T00:00:00+07:00`).toISOString();

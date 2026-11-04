@@ -1,6 +1,7 @@
 import "server-only";
 import { getCurrentOrg } from "@/lib/org/current";
 import { createClient } from "@/lib/supabase/server";
+import type { AnySupabase } from "@/lib/supabase/types";
 import { DEFAULT_RULES, rowToStockRules, SETTING_COLUMNS, type ShopRules } from "./settings";
 
 export interface ShopStockRules {
@@ -29,4 +30,15 @@ export async function getShopStockRules(): Promise<ShopStockRules> {
     canEdit: org.role === "owner",
     isDefault: !data,
   };
+}
+
+/** Cấu hình tồn kho của một shop bất kỳ (dùng cho việc nền như báo cáo 8:00). */
+export async function getRulesForOrg(client: AnySupabase, orgId: string): Promise<ShopRules> {
+  const { data, error } = await client
+    .from("inventory_settings")
+    .select(SETTING_COLUMNS.join(", "))
+    .eq("org_id", orgId)
+    .maybeSingle();
+  if (error) throw new Error(`Không đọc được cấu hình tồn kho: ${error.message}`);
+  return rowToStockRules(data as Record<string, unknown> | null);
 }

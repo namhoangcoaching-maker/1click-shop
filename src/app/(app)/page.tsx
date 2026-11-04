@@ -8,10 +8,12 @@ import {
   FileTextIcon,
   MegaphoneIcon,
   PlugIcon,
+  ScaleIcon,
   UsersIcon,
   VideoIcon,
 } from "lucide-react";
 import { CashInPanel } from "@/components/cash/cash-in";
+import { DailyReportCard } from "@/components/report/daily-report";
 import { DataWarnings, type DataIssue } from "@/components/dashboard/data-warning";
 import { DateFilter } from "@/components/dashboard/date-filter";
 import { MetricStrip } from "@/components/dashboard/metric-strip";
@@ -34,6 +36,7 @@ import { analyzeInventory, summarizeInventory, type StockAnalysis } from "@/lib/
 import { getCurrentOrg } from "@/lib/org/current";
 import { getRealOverview, type RealOverview } from "@/lib/overview/real-data";
 import { buildRecommendations } from "@/lib/overview/recommendations";
+import { getReportToShow } from "@/lib/report/generate";
 
 export const metadata: Metadata = { title: "Tổng quan" };
 
@@ -68,6 +71,11 @@ export default function OverviewPage({ searchParams }: PageProps<"/">) {
   return (
     <main className="mx-auto w-full max-w-[1440px] space-y-4 px-4 py-4 md:px-6">
       <h1 className="text-xl font-bold">Tổng quan</h1>
+      {/* Báo cáo 8:00 (tải riêng, song song với phần số liệu bên dưới). */}
+      <Suspense fallback={<Skeleton className="h-12 bg-card" />}>
+        <MorningReport />
+      </Suspense>
+
       {/* Phần phụ thuộc ngày hôm nay và bộ lọc: tải sau, hiện khung xám trong lúc chờ. */}
       <Suspense fallback={<OverviewSkeleton />}>
         <Overview searchParams={searchParams} />
@@ -192,6 +200,7 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <CashInPanel days={cashDays} today={today} />
+            <NoDataPanel title="Dòng tiền (thu – chi)" icon={ScaleIcon} stage="Giai đoạn 3" note="Chi phí, công nợ, kết quả thu trừ chi theo ngày/tháng." />
             <NoDataPanel title="Thuế" icon={FileTextIcon} stage="Giai đoạn 7" note="Hóa đơn đã xuất, cần điều chỉnh, lịch nộp thuế." />
           </div>
 
@@ -217,6 +226,13 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
       </div>
     </>
   );
+}
+
+async function MorningReport() {
+  await connection();
+  const org = await getCurrentOrg();
+  if (!org) return null;
+  return <DailyReportCard report={await getReportToShow(org.id)} />;
 }
 
 function OverviewSkeleton() {
