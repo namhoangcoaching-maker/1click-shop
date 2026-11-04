@@ -2,7 +2,7 @@
 
 > File này luôn được cập nhật sau mỗi bước. Nếu thấy chỗ nào không khớp với thực tế, hãy nhắn Claude Code: *"HUONG_DAN.md đang sai ở mục …, sửa lại giúp tôi"*.
 
-**Tiến độ:** Giai đoạn 0 – Bước 0.1 (khởi tạo dự án) ✅ · Bước 0.2 (hệ thống thiết kế) ✅ · Bước 0.3 (menu trái) ✅ · Bước 0.4 (đăng nhập email, đợt 1) ✅ · Bước 0.5 (nhiều shop + khóa bảo vệ dữ liệu) ✅ · Bước 0.6 (trang Kết nối Pancake POS) ✅ · Cấu hình tồn kho theo shop ✅
+**Tiến độ:** Giai đoạn 0 – Bước 0.1 (khởi tạo dự án) ✅ · Bước 0.2 (hệ thống thiết kế) ✅ · Bước 0.3 (menu trái) ✅ · Bước 0.4 (đăng nhập email, đợt 1) ✅ · Bước 0.5 (nhiều shop + khóa bảo vệ dữ liệu) ✅ · Bước 0.6 (trang Kết nối Pancake POS) ✅ · Cấu hình tồn kho theo shop ✅ · Bước 0.7 (GitHub + Vercel + tên miền) ✅
 
 ---
 
@@ -188,4 +188,18 @@ Mỗi bước làm xong đều được lưu lại một "mốc" (commit).
 
 ## 7. Deploy bản mới lên Vercel
 
-*(Bổ sung ở Bước 0.7)*
+**Web thật:** https://shop.nhankhoitu.com.vn (dự phòng: https://1click-shop.vercel.app)
+
+| Nơi | Là gì | Ghi chú |
+|---|---|---|
+| GitHub `namhoangcoaching-maker/1click-shop` (Private) | Nơi cất code | Repo `1click` là của web tìm bài hot, **không đụng vào**. |
+| Vercel, team `1click`, project `1click-shop` (gói Hobby) | Máy chủ chạy web | Gói Hobby chỉ cho dùng phi thương mại. Khi thu tiền khách nên nâng gói Pro. |
+| Cloudflare, tên miền `nhankhoitu.com.vn` | Tên miền | Bản ghi **CNAME `shop`** → Vercel, **DNS only (đám mây xám)**. Bản ghi `idea` (web tìm bài hot) và tên miền gốc (trang Tài Chính Cá Nhân) **giữ nguyên**. |
+
+**Đưa bản mới lên mạng:** mỗi lần Claude Code commit và chạy `git push`, Vercel **tự** dựng lại web sau khoảng 1–2 phút. Xem tiến trình: Vercel → project `1click-shop` → **Deployments** (dòng trên cùng phải là **Ready** màu xanh).
+
+**Bản mới bị lỗi?** Vercel → **Deployments** → bấm dấu ⋮ ở bản cũ đang chạy tốt → **Promote to Production** (hoặc **Instant Rollback**): web quay lại bản cũ ngay, rồi nhờ Claude Code sửa.
+
+**Khóa bí mật trên Vercel:** Settings → **Environment Variables**, có đúng 4 biến: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `ENCRYPTION_KEY` (phải **giống hệt** `.env.local`, kể cả dấu `=` cuối). Sửa biến xong phải **Redeploy** mới có hiệu lực. `SUPABASE_DB_URL` chỉ dùng trên máy, không đưa lên Vercel.
+
+**Thay đổi database:** Vercel không tự chạy migration. Khi có file mới trong `supabase/migrations/`, chạy `npm.cmd run db:migrate` trên máy **trước** khi push code dùng bảng mới.
