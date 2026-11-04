@@ -31,8 +31,10 @@ export interface SaleRow {
   success: SaleNumbers;
   /** Hàng hoàn: price = Tổng tiền, product_count = Số lượng sản phẩm. */
   returned: SaleNumbers;
-  /** Tên sản phẩm (khi chia theo sản phẩm). */
+  /** Tên, mã mẫu (custom_id, ví dụ SC155) và ảnh đầu tiên (khi chia theo sản phẩm). */
   productName?: string;
+  productCode?: string;
+  productImage?: string;
 }
 
 export type SplitBy = "Time.hour" | "Time.day" | "Order.order_sources" | "Variation.product_id";
@@ -50,8 +52,18 @@ export function parseSaleResponse(body: unknown, splitBy?: SplitBy): SaleRow[] {
     result: num(d.result as Record<string, unknown>),
     success: num(d.success as Record<string, unknown>),
     returned: num(d.returned as Record<string, unknown>),
-    productName: (d.product as { name?: string } | undefined)?.name,
+    ...productInfo(d.product),
   }));
+}
+
+function productInfo(product: unknown): Pick<SaleRow, "productName" | "productCode" | "productImage"> {
+  const p = (product ?? {}) as { name?: unknown; custom_id?: unknown; images?: unknown };
+  const image = Array.isArray(p.images) ? p.images.find((x): x is string => typeof x === "string" && /^https:\/\//.test(x)) : undefined;
+  return {
+    productName: typeof p.name === "string" ? p.name : undefined,
+    productCode: typeof p.custom_id === "string" && p.custom_id ? p.custom_id : undefined,
+    productImage: image,
+  };
 }
 
 /** Khoảng thời gian theo giờ quốc tế (Pancake nhận since/until dạng ISO). */

@@ -34,9 +34,9 @@ describe("lịch đặt hàng", () => {
     expect(lastDayOfMonth("2026-12-01")).toBe("2026-12-31");
   });
 
-  it("4 ngày đặt sắp tới, đúng loại chính/bổ sung", () => {
-    expect(upcomingOrderDays("2026-11-05").map((d) => [d.date, d.kind, d.label])).toEqual([
-      ["2026-11-10", "extra", "Ngày 10"],
+  it("4 ngày đặt sắp tới, đúng loại chính/bổ sung (mùng 5 thay ngày 10)", () => {
+    expect(upcomingOrderDays("2026-11-04").map((d) => [d.date, d.kind, d.label])).toEqual([
+      ["2026-11-05", "extra", "Mùng 5"],
       ["2026-11-16", "main", "Ngày 16"],
       ["2026-11-20", "extra", "Ngày 20"],
       ["2026-11-30", "main", "Cuối tháng"],
@@ -46,7 +46,7 @@ describe("lịch đặt hàng", () => {
       "2026-11-16",
       "2026-11-20",
       "2026-11-30",
-      "2026-12-10",
+      "2026-12-05",
     ]);
   });
 
@@ -56,7 +56,7 @@ describe("lịch đặt hàng", () => {
     expect(nextMainAfter("2026-11-30")).toBe("2026-12-16");
     expect(coverUntil("2026-11-30")).toBe("2026-12-23");
     // Ngày bổ sung: đủ tới lần đặt chính kế tiếp + 7
-    expect(coverUntil("2026-11-10")).toBe("2026-11-23");
+    expect(coverUntil("2026-11-05")).toBe("2026-11-23");
     expect(coverUntil("2026-11-20")).toBe("2026-12-07");
   });
 
@@ -66,6 +66,20 @@ describe("lịch đặt hàng", () => {
     expect(leadTimeFor(51)).toBe(10);
     expect(leadTimeFor(150)).toBe(10);
     expect(leadTimeFor(151)).toBe(14);
+  });
+});
+
+describe("chỉ hiện ngày đặt gần nhất", () => {
+  it("1–5 hiện mùng 5; 6–16 hiện ngày 16; 17–20 hiện ngày 20; 21–cuối tháng hiện cuối tháng", () => {
+    const next = (d: string) => upcomingOrderDays(d, 1)[0].label;
+    expect(next("2026-11-04")).toBe("Mùng 5");
+    expect(next("2026-11-05")).toBe("Mùng 5");
+    expect(next("2026-11-06")).toBe("Ngày 16");
+    expect(next("2026-11-16")).toBe("Ngày 16");
+    expect(next("2026-11-17")).toBe("Ngày 20");
+    expect(next("2026-11-21")).toBe("Cuối tháng");
+    expect(next("2026-11-30")).toBe("Cuối tháng");
+    expect(next("2026-12-01")).toBe("Mùng 5");
   });
 });
 
@@ -127,15 +141,23 @@ describe("gợi ý đặt cho một ngày", () => {
 
 describe("cần sản xuất ngay", () => {
   it("đợi tới ngày đặt kế tiếp sẽ âm kho quá 7 ngày → báo ngay", () => {
-    // Hết ngay hôm nay, bán 3/ngày. Ngày đặt kế tiếp 10/11 + 7 ngày SX = 17/11 → âm 12 ngày.
-    const urgent = urgentNow([item({ id: "S", stock: 0, velocity: 3 })], "2026-11-05");
+    // Hôm nay 06/11 (không phải ngày đặt), hết hàng, bán 3/ngày. Ngày đặt kế tiếp 16/11 + SX → âm hơn 7 ngày.
+    const urgent = urgentNow([item({ id: "S", stock: 0, velocity: 3 })], "2026-11-06");
     expect(urgent).toHaveLength(1);
-    expect(urgent[0].orderDate).toBe("2026-11-05");
+    expect(urgent[0].orderDate).toBe("2026-11-06");
+  });
+
+  it("hôm nay là ngày đặt (mùng 5) thì không tách mục 'ngay': mẫu nằm trong danh sách hôm nay", () => {
+    const items = [item({ id: "S", stock: 0, velocity: 3 })];
+    expect(urgentNow(items, "2026-11-05")).toEqual([]);
+    const plan = buildOrderPlan(items, "2026-11-05");
+    expect(plan.days[0].day.label).toBe("Mùng 5");
+    expect(plan.days[0].products).toHaveLength(1);
   });
 
   it("âm kho trong mức cho phép (≤7 ngày) thì chờ tới ngày đặt, không báo ngay", () => {
-    // Còn 20, bán 2/ngày → hết 15/11. Đặt 16/11 (về 23/11) → âm ~8 ngày; đặt 10/11 (về 17/11) → âm 2 ngày.
-    expect(urgentNow([item({ id: "S", stock: 20, velocity: 2 })], "2026-11-05")).toEqual([]);
+    // 06/11: còn 30, bán 2/ngày → âm từ 21/11. Đặt 16/11 (về 23/11) → âm 2 ngày → chờ được.
+    expect(urgentNow([item({ id: "S", stock: 30, velocity: 2 })], "2026-11-06")).toEqual([]);
   });
 });
 
@@ -150,14 +172,15 @@ describe("kế hoạch cả tháng", () => {
 
   it("số ngày âm ở lần đặt sau đếm từ ngày đặt, đã tính lô đặt trước về", () => {
     const plan = buildOrderPlan([item({ id: "S", stock: 0, velocity: 3 })], "2026-11-05");
-    // Lô 'ngay' về 12/11 (SX 7 ngày) đủ tới 23/11; lần đặt 16/11 về 26/11 → âm 23–25/11 = 3 ngày, không phải 21.
+    // Lô mùng 5 về 12/11 (SX 7 ngày) đủ tới 23/11; lần đặt 16/11 về 26/11 → âm 23–25/11 = 3 ngày, không phải 21.
     const d16 = plan.days.find((d) => d.day.label === "Ngày 16")!.products[0];
     expect(d16.negativeDays).toBeLessThanOrEqual(3);
   });
 
   it("mẫu đã 'sản xuất ngay' thì các ngày sau tính như đã đặt", () => {
-    const plan = buildOrderPlan([item({ id: "S", stock: 0, velocity: 3 })], "2026-11-05");
+    const plan = buildOrderPlan([item({ id: "S", stock: 0, velocity: 3 })], "2026-11-06");
     expect(plan.urgent).toHaveLength(1);
-    expect(plan.days[0].products).toEqual([]); // ngày 10 không lặp lại
+    expect(plan.days[0].day.label).toBe("Ngày 16");
+    expect(plan.days[0].products[0]?.negativeDays ?? 0).toBeLessThanOrEqual(3); // không lặp lại cả lô
   });
 });

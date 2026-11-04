@@ -115,7 +115,8 @@ export function buildPancakeOverview(i: PancakeStatsInput): PancakeOverview {
     .map((r) => ({
       productId: r.key!,
       name: r.productName ?? "Sản phẩm không tên",
-      sku: null,
+      sku: r.productCode ?? null,
+      imageUrl: r.productImage,
       quantity: v(r.result.product_count),
       revenue: v(r.result.revenue),
       linked: true,

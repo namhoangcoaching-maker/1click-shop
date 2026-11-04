@@ -142,7 +142,7 @@ describe("buildRecommendations – theo kế hoạch đặt hàng", () => {
         { sku: "S", id: "S", productId: "A", name: "Vanis Skirt", variant: "Kem / S", stock: 0, soldInWindow: 90, leadTimeDays: null, costPrice: 1, price: 2, velocity: 3, incoming: [] },
         { sku: "M", id: "M", productId: "B", name: "Juliet Top", variant: "M", stock: 30, soldInWindow: 30, leadTimeDays: null, costPrice: 1, price: 2, velocity: 1, incoming: [] },
       ],
-      "2026-11-05",
+      "2026-11-06", // không phải ngày đặt → có mục "cần sản xuất ngay"
     );
     const next = plan.days.find((d) => d.products.length > 0)!;
     const recs = buildRecommendations(

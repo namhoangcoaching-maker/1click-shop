@@ -67,6 +67,7 @@ async function Inventory({ searchParams }: Pick<PageProps<"/ton-kho">, "searchPa
 
   const active = inventory.items.filter((i) => !i.inactive);
   const plan = buildOrderPlan(toPlanItems(active, incoming, rules.velocityWindowDays, today), today, rules);
+  const nextDay = plan.days[0];
   const visible = (list: ProductSuggestion[]) => (showSlow ? list : list.filter((p) => !p.slow));
   const hidden = (list: ProductSuggestion[]) => (showSlow ? 0 : list.filter((p) => p.slow).length);
   const canEditIncoming = org.role === "owner" || org.role === "manager";
@@ -104,34 +105,45 @@ async function Inventory({ searchParams }: Pick<PageProps<"/ton-kho">, "searchPa
         <StockSettings rules={rules} canEdit={canEdit} isDefault={isDefault} />
       </div>
 
-      <UrgentPlan
-        products={visible(plan.urgent)}
+      {/* Hôm nay là ngày đặt: mọi mẫu cần đặt nằm trong danh sách hôm nay bên dưới. */}
+      {nextDay.day.date !== today && (
+        <UrgentPlan
+          products={visible(plan.urgent)}
+          today={today}
+          maxNegativeDays={rules.maxNegativeDays}
+          canEdit={canEditIncoming}
+        />
+      )}
+
+      {/* Chỉ hiện ngày đặt GẦN NHẤT (chủ shop yêu cầu): 1–5 → mùng 5, 6–16 → 16, 17–20 → 20, 21–cuối → cuối tháng. */}
+      <OrderDaySection
+        day={nextDay.day}
+        products={visible(nextDay.products)}
+        hiddenSlow={hidden(nextDay.products)}
         today={today}
-        maxNegativeDays={rules.maxNegativeDays}
         canEdit={canEditIncoming}
+        showSlowHref={slowHref}
       />
 
-      <div className="space-y-1">
-        <h2 className="text-[15px] font-semibold">Nhắc đặt hàng</h2>
-        <p className="text-sm text-muted-foreground">
-          Đặt chính ngày 16 và cuối tháng (đủ bán tới lần đặt chính kế tiếp + {rules.extraCoverDays} ngày). Ngày 10 và
-          ngày 20 chỉ đặt bổ sung khi mẫu bán chạy lên hoặc đã đặt rồi vẫn thiếu. Tối thiểu {rules.moqPerSize} cái/size;
-          sản xuất {rules.tier1Days} ngày (≤{rules.tier1Qty} cái), {rules.tier2Days} ngày (≤{rules.tier2Qty} cái),{" "}
-          {rules.tier3Days} ngày (nhiều hơn). Ngày sau đã tính như các lần trước được đặt đúng gợi ý.
-        </p>
+      <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+        <p className="font-medium text-foreground">Ghi chú lịch đặt hàng</p>
+        <ul className="mt-1 list-disc space-y-0.5 pl-5">
+          <li>
+            <b>Đặt chính</b> ngày 16 và cuối tháng: hàng phải đủ bán tới lần đặt chính kế tiếp + {rules.extraCoverDays}{" "}
+            ngày (đặt ngày 16 → đủ tới mùng 7 tháng sau; đặt cuối tháng → đủ tới ngày 23 tháng sau).
+          </li>
+          <li>
+            <b>Đặt bổ sung</b> mùng 5 và ngày 20: chỉ đặt mẫu bán chạy lên đột ngột, hoặc đã đặt rồi mà vẫn không đủ tới
+            lần đặt chính kế tiếp + {rules.extraCoverDays} ngày.
+          </li>
+          <li>
+            Tối thiểu {rules.moqPerSize} cái/size. Sản xuất {rules.tier1Days} ngày (≤{rules.tier1Qty} cái/mẫu),{" "}
+            {rules.tier2Days} ngày (≤{rules.tier2Qty} cái), {rules.tier3Days} ngày (nhiều hơn). Cho bán âm kho tối đa{" "}
+            {rules.maxNegativeDays} ngày.
+          </li>
+          <li>Đặt xong: nhập số thực tế từng size + ngày xưởng hẹn giao ở cột “Đặt thực tế”, rồi bấm “Đã đặt”.</li>
+        </ul>
       </div>
-
-      {plan.days.map(({ day, products }) => (
-        <OrderDaySection
-          key={day.date}
-          day={day}
-          products={visible(products)}
-          hiddenSlow={hidden(products)}
-          today={today}
-          canEdit={canEditIncoming}
-          showSlowHref={slowHref}
-        />
-      ))}
 
       <IncomingList rows={incomingRows} canEdit={canEditIncoming} />
     </>

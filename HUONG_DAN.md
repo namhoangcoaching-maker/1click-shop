@@ -28,7 +28,7 @@
 | `src/lib/supabase/` | Kết nối tới Supabase (cơ sở dữ liệu + tài khoản). Thường không cần sửa. |
 | `src/components/layout/account-menu.tsx` | Khối email + nút Đăng xuất ở cuối menu trái. |
 | `src/app/(app)/page.tsx` | **Trang Tổng quan** (`/`, trang chủ, **số liệu thật** từ Pancake): thứ tự và cách xếp các khối, danh sách "Dữ liệu cần kiểm tra". |
-| `src/lib/pancake/analytics.ts`, `src/lib/overview/pancake-stats.ts` | **Lấy số tiền từ Thống kê Pancake** (Doanh số, Doanh thu, Lợi nhuận, Đơn chốt, GTTB, Phí sàn, Nguồn đơn, Top sản phẩm) và xếp vào các khối Tổng quan. Danh sách số liệu lấy về nằm ở `SALE_FIELDS`. |
+| `src/lib/pancake/analytics.ts`, `src/lib/overview/pancake-stats.ts` | **Lấy số tiền từ Thống kê Pancake** (Doanh số, Doanh thu, Lợi nhuận, Đơn chốt, GTTB, Phí sàn, Nguồn đơn, Top sản phẩm kèm ảnh + mã mẫu) và xếp vào các khối Tổng quan. Danh sách số liệu lấy về nằm ở `SALE_FIELDS`. |
 | `src/lib/overview/real-data.ts` | Lấy số liệu cho Tổng quan: gọi Thống kê Pancake (song song) + tồn kho đã đồng bộ. |
 | `src/components/dashboard/no-data-panel.tsx` | Khối "Chưa có dữ liệu" cho mục chưa có nguồn (Dòng tiền, Thuế, Content, Nhân sự, Quảng cáo). |
 | `src/app/(app)/content`, `tao-noi-dung`, `nhan-su`, `thue`, `dong-tien` | Các trang "Đang xây dựng", mỗi trang ghi sẵn tính năng sẽ có. |
@@ -49,8 +49,8 @@
 | `src/components/dashboard/trend-chart.tsx` | **Biểu đồ đường** kỳ này (xanh) và kỳ trước (xám nét đứt). |
 | `src/app/(app)/ton-kho/page.tsx` | **Trang Tồn kho · Kế hoạch đặt hàng** (`/ton-kho`): Cần sản xuất ngay, 4 mục nhắc đặt (cuối tháng, 16, 10, 20), Hàng sắp về. |
 | `src/lib/inventory/plan.ts` | **Công thức kế hoạch đặt hàng**: lịch đặt, đủ bán tới đâu, tối thiểu/size, thời gian sản xuất theo số lượng, âm kho tối đa, mã bán chậm. |
-| `src/lib/inventory/incoming*.ts`, `src/components/inventory/ordered-form.tsx`, `incoming-list.tsx` | **Hàng sắp về**: nút "Đã đặt", danh sách, nút "Đã về". |
-| `src/components/inventory/order-plan.tsx` | Giao diện bảng Cần sản xuất ngay và 4 mục nhắc đặt. |
+| `src/lib/inventory/incoming*.ts`, `src/components/inventory/plan-variants.tsx`, `incoming-list.tsx` | **Hàng sắp về**: bảng từng size có cột "Đặt thực tế" + ngày về thực tế + nút "Đã đặt"; danh sách hàng sắp về, nút "Đã về". |
+| `src/components/inventory/order-plan.tsx` | Giao diện Cần sản xuất ngay và ngày đặt gần nhất. Ngày đặt (mùng 5, 16, 20, cuối tháng) nằm ở `orderDaysInMonth` trong `src/lib/inventory/plan.ts`. |
 | `src/lib/inventory/alarms.ts` | Thứ tự size S, M, L… (`SIZE_ORDER`) và tách màu/size. |
 | `src/lib/inventory/real-data.ts`, `real-stock.ts` | Lấy tồn kho thật: sản phẩm + số bán thực (đơn chốt trừ hàng hoàn) theo từng mã; quy tắc "ngừng kinh doanh" (hết hàng và 90 ngày không bán, hoặc ẩn trên Pancake). |
 | `src/components/inventory/` | Bảng tồn kho và nhãn trạng thái (Hết hàng, Sản xuất ngay, Sắp đến hạn, Bán chậm, Đủ hàng). |
@@ -204,12 +204,14 @@ Mỗi bước làm xong đều được lưu lại một "mốc" (commit).
 | Tính tốc độ bán trên | 30 ngày | Bán/ngày = số bán thực (đơn chốt trừ hàng hoàn) ÷ số ngày |
 | Tồn nhiều khi đủ bán quá | 90 ngày | Dùng cho đề xuất "kế hoạch đẩy tồn" ở Tổng quan |
 
-**Lịch đặt mỗi tháng:** **Đặt chính** ngày 16 và ngày cuối tháng. **Đặt bổ sung** ngày 10 và ngày 20, chỉ hiện mẫu bán chạy lên đột ngột hoặc đã đặt rồi vẫn thiếu (1Click tính các lần trước như đã đặt đúng gợi ý).
+**Lịch đặt mỗi tháng:** **Đặt chính** ngày 16 và ngày cuối tháng. **Đặt bổ sung** mùng 5 và ngày 20, chỉ có mẫu bán chạy lên đột ngột hoặc đã đặt rồi vẫn thiếu (1Click tính các lần trước như đã đặt đúng gợi ý).
+
+**Chỉ hiện ngày đặt gần nhất:** ngày 1–5 hiện mùng 5; ngày 6–16 hiện ngày 16; ngày 17–20 hiện ngày 20; ngày 21–cuối tháng hiện cuối tháng.
 
 **Trang Tồn kho gồm:**
-1. **Cần sản xuất ngay** – mẫu mà nếu đợi tới ngày đặt kế tiếp sẽ bán âm kho quá 7 ngày.
-2. **4 mục nhắc đặt hàng** (theo thứ tự ngày sắp tới), mỗi mẫu bấm vào xem từng màu/size: Có thể bán, Sắp về, Bán/ngày, Ngày hết hàng, Thiếu tới ngày phải đủ, **Gợi ý đặt**; kèm thời gian sản xuất và ngày về dự kiến.
-3. **Đã đặt** (Chủ shop, Quản lý): sau khi đặt xưởng, bấm "Đã đặt" ở mẫu đó, sửa số lượng thực tế từng size + ngày về → 1Click cộng vào kế hoạch (không gợi ý đặt trùng).
+1. **Cần sản xuất ngay** (chỉ hiện vào ngày KHÔNG phải ngày đặt) – mẫu mà nếu đợi tới ngày đặt kế tiếp sẽ bán âm kho quá 7 ngày. Hôm nay là ngày đặt thì mọi mẫu cần đặt nằm chung danh sách của hôm nay.
+2. **Ngày đặt gần nhất** + phần **Ghi chú lịch đặt hàng**; mỗi mẫu bấm vào xem từng màu/size: Có thể bán, Sắp về, Bán/ngày, Ngày hết hàng, Thiếu tới ngày phải đủ, **Gợi ý đặt**; kèm thời gian sản xuất và ngày về dự kiến.
+3. **Đặt thực tế** (Chủ shop, Quản lý): trong bảng từng size, nhập số THỰC TẾ đã chốt với xưởng ở cột "Đặt thực tế" (để trống = không đặt size đó), chọn **Ngày về thực tế (xưởng hẹn)**, ghi chú nếu cần, rồi bấm **"Đã đặt"** → 1Click cộng vào kế hoạch (không gợi ý đặt trùng).
 4. **Hàng sắp về** – danh sách đã đặt; hàng về và nhập kho trên Pancake xong thì bấm **"Đã về"**. Quá ngày về 3 ngày mà chưa bấm thì 1Click tự thôi cộng (coi như tồn Pancake đã tăng).
 
 - **Ví dụ:** váy size S còn 5 cái, bán 3 cái/ngày. Đặt ngày 16/11 phải đủ bán tới 07/12: cần 3 × 32 = 96 cái, có 5 → gợi ý **91 cái**. Size L thiếu 2 cái vẫn đặt **20 cái** (tối thiểu). Cả mẫu 111 cái → sản xuất 10 ngày, về khoảng 26/11.

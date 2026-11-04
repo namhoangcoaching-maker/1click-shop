@@ -35,10 +35,24 @@ describe("parseSaleResponse", () => {
 
   it("đọc khóa nhóm và tên sản phẩm", () => {
     const rows = parseSaleResponse(
-      { data: [{ "Variation.product_id": "p1", product: { name: "Juliet Top" }, result: { revenue: 1 } }] },
+      {
+        data: [
+          {
+            "Variation.product_id": "p1",
+            product: { name: "Juliet Top", custom_id: "SC155", images: ["http://khong-an-toan.vn/a.jpg", "https://content.pancake.vn/a.jpg"] },
+            result: { revenue: 1 },
+          },
+        ],
+      },
       "Variation.product_id",
     );
-    expect(rows[0]).toMatchObject({ key: "p1", productName: "Juliet Top" });
+    // Chỉ nhận ảnh https
+    expect(rows[0]).toMatchObject({
+      key: "p1",
+      productName: "Juliet Top",
+      productCode: "SC155",
+      productImage: "https://content.pancake.vn/a.jpg",
+    });
   });
 
   it("dữ liệu rỗng hoặc hỏng không làm sập trang", () => {

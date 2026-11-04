@@ -61,6 +61,8 @@ export interface TopProduct {
   sku: string | null;
   quantity: number;
   revenue: number;
+  /** Ảnh sản phẩm (Pancake), https. */
+  imageUrl?: string;
   /** false: dòng sản phẩm sàn chưa liên kết với sản phẩm trên Pancake. */
   linked: boolean;
 }

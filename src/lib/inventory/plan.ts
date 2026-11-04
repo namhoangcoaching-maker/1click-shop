@@ -1,7 +1,7 @@
 /**
  * Kế hoạch đặt hàng theo lịch (chủ dự án chốt 05/11/2026, thuần tính toán, có unit test):
  *
- * - Lịch đặt mỗi tháng: ĐẶT CHÍNH ngày 16 và ngày cuối tháng; ĐẶT BỔ SUNG ngày 10 và ngày 20
+ * - Lịch đặt mỗi tháng: ĐẶT CHÍNH ngày 16 và ngày cuối tháng; ĐẶT BỔ SUNG mùng 5 và ngày 20
  *   (chỉ khi mã bán chạy lên hoặc đã đặt rồi vẫn thiếu).
  * - Hàng đặt ngày D phải đủ bán tới (lần đặt chính kế tiếp sau D) + 7 ngày.
  *   Ví dụ đặt ngày 16 → đủ bán tới mùng 7 tháng sau; đặt cuối tháng → đủ bán tới ngày 23 tháng sau.
@@ -66,7 +66,7 @@ export type OrderDayKind = "main" | "extra";
 export interface OrderDay {
   date: DateString;
   kind: OrderDayKind;
-  /** "Cuối tháng", "Ngày 16", "Ngày 10", "Ngày 20". */
+  /** "Mùng 5", "Ngày 16", "Ngày 20", "Cuối tháng". */
   label: string;
 }
 
@@ -80,10 +80,10 @@ function dayOfMonth(date: DateString, day: number): DateString {
   return `${date.slice(0, 8)}${String(day).padStart(2, "0")}`;
 }
 
-/** Các ngày đặt trong tháng của `date`: 10, 16, 20, cuối tháng. */
+/** Các ngày đặt trong tháng: mùng 5, 16, 20, cuối tháng (chủ shop đổi ngày 10 → mùng 5 ngày 05/11/2026). */
 function orderDaysInMonth(date: DateString): OrderDay[] {
   return [
-    { date: dayOfMonth(date, 10), kind: "extra", label: "Ngày 10" },
+    { date: dayOfMonth(date, 5), kind: "extra", label: "Mùng 5" },
     { date: dayOfMonth(date, 16), kind: "main", label: "Ngày 16" },
     { date: dayOfMonth(date, 20), kind: "extra", label: "Ngày 20" },
     { date: lastDayOfMonth(date), kind: "main", label: "Cuối tháng" },
@@ -250,10 +250,13 @@ export function suggestForDay(
 }
 
 /**
- * "Cần sản xuất ngay": nếu đợi tới ngày đặt kế tiếp (kể cả ngày 10/20) thì hàng về trễ hơn
+ * "Cần sản xuất ngay": nếu đợi tới ngày đặt kế tiếp (kể cả mùng 5 / ngày 20) thì hàng về trễ hơn
  * `maxNegativeDays` ngày sau khi hết hàng. Gợi ý số lượng như khi đặt HÔM NAY.
+ * Hôm nay là ngày đặt thì không có mục "ngay" (đã nằm trong danh sách hôm nay).
  */
 export function urgentNow(items: PlanItem[], today: DateString, rules: PlanRules = PLAN_RULES): ProductSuggestion[] {
+  // Hôm nay là ngày đặt: mọi mẫu cần đặt nằm chung danh sách của hôm nay, không tách "ngay".
+  if (upcomingOrderDays(today, 1)[0].date === today) return [];
   const next = upcomingOrderDays(addDays(today, 1), 1)[0].date;
   // Nếu đợi: tính cả những ngày đang âm từ hôm nay tới khi lô đặt ngày kế tiếp về.
   const ifWait = new Map(suggestForDay(items, today, next, rules, today).map((p) => [p.productId, p]));
@@ -271,7 +274,7 @@ export interface OrderPlan {
 /**
  * Toàn bộ kế hoạch: cần sản xuất ngay + 4 ngày đặt sắp tới.
  * Tính lần lượt từng ngày, GIẢ ĐỊNH các lần trước được đặt đúng gợi ý (cộng thành hàng sắp về),
- * nên ngày 10/20 chỉ còn những mẫu thật sự vẫn thiếu, không lặp lại gợi ý của ngày 16/cuối tháng.
+ * nên mùng 5 / ngày 20 chỉ còn những mẫu thật sự vẫn thiếu, không lặp lại gợi ý của ngày 16/cuối tháng.
  */
 export function buildOrderPlan(items: PlanItem[], today: DateString, rules: PlanRules = PLAN_RULES): OrderPlan {
   const urgent = urgentNow(items, today, rules);

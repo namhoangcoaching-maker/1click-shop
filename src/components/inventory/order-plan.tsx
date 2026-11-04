@@ -2,9 +2,9 @@ import Link from "next/link";
 import { CalendarClockIcon, ChevronRightIcon, OctagonAlertIcon } from "lucide-react";
 import { daysUntil, formatDateVN, type DateString } from "@/lib/date-range";
 import { formatNumber, formatVelocity } from "@/lib/format";
-import type { OrderDay, ProductSuggestion, VariantSuggestion } from "@/lib/inventory/plan";
+import type { OrderDay, ProductSuggestion } from "@/lib/inventory/plan";
 import { cn } from "@/lib/utils";
-import { OrderedForm } from "./ordered-form";
+import { PlanVariants } from "./plan-variants";
 
 const shortDate = (d: DateString) => formatDateVN(d).slice(0, 5);
 
@@ -137,66 +137,30 @@ function ProductList({ products, today, canEdit }: { products: ProductSuggestion
               </span>
             </summary>
             <div className="bg-muted/40 px-4 pt-1 pb-3">
-              <VariantTable variants={p.variants} until={p.coverUntil} />
-              {canEdit && (
-                <div className="mt-2">
-                  <OrderedForm
-                    productName={p.name}
-                    variants={p.variants.map((v) => ({
-                      id: v.item.id ?? v.item.sku,
-                      label: v.item.variant ?? v.item.sku,
-                      suggested: v.suggested,
-                    }))}
-                    defaultEta={p.arrival}
-                    minEta={today}
-                  />
-                </div>
-              )}
+              <PlanVariants
+                productName={p.name}
+                rows={p.variants.map((v) => ({
+                  id: v.item.id ?? v.item.sku,
+                  label: v.item.variant ?? v.item.sku,
+                  sku: v.item.sku,
+                  stock: v.item.stock,
+                  incomingQty: v.incomingQty,
+                  velocity: formatVelocity(v.item.velocity),
+                  stockout: v.stockout ? shortDate(v.stockout) : null,
+                  stockoutSoon: Boolean(v.stockout && v.stockout <= p.coverUntil),
+                  short: Math.ceil(v.short),
+                  suggested: v.suggested,
+                  slow: v.slow,
+                }))}
+                untilLabel={shortDate(p.coverUntil)}
+                estimatedArrival={shortDate(p.arrival)}
+                minEta={today}
+                canEdit={canEdit}
+              />
             </div>
           </details>
         </li>
       ))}
     </ul>
-  );
-}
-
-function VariantTable({ variants, until }: { variants: VariantSuggestion[]; until: DateString }) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[720px] text-sm whitespace-nowrap">
-        <thead>
-          <tr className="text-xs text-muted-foreground">
-            <th className="py-1.5 pr-3 text-left font-normal">Màu / Size</th>
-            <th className="px-3 py-1.5 text-right font-normal">Có thể bán</th>
-            <th className="px-3 py-1.5 text-right font-normal">Sắp về</th>
-            <th className="px-3 py-1.5 text-right font-normal">Bán / ngày</th>
-            <th className="px-3 py-1.5 text-right font-normal">Hết hàng</th>
-            <th className="px-3 py-1.5 text-right font-normal">Thiếu tới {formatDateVN(until).slice(0, 5)}</th>
-            <th className="py-1.5 pl-3 text-right font-normal">Gợi ý đặt</th>
-          </tr>
-        </thead>
-        <tbody className="tabular-nums">
-          {variants.map((v) => (
-            <tr key={v.item.id ?? v.item.sku} className="border-t border-border/60">
-              <td className="py-1.5 pr-3">
-                <span className={cn(v.suggested > 0 && "font-medium")}>{v.item.variant ?? v.item.sku}</span>{" "}
-                <span className="text-xs text-muted-foreground">{v.item.sku}</span>
-                {v.slow && v.suggested > 0 && <span className="ml-1 text-xs text-warning">bán chậm</span>}
-              </td>
-              <td className={cn("px-3 py-1.5 text-right font-semibold", v.item.stock < 0 && "text-destructive")}>
-                {formatNumber(v.item.stock)}
-              </td>
-              <td className="px-3 py-1.5 text-right">{v.incomingQty > 0 ? formatNumber(v.incomingQty) : "—"}</td>
-              <td className="px-3 py-1.5 text-right">{formatVelocity(v.item.velocity)}</td>
-              <td className={cn("px-3 py-1.5 text-right", v.stockout && v.stockout <= until && "text-destructive")}>
-                {v.stockout ? formatDateVN(v.stockout).slice(0, 5) : "—"}
-              </td>
-              <td className="px-3 py-1.5 text-right">{v.short > 0 ? formatNumber(Math.ceil(v.short)) : "—"}</td>
-              <td className="py-1.5 pl-3 text-right font-semibold">{v.suggested > 0 ? formatNumber(v.suggested) : "—"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
   );
 }

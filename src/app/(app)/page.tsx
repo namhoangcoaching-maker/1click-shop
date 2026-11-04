@@ -107,7 +107,7 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
   const incoming = await getIncoming(org.id);
   const plan = buildOrderPlan(toPlanItems(active, incoming, rules.velocityWindowDays, today), today, rules);
   const urgentPlan = plan.urgent.filter((p) => !p.slow);
-  const nextDay = plan.days.find((d) => d.products.some((p) => !p.slow));
+  const nextDay = plan.days[0]; // chỉ nhắc ngày đặt gần nhất
   const stats = data.stats;
   const revenue = stats?.metrics.find((m) => m.key === "revenue")?.value ?? 0;
   const recommendations = buildRecommendations({
