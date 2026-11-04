@@ -57,12 +57,10 @@ function dataIssues(data: RealOverview, stock: StockAnalysis[], defaultLeadTimeD
       fixUrl: PANCAKE_URL,
     });
   }
-  if (noCost.length > 0 || data.qtyWithoutCost > 0) {
+  if (noCost.length > 0) {
     issues.push({
       title: `${noCost.length} mã còn hàng chưa có giá vốn`,
-      impact:
-        "Lợi nhuận bị tính cao hơn thực tế, giá trị tồn kho bị thiếu" +
-        (data.qtyWithoutCost > 0 ? ` (kỳ này có ${formatNumber(data.qtyWithoutCost)} sản phẩm bán ra chưa có giá vốn).` : "."),
+      impact: "Lợi nhuận bị tính cao hơn thực tế, giá trị tồn kho bị thiếu.",
       howToFix: "Vào Pancake POS → Sản phẩm, mở từng mã dưới đây và nhập giá nhập (giá vốn).",
       items: noCost.map((a) => `${a.item.name}${a.item.variant ? ` · ${a.item.variant}` : ""} (${a.item.sku})`),
       fixUrl: PANCAKE_URL,
@@ -103,7 +101,7 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
   const { rules } = await getShopStockRules();
   const data = await getRealOverview(org.id, filter.range, filter.previousRange, rules.velocityWindowDays, now);
 
-  if (!data.hasData) {
+  if (!data.connected && data.stock.length === 0) {
     return (
       <Panel title="Chưa có dữ liệu" icon={PlugIcon} tone="slate">
         <p className="text-sm text-muted-foreground">
@@ -121,10 +119,11 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
   const stock = analyzeInventory(active, today, rules);
   const inventory = summarizeInventory(active);
   const urgentProducts = groupStockAlarms(stock).length;
-  const revenue = data.metrics.find((m) => m.key === "revenue")?.value ?? 0;
+  const stats = data.stats;
+  const revenue = stats?.metrics.find((m) => m.key === "revenue")?.value ?? 0;
   const recommendations = buildRecommendations({
     totalRevenue: revenue,
-    topProducts: data.topProducts,
+    topProducts: stats?.topProducts ?? [],
     adCosts: [],
     stock,
     inventoryHref: INVENTORY_HREF,
@@ -145,7 +144,7 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
         />
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground">
-            Pancake cập nhật {data.syncedAt ? formatDateTimeVN(data.syncedAt) : "—"}
+            Số tiền lấy trực tiếp từ Pancake · tồn kho cập nhật {data.syncedAt ? formatDateTimeVN(data.syncedAt) : "—"}
           </span>
           <RefreshButton />
         </div>
@@ -156,24 +155,35 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
         <DataWarnings issues={dataIssues(data, stock, rules.defaultLeadTimeDays)} />
       </div>
 
+      {data.statsError && (
+        <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+          {data.statsError}
+        </p>
+      )}
+
+      {stats && (
       <SummaryCards
-        closed={data.closedOrders}
-        returned={data.returnedOrders}
+        closed={stats.closedOrders}
+        returned={stats.returnedOrders}
         inventory={inventory}
         urgentCount={urgentProducts}
         inventoryHref={INVENTORY_HREF}
       />
+      )}
 
       <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-4">
-          <Panel title="Kinh doanh" icon={ChartLineIcon}>
-            <MetricStrip metrics={data.metrics} />
-          </Panel>
-
-          <OrderSources rows={data.sources} />
+          {stats && (
+            <>
+              <Panel title="Kinh doanh" icon={ChartLineIcon}>
+                <MetricStrip metrics={stats.metrics} />
+              </Panel>
+              <OrderSources rows={stats.sources} />
+            </>
+          )}
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <TopProducts products={data.topProducts} />
+            <TopProducts products={stats?.topProducts ?? []} />
             <NoDataPanel
               title="Chi phí quảng cáo"
               icon={MegaphoneIcon}
@@ -199,10 +209,10 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
           />
           <Panel title="Cách tính" icon={BadgeDollarSignIcon} tone="blue">
             <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-              <li>Đơn chốt: từ “Đã xác nhận” trở đi, kể cả đơn hoàn.</li>
-              <li>Doanh thu: doanh số − chiết khấu − hàng hoàn − phí sàn (giống Pancake).</li>
-              <li>Lợi nhuận: doanh thu − giá vốn (giá nhập trung bình). Chưa trừ quảng cáo, lương.</li>
-              <li>Đơn Shopee bị hoàn: không tính phí %, trừ phí PiShip 2.700 ₫/đơn.</li>
+              <li>Doanh số, Doanh thu, Lợi nhuận, Đơn chốt, GTTB, Phí sàn, Nguồn đơn, Top sản phẩm: lấy nguyên từ Thống kê của Pancake, nên luôn khớp Pancake.</li>
+              <li>Hàng chốt / Hàng hoàn: “Số lượng” là số sản phẩm, giống Pancake.</li>
+              <li>Lợi nhuận chưa trừ quảng cáo, lương, mặt bằng.</li>
+              <li>Tồn kho và báo động sản xuất: 1Click tính từ dữ liệu đồng bộ mỗi 30 phút.</li>
             </ul>
           </Panel>
         </aside>

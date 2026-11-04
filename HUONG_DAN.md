@@ -28,8 +28,8 @@
 | `src/lib/supabase/` | Kết nối tới Supabase (cơ sở dữ liệu + tài khoản). Thường không cần sửa. |
 | `src/components/layout/account-menu.tsx` | Khối email + nút Đăng xuất ở cuối menu trái. |
 | `src/app/(app)/page.tsx` | **Trang Tổng quan** (`/`, trang chủ, **số liệu thật** từ Pancake): thứ tự và cách xếp các khối, danh sách "Dữ liệu cần kiểm tra". |
-| `src/lib/overview/compute.ts` | **Công thức tiền**: Doanh số, Doanh thu, Lợi nhuận, Phí sàn, Hàng hoàn, Nguồn đơn, Top sản phẩm. Phí sàn cho mỗi đơn hoàn (Shopee PiShip 2.700 ₫) nằm ở `RETURN_FEE_PER_ORDER` đầu file. |
-| `src/lib/overview/real-data.ts` | Lấy số liệu thật cho Tổng quan (đọc database, chạy song song). |
+| `src/lib/pancake/analytics.ts`, `src/lib/overview/pancake-stats.ts` | **Lấy số tiền từ Thống kê Pancake** (Doanh số, Doanh thu, Lợi nhuận, Đơn chốt, GTTB, Phí sàn, Nguồn đơn, Top sản phẩm) và xếp vào các khối Tổng quan. Danh sách số liệu lấy về nằm ở `SALE_FIELDS`. |
+| `src/lib/overview/real-data.ts` | Lấy số liệu cho Tổng quan: gọi Thống kê Pancake (song song) + tồn kho đã đồng bộ. |
 | `src/components/dashboard/no-data-panel.tsx` | Khối "Chưa có dữ liệu" cho mục chưa có nguồn (Dòng tiền, Thuế, Content, Nhân sự, Quảng cáo). |
 | `src/app/(app)/content`, `tao-noi-dung`, `nhan-su`, `thue`, `dong-tien` | Các trang "Đang xây dựng", mỗi trang ghi sẵn tính năng sẽ có. |
 | `src/app/(app)/ket-noi/` | **Trang Kết nối** (`/ket-noi`): `page.tsx` khung trang + danh sách "Sắp có", `pancake-form.tsx` ô dán khóa Pancake và nút Kiểm tra & lưu. |
@@ -138,17 +138,12 @@ Database của web này là project Supabase **"Doanh nghiệp 1 người"** (m�
 - Đổi khóa sang **shop Pancake khác** thì dữ liệu shop cũ bị xóa để không trộn số.
 - Cài lại / tắt lịch: `npm.cmd run db:setup-cron` (hoặc `npm.cmd run db:setup-cron -- off`). Xem lịch đã chạy chưa: Supabase → **Integrations → Cron** (hoặc **Database → Cron Jobs**).
 
-### Cách tính số trên trang Tổng quan (chủ dự án chốt 04/11/2026)
+### Cách tính số trên trang Tổng quan
 
-| Chỉ số | Cách tính |
-|---|---|
-| Đơn chốt | Đơn từ "Đã xác nhận" trở đi (kể cả đơn hoàn); không tính Mới, Chờ hàng, Đã hủy. Tính theo **ngày tạo đơn**. |
-| Doanh số | Tổng giá bán × số lượng của đơn chốt. |
-| Hàng hoàn | Giá trị hàng khách trả lại (số lượng hoàn × giá bán), tính vào ngày tạo đơn gốc. |
-| Phí sàn | Phí Pancake ghi × phần hàng khách giữ (đơn hoàn hết = 0) + **2.700 ₫ mỗi đơn Shopee bị hoàn** (phí PiShip, theo Sapo; đối chiếu Kênh Người Bán, khác thì nhờ Claude Code sửa). |
-| Doanh thu | (Doanh số − chiết khấu) × phần khách giữ − phí sàn. Giống "Doanh thu" của Pancake (đã trừ phí sàn). |
-| Lợi nhuận | Doanh thu − giá vốn hàng khách giữ (giá nhập trung bình **hiện tại**). Chưa trừ quảng cáo, lương, mặt bằng. |
-| GTTB | Doanh số ÷ số đơn chốt. |
+- **Mọi số tiền** (Doanh số, Doanh thu, Lợi nhuận, Đơn chốt, GTTB, Phí sàn, Tổng hàng chốt, Tổng hàng hoàn, Nguồn đơn, Top 5 sản phẩm) **lấy thẳng từ Thống kê của Pancake** mỗi lần mở trang, nên luôn khớp màn hình Thống kê của Pancake (đã đối chiếu ngày 04/11/2026: khớp từng đồng, kể cả % so sánh). Phí sàn, đơn hoàn, đơn đổi hàng… do Pancake tự tính.
+- **Tổng hàng chốt / Tổng hàng hoàn**: "Số lượng" là **số sản phẩm**, giống Pancake (không phải số đơn).
+- **Tồn kho, báo động sản xuất, Dữ liệu cần kiểm tra**: 1Click tự tính từ dữ liệu đồng bộ mỗi 30 phút.
+- Nếu Pancake lỗi hoặc mạng chậm, trang hiện dòng đỏ "Không lấy được số liệu thống kê từ Pancake", phần tồn kho vẫn hiện.
 
 ### Kết nối Pancake POS
 

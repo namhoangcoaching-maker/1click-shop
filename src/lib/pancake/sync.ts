@@ -1,5 +1,5 @@
 import "server-only";
-import { decryptSecret, parseKey } from "@/lib/crypto/secret-box";
+import { getPancakeCredentials } from "@/lib/connections/credentials";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { pancakeGet, PancakeError, type PancakeCredentials } from "./client";
 import { mapOrder, mapVariation, type OrderItemRow, type OrderRow, type ProductRow } from "./map";
@@ -33,20 +33,6 @@ export interface SyncResult {
   skipped: number;
   backfillDone: boolean;
   error?: string;
-}
-
-/** Lấy khóa Pancake đã mã hóa của shop và giải mã (chỉ trên máy chủ). */
-async function loadCredentials(admin: Admin, orgId: string): Promise<PancakeCredentials | null> {
-  const { data, error } = await admin
-    .from("connections")
-    .select("external_id, secret_ciphertext")
-    .eq("org_id", orgId)
-    .eq("provider", PROVIDER)
-    .maybeSingle();
-  if (error) throw new Error(`Không đọc được kết nối: ${error.message}`);
-  if (!data) return null;
-  const apiKey = decryptSecret(data.secret_ciphertext, `${orgId}:${PROVIDER}`, parseKey(process.env.ENCRYPTION_KEY));
-  return { shopId: data.external_id, apiKey };
 }
 
 async function acquireLock(admin: Admin, orgId: string, now: Date): Promise<SyncStateLike | null> {
@@ -135,7 +121,7 @@ export async function runPancakeSync(orgId: string, opts: { budgetMs?: number } 
   const deadline = startedAt.getTime() + (opts.budgetMs ?? 40_000);
   const result: SyncResult = { status: "ok", products: 0, orders: 0, skipped: 0, backfillDone: false };
 
-  const creds = await loadCredentials(admin, orgId);
+  const creds = await getPancakeCredentials(orgId);
   if (!creds) return { ...result, status: "not_connected" };
 
   const state = await acquireLock(admin, orgId, startedAt);
