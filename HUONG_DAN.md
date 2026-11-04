@@ -106,7 +106,7 @@ Database của web này là project Supabase **"Doanh nghiệp 1 người"** (m�
    `npm.cmd run db:add-member -- email@cua-ho.com "Ecobath" staff`
    Thay `staff` bằng `manager` (Quản lý) hoặc `owner` (Chủ). Tên shop chưa có thì lệnh tự tạo shop mới. Gõ lại lệnh với vai trò khác để đổi vai trò. Hoặc nhờ Claude Code: *"Gắn tài khoản x@gmail.com vào shop Ecobath làm Quản lý"*.
 
-**Hiện có:** shop **Ecobath**, Chủ là `namhoangcoaching@gmail.com`.
+**Hiện có:** shop **Sugar Crush** (trước đây đặt tạm tên Ecobath), Chủ là `namhoangcoaching@gmail.com`, đã kết nối Pancake shop SUGAR CRUSH OFFICIAL (ID 100252065).
 
 **Vai trò:** Chủ shop (toàn quyền, thêm/bớt thành viên, sửa thông tin shop) · Quản lý · Nhân viên (chỉ xem; sau này chỉ thấy lương/KPI của mình). Mỗi shop luôn phải còn ít nhất một Chủ.
 

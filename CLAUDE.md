@@ -1,6 +1,6 @@
 # 1Click – ghi chú cho Claude Code
 
-Dự án: web SaaS **1Click** giúp shop nhỏ ở Việt Nam quản trị vận hành (tổng hợp số liệu từ Pancake POS, phân tích, đề xuất). Khách dùng thử đầu tiên: shop **Ecobath** (phụ kiện nhà tắm inox, bán Shopee/TikTok Shop).
+Dự án: web SaaS **1Click** giúp shop nhỏ ở Việt Nam quản trị vận hành (tổng hợp số liệu từ Pancake POS, phân tích, đề xuất). Khách dùng thử đầu tiên: shop **Ecobath** (phụ kiện nhà tắm inox, bán Shopee/TikTok Shop) theo brief; **nhưng khóa Pancake thật chủ dự án dán là shop SUGAR CRUSH OFFICIAL** và họ chọn đổi tên shop trên 1Click thành Sugar Crush. Số liệu giả (demo-data) vẫn là sản phẩm Ecobath. Chưa hỏi Sugar Crush bán gì / có cần quy tắc tồn kho, thời gian sản xuất giống Ecobath không — hỏi trước Giai đoạn 1.
 
 **Đọc trước khi làm:** `PROJECT_BRIEF.md` (yêu cầu gốc, lộ trình 9 giai đoạn), `HUONG_DAN.md` (bản đồ thư mục, cách chạy), `AGENTS.md` (lưu ý Next.js 16), `git log --oneline`.
 
@@ -37,8 +37,8 @@ Dự án: web SaaS **1Click** giúp shop nhỏ ở Việt Nam quản trị vận
 
 - ✅ 0.1 Khởi tạo · ✅ 0.2 Thiết kế kiểu Pancake + bản mẫu Tổng quan, Tồn kho, Đề xuất · ✅ 0.3 Menu trái
 - ✅ 0.4 đợt 1: đăng nhập email + mật khẩu (`/dang-nhap`, `src/proxy.ts` chặn trang khi chưa đăng nhập, nút Đăng xuất cuối menu).
-- ✅ 0.5: bảng `organizations` + `memberships` (vai trò owner/manager/staff), RLS, 13 test RLS thật; menu trái đọc tên shop + vai trò từ database. Shop Ecobath, Chủ = namhoangcoaching@gmail.com.
+- ✅ 0.5: bảng `organizations` + `memberships` (vai trò owner/manager/staff), RLS, 13 test RLS thật; menu trái đọc tên shop + vai trò từ database. Shop trên 1Click đã đổi tên Ecobath → **Sugar Crush** (04/11/2026, chủ dự án chọn), Chủ = namhoangcoaching@gmail.com.
 - ✅ Đã tắt đăng ký công khai ở project mới (kiểm tra 04/11/2026: thử đăng ký bị từ chối).
-- ✅ 0.6: trang `/ket-noi` Pancake POS: kiểm tra khóa bằng `GET /shops?api_key=` (đúng: 200 `{success, shops:[{id,name}]}`; sai: 403 `{success:false, message:"api_key is invalid", error_code:105}` — đã thử thật), mã hóa AES-256-GCM (`ENCRYPTION_KEY` đã tự tạo trong `.env.local`, AAD = `orgId:provider`), bảng `connections` (migration 0002): authenticated KHÔNG có quyền SELECT cột `secret_ciphertext` (column grants), chỉ owner ghi. 20 test RLS. **Chưa thử với khóa Pancake thật** (chủ dự án chưa có khóa).
+- ✅ 0.6: trang `/ket-noi` Pancake POS: kiểm tra khóa bằng `GET /shops?api_key=` (đúng: 200 `{success, shops:[{id,name}]}`; sai: 403 `{success:false, message:"api_key is invalid", error_code:105}` — đã thử thật), mã hóa AES-256-GCM (`ENCRYPTION_KEY` đã tự tạo trong `.env.local`, AAD = `orgId:provider`), bảng `connections` (migration 0002): authenticated KHÔNG có quyền SELECT cột `secret_ciphertext` (column grants), chỉ owner ghi. 20 test RLS. Đã kết nối khóa Pancake THẬT: shop "SUGAR CRUSH OFFICIAL" (ID 100252065), đã kiểm tra giải mã + gọi lại Pancake thành công.
 - Tài liệu Pancake POS API: OpenAPI tại `https://docs.pancake.biz/pos/api/openapi.json?lang=en` (88 endpoint, auth `api_key` query). Đọc spec này trước khi gọi endpoint mới, không đoán tên trường.
 - ⏭️ Tiếp theo: 0.7 GitHub + Vercel (nhớ điền `ENCRYPTION_KEY` giống hệt trên Vercel). Sau đó Giai đoạn 1 (đồng bộ đơn/sản phẩm/tồn kho từ Pancake; đọc bản mã bằng khóa secret ở máy chủ). Để sau: đăng nhập Google, trang đổi mật khẩu.
