@@ -24,6 +24,7 @@ export interface SyncStateLike {
   orders_cursor: string | null;
   backfill_target: string | null;
   backfill_next_end: string | null;
+  transactions_synced_at?: string | null;
 }
 
 /** Shop lần đầu đồng bộ: lấy đơn mới từ bây giờ, lịch sử lùi dần từ bây giờ về 90 ngày trước. */

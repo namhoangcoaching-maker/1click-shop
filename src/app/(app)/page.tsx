@@ -10,8 +10,8 @@ import {
   PlugIcon,
   UsersIcon,
   VideoIcon,
-  WalletIcon,
 } from "lucide-react";
+import { CashInPanel } from "@/components/cash/cash-in";
 import { DataWarnings, type DataIssue } from "@/components/dashboard/data-warning";
 import { DateFilter } from "@/components/dashboard/date-filter";
 import { MetricStrip } from "@/components/dashboard/metric-strip";
@@ -23,11 +23,12 @@ import { OrderSources } from "@/components/overview/order-sources";
 import { Recommendations } from "@/components/overview/recommendations";
 import { SummaryCards } from "@/components/overview/summary-cards";
 import { TopProducts } from "@/components/overview/top-products";
-import { compareLabel, formatDateTimeVN, formatRangeVN, resolveFilter, todayInVN } from "@/lib/date-range";
+import { addDays, compareLabel, formatDateTimeVN, formatRangeVN, resolveFilter, todayInVN } from "@/lib/date-range";
 import { formatNumber } from "@/lib/format";
 import { toPlanItems } from "@/lib/inventory/incoming";
 import { getIncoming } from "@/lib/inventory/incoming-db";
 import { buildOrderPlan } from "@/lib/inventory/plan";
+import { getCashDays } from "@/lib/cash/data";
 import { getShopStockRules } from "@/lib/inventory/settings-db";
 import { analyzeInventory, summarizeInventory, type StockAnalysis } from "@/lib/inventory/stock";
 import { getCurrentOrg } from "@/lib/org/current";
@@ -104,7 +105,7 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
   const active = data.stock.filter((i) => !i.inactive);
   const stock = analyzeInventory(active, today, rules);
   const inventory = summarizeInventory(active);
-  const incoming = await getIncoming(org.id);
+  const [incoming, cashDays] = await Promise.all([getIncoming(org.id), getCashDays(org.id, today, addDays(today, 7))]);
   const plan = buildOrderPlan(toPlanItems(active, incoming, rules.velocityWindowDays, today), today, rules);
   const urgentPlan = plan.urgent.filter((p) => !p.slow);
   const nextDay = plan.days[0]; // chỉ nhắc ngày đặt gần nhất
@@ -190,7 +191,7 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <NoDataPanel title="Dòng tiền" icon={WalletIcon} stage="Giai đoạn 3" note="Thu, chi, công nợ, tiền COD chưa đối soát." />
+            <CashInPanel days={cashDays} today={today} />
             <NoDataPanel title="Thuế" icon={FileTextIcon} stage="Giai đoạn 7" note="Hóa đơn đã xuất, cần điều chỉnh, lịch nộp thuế." />
           </div>
 

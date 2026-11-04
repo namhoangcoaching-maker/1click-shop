@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isConfirmed, mapOrder, mapVariation, orderStatusLabel, parsePancakeTime } from "./map";
+import { firstStatusTime, isConfirmed, mapOrder, mapTransaction, mapVariation, orderStatusLabel, parsePancakeTime } from "./map";
 
 // Mẫu dựng theo đúng cấu trúc Pancake trả về cho shop thật (đã bỏ thông tin khách).
 const variation = {
@@ -36,6 +36,15 @@ const order = {
   total_price_after_sub_discount: 253455,
   total_quantity: 1,
   assigning_seller_id: "seller-1",
+  cod: 253455,
+  partner: { partner_id: 42, cod: 0 },
+  status_history: [
+    { status: 0, updated_at: "2026-11-03T09:19:16" },
+    { status: 2, updated_at: "2026-11-03T13:13:03" },
+    { status: 3, updated_at: "2026-11-03T22:00:00" },
+    { status: 4, updated_at: "2026-11-05T01:00:00" },
+    { status: 5, updated_at: "2026-11-06T02:00:00" },
+  ],
   bill_full_name: "Nguyễn Văn A",
   bill_phone_number: "0900000000",
   shipping_address: { full_address: "…" },
@@ -150,5 +159,57 @@ describe("trạng thái đơn", () => {
     expect(orderStatusLabel(3)).toBe("Đã nhận");
     expect(orderStatusLabel(6)).toBe("Đã hủy");
     expect(orderStatusLabel(99)).toBe("Trạng thái 99");
+  });
+});
+
+describe("lịch sử trạng thái, tiền về", () => {
+  it("lấy lần ĐẦU sang Đã nhận / Đã hoàn; COD, đơn vị vận chuyển", () => {
+    const o = mapOrder(order)!.order;
+    expect(o.delivered_at).toBe("2026-11-03T22:00:00.000Z");
+    expect(o.returned_at).toBe("2026-11-06T02:00:00.000Z");
+    expect(o.partial_returned_at).toBeNull();
+    expect(o.cod).toBe(253455);
+    expect(o.carrier_id).toBe(42);
+  });
+
+  it("nhiều lần sang Đã nhận thì lấy lần đầu; lịch sử hỏng không làm sập", () => {
+    expect(
+      firstStatusTime([{ status: 3, updated_at: "2026-11-05T00:00:00" }, { status: 3, updated_at: "2026-11-04T00:00:00" }], 3),
+    ).toBe("2026-11-04T00:00:00.000Z");
+    expect(firstStatusTime(null, 3)).toBeNull();
+    expect(firstStatusTime([{ status: 3 }], 3)).toBeNull();
+  });
+
+  it("giá trị hàng hoàn = số lượng hoàn × giá", () => {
+    const o = mapOrder({ ...order, items: [{ ...order.items[0], quantity: 2, return_quantity: 1 }] })!.order;
+    expect(o.returned_value).toBe(369_000);
+  });
+});
+
+describe("mapTransaction (Thu chi Pancake)", () => {
+  it("đọc khoản trả trước và khoản hoàn (âm)", () => {
+    expect(
+      mapTransaction({
+        id: "t1",
+        posted_at: "2026-11-04T10:13:58",
+        amount: 1_620_000,
+        name: "Trả trước cho đơn hàng #ref_display_id",
+        type_transaction: 1,
+        account: "igo_178",
+        ref_display_id: 42035,
+        is_canceled: false,
+      }),
+    ).toEqual({
+      transaction_id: "t1",
+      posted_at: "2026-11-04T10:13:58.000Z",
+      amount: 1_620_000,
+      name: "Trả trước cho đơn hàng #ref_display_id",
+      kind: 1,
+      account: "igo_178",
+      order_display_id: "42035",
+      is_canceled: false,
+    });
+    expect(mapTransaction({ id: "t2", posted_at: null, inserted_at: "2026-11-04T10:00:00", amount: -500_000 })?.amount).toBe(-500_000);
+    expect(mapTransaction({ id: "", posted_at: "2026-11-04T10:00:00" })).toBeNull();
   });
 });

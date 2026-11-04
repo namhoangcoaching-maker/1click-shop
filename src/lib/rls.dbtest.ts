@@ -292,10 +292,14 @@ describe("Dữ liệu bán hàng từ Pancake (chỉ đọc, theo shop)", () => 
       if (i.error) throw i.error;
       const s = await admin.from("sync_state").insert({ org_id: org, provider: "pancake_pos", last_status: "ok" });
       if (s.error) throw s.error;
+      const t = await admin.from("cash_transactions").insert({
+        org_id: org, transaction_id: `T-${tag}`, posted_at: new Date().toISOString(), amount: 1000, name: "Trả trước",
+      });
+      if (t.error) throw t.error;
     }
   });
 
-  for (const table of ["products", "orders", "order_items", "sync_state"] as const) {
+  for (const table of ["products", "orders", "order_items", "sync_state", "cash_transactions"] as const) {
     it(`${table}: shop A chỉ thấy dòng của shop A, Nhân viên cũng xem được`, async () => {
       const a = await ownerA.from(table).select("org_id");
       expect(a.error).toBeNull();
@@ -405,7 +409,7 @@ describe("Người chưa đăng nhập", () => {
     expect(conns.data ?? []).toEqual([]);
     const settings = await anon.from("inventory_settings").select("org_id");
     expect(settings.data ?? []).toEqual([]);
-    for (const table of ["products", "orders", "order_items", "sync_state", "incoming_stock"]) {
+    for (const table of ["products", "orders", "order_items", "sync_state", "incoming_stock", "cash_transactions"]) {
       const r = await anon.from(table).select("org_id");
       expect(r.data ?? []).toEqual([]);
     }

@@ -2,7 +2,7 @@ import "server-only";
 import { getPancakeCredentials } from "@/lib/connections/credentials";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { pancakeGet, PancakeError, type PancakeCredentials } from "./client";
-import { mapOrder, mapVariation, type OrderItemRow, type OrderRow, type ProductRow } from "./map";
+import { mapOrder, mapTransaction, mapVariation, type OrderItemRow, type OrderRow, type ProductRow, type TransactionRow } from "./map";
 import {
   incrementalRange,
   initialState,
@@ -46,7 +46,7 @@ async function acquireLock(admin: Admin, orgId: string, now: Date): Promise<Sync
     .eq("org_id", orgId)
     .eq("provider", PROVIDER)
     .or(`running_since.is.null,running_since.lt.${staleBefore}`)
-    .select("products_synced_at, orders_cursor, backfill_target, backfill_next_end");
+    .select("products_synced_at, orders_cursor, backfill_target, backfill_next_end, transactions_synced_at");
   if (error) throw new Error(`Không khóa được lượt đồng bộ: ${error.message}`);
   return data?.[0] ?? null;
 }
@@ -84,6 +84,41 @@ async function upsertOrders(admin: Admin, orgId: string, batch: { order: OrderRo
   for (let i = 0; i < items.length; i += 1000) {
     const { error: e } = await admin.from("order_items").insert(items.slice(i, i + 1000));
     if (e) throw new Error(`Không lưu được dòng hàng: ${e.message}`);
+  }
+}
+
+/**
+ * Thu chi Pancake (trả trước, hoàn tiền) cho tiền về. Lần đầu lấy 90 ngày; các lần sau lấy lại
+ * từ mốc trước lùi 3 ngày (khoản có thể được sửa/hủy sau).
+ */
+async function syncTransactions(
+  admin: Admin,
+  orgId: string,
+  creds: PancakeCredentials,
+  since: string | null,
+  now: Date,
+  deadline: number,
+): Promise<{ complete: boolean; count: number }> {
+  const start = since ? Date.parse(since) - 3 * 86_400_000 : now.getTime() - SYNC_RULES.backfillDays * 86_400_000;
+  let count = 0;
+  for (let page = 1; ; page++) {
+    if (Date.now() > deadline) return { complete: false, count };
+    const body = await pancakeGet<{ data?: Record<string, unknown>[]; total_pages?: number }>(creds, "/transactions", {
+      page,
+      page_size: 100,
+      startDateTime: Math.floor(start / 1000),
+      endDateTime: Math.floor(now.getTime() / 1000),
+    });
+    const rows = (body.data ?? []).map(mapTransaction).filter((x): x is TransactionRow => x !== null);
+    if (rows.length) {
+      const syncedAt = new Date().toISOString();
+      const { error } = await admin
+        .from("cash_transactions")
+        .upsert(rows.map((r) => ({ ...r, org_id: orgId, synced_at: syncedAt })), { onConflict: "org_id,transaction_id" });
+      if (error) throw new Error(`Không lưu được thu chi: ${error.message}`);
+    }
+    count += rows.length;
+    if (page >= (body.total_pages ?? 1) || (body.data ?? []).length === 0) return { complete: true, count };
   }
 }
 
@@ -179,6 +214,13 @@ export async function runPancakeSync(orgId: string, opts: { budgetMs?: number } 
       await saveState(admin, orgId, { backfill_next_end: cursor.backfill_next_end });
     }
     result.backfillDone = nextBackfillWindow(cursor) === null;
+
+    // 4. Thu chi (trả trước, hoàn tiền) cho tiền về.
+    if (Date.now() < deadline) {
+      const t = await syncTransactions(admin, orgId, creds, state.transactions_synced_at ?? null, startedAt, deadline);
+      if (t.complete) await saveState(admin, orgId, { transactions_synced_at: startedAt.toISOString() });
+      else result.status = "partial";
+    }
 
     await saveState(admin, orgId, {
       running_since: null,

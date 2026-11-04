@@ -116,6 +116,18 @@ export interface OrderRow {
   total_after_discount: number;
   total_quantity: number;
   seller_id: string | null;
+  /** Lần đầu đơn sang "Đã nhận" (khách nhận hàng), theo lịch sử trạng thái. */
+  delivered_at: string | null;
+  /** Lần đầu đơn sang "Đã hoàn". */
+  returned_at: string | null;
+  /** Lần đầu đơn sang "Hoàn một phần". */
+  partial_returned_at: string | null;
+  /** Tiền thu hộ (COD); với đơn sàn = tiền sàn trả (đã trừ phí sàn). Có thể âm khi khách trả trước dư. */
+  cod: number;
+  /** Mã đơn vị vận chuyển trên Pancake (42 SPX, 15 J&T, 3 VTP…). */
+  carrier_id: number | null;
+  /** Giá trị hàng khách trả lại (số lượng hoàn × giá bán). */
+  returned_value: number;
 }
 
 export interface OrderItemRow {
@@ -172,7 +184,57 @@ export function mapOrder(raw: Raw): { order: OrderRow; items: OrderItemRow[] } |
       total_after_discount: int(raw.total_price_after_sub_discount),
       total_quantity: int(raw.total_quantity),
       seller_id: str(raw.assigning_seller_id),
+      delivered_at: firstStatusTime(raw.status_history, 3),
+      returned_at: firstStatusTime(raw.status_history, 5),
+      partial_returned_at: firstStatusTime(raw.status_history, 15),
+      cod: int(raw.cod),
+      carrier_id: carrierId(raw.partner),
+      returned_value: items.reduce((s, it) => s + it.return_quantity * it.retail_price, 0),
     },
     items,
+  };
+}
+
+/** Lần đầu đơn chuyển sang trạng thái `status` (giờ quốc tế ISO), từ status_history của Pancake. */
+export function firstStatusTime(history: unknown, status: number): string | null {
+  if (!Array.isArray(history)) return null;
+  const times = (history as Raw[])
+    .filter((h) => int(h.status) === status && typeof h.updated_at === "string")
+    .map((h) => parsePancakeTime(h.updated_at))
+    .filter((t): t is string => t !== null)
+    .sort();
+  return times[0] ?? null;
+}
+
+function carrierId(partner: unknown): number | null {
+  const id = (partner as Raw | null)?.partner_id;
+  return typeof id === "number" && Number.isFinite(id) ? id : null;
+}
+
+export interface TransactionRow {
+  transaction_id: string;
+  posted_at: string;
+  amount: number;
+  name: string | null;
+  kind: number | null;
+  account: string | null;
+  order_display_id: string | null;
+  is_canceled: boolean;
+}
+
+/** Một dòng Thu chi của Pancake → dòng bảng cash_transactions. */
+export function mapTransaction(raw: Raw): TransactionRow | null {
+  const id = str(raw.id);
+  const postedAt = parsePancakeTime(raw.posted_at) ?? parsePancakeTime(raw.inserted_at);
+  if (!id || !postedAt) return null;
+  return {
+    transaction_id: id,
+    posted_at: postedAt,
+    amount: int(raw.amount),
+    name: str(raw.name),
+    kind: raw.type_transaction == null ? null : int(raw.type_transaction),
+    account: raw.account == null ? null : String(raw.account),
+    order_display_id: raw.ref_display_id == null ? null : String(raw.ref_display_id),
+    is_canceled: raw.is_canceled === true,
   };
 }
