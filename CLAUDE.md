@@ -27,12 +27,16 @@ Dự án: web SaaS **1Click** giúp shop nhỏ ở Việt Nam quản trị vận
 - Ngưỡng tồn kho: dự phòng 3 ngày; bán chậm khi đủ bán > 90 ngày; sản xuất đủ bán **21 ngày** (sợ tồn). Quảng cáo cao khi > 12% tổng doanh thu hoặc > 25% doanh thu một kênh.
 - Đăng nhập: email + mật khẩu và Google. Số điện thoại để sau (cần nhà cung cấp SMS trả phí).
 - **Chưa mở đăng ký công khai** (chủ dự án chọn): "Allow new users to sign up" trên Supabase để TẮT, không làm trang Đăng ký; tài khoản do chủ dự án tạo tay (Authentication → Users → Add user, tích Auto Confirm). Xác nhận email đang bật.
-- Supabase dùng bản trên mạng (project **1Click**, region Seoul `ap-northeast-2`, gói Free), không cài trên máy. Khóa đã điền trong `.env.local` (URL, publishable, secret).
+- Supabase dùng bản trên mạng, project **"Doanh nghiệp 1 người"** (ref `jpzwdpbbrivebjvkdria`, Sydney `ap-southeast-2`, gói Free), không cài trên máy. `.env.local` có URL, publishable, secret, `SUPABASE_DB_URL` (session pooler). **KHÔNG dùng project "1Click"** (`ldohuak…`): đó là database của web tìm bài hot idea.1click. Gói Free chỉ 2 project nên không tạo thêm được.
+- Database: migration SQL trong `supabase/migrations/`, áp bằng `npm run db:migrate` (script tự viết, lưu vết ở `private.schema_migrations`). Tạo shop/gắn thành viên: `npm run db:add-member -- <email> "<shop>" <owner|manager|staff>`. Test RLS thật: `npm run test:db` (`*.dbtest.ts`, tạo/xóa user `@test.1click.local`).
+- Người chưa thuộc shop: không chặn trang (chặn cả trang làm mất instant navigation), chỉ hiện dải `NoOrgNotice`; dữ liệu thật phải luôn đọc qua RLS bằng phiên người dùng.
+- Chụp màn hình khi đã đăng nhập: script tạm dùng Edge headless + CDP, tạo user thử, đặt cookie `@supabase/ssr`, chụp rồi xóa user (Edge headless không thu được dưới ~500px: dùng `Emulation.setDeviceMetricsOverride`).
 - Repo GitHub tên `1click` **đã bị dự án khác dùng** (idea.1click, ở `Documents\1click-tim-bai-hot`) → khi đưa dự án này lên GitHub ở Bước 0.7 phải đặt tên khác (ví dụ `1click-shop`), hỏi chủ dự án trước.
 
 ## Tiến độ
 
 - ✅ 0.1 Khởi tạo · ✅ 0.2 Thiết kế kiểu Pancake + bản mẫu Tổng quan, Tồn kho, Đề xuất · ✅ 0.3 Menu trái
-- ✅ 0.4 đợt 1: đăng nhập email + mật khẩu (`/dang-nhap`, `src/proxy.ts` chặn trang khi chưa đăng nhập, nút Đăng xuất cuối menu). Chưa kiểm tra được màn hình sau đăng nhập vì chưa có tài khoản: chờ chủ dự án tạo tài khoản và tự thử.
-- ⏭️ 0.4 đợt 2: đăng nhập Google (cần tạo OAuth client trên Google Cloud, hướng dẫn chủ dự án), có thể thêm trang đổi mật khẩu.
-- Sau đó: 0.5 schema nhiều doanh nghiệp + RLS + test · 0.6 trang Kết nối (lưu key Pancake mã hóa) · 0.7 GitHub + Vercel.
+- ✅ 0.4 đợt 1: đăng nhập email + mật khẩu (`/dang-nhap`, `src/proxy.ts` chặn trang khi chưa đăng nhập, nút Đăng xuất cuối menu).
+- ✅ 0.5: bảng `organizations` + `memberships` (vai trò owner/manager/staff), RLS, 13 test RLS thật; menu trái đọc tên shop + vai trò từ database. Shop Ecobath, Chủ = namhoangcoaching@gmail.com.
+- ⚠️ Đã nhắc chủ dự án tắt "Allow new users to sign up" ở project mới (lúc kiểm tra đang BẬT) — hỏi lại xem đã tắt chưa.
+- ⏭️ Tiếp theo: 0.6 trang Kết nối (lưu key Pancake mã hóa, bảng có `org_id` + RLS + test) · 0.7 GitHub + Vercel. Để sau: 0.4 đợt 2 đăng nhập Google, trang đổi mật khẩu.

@@ -1,24 +1,31 @@
 import { Suspense } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { AccountMenu, AccountMenuSkeleton } from "@/components/layout/account-menu";
-
-// Tạm thời cố định shop dùng thử. Bước 0.5 sẽ lấy tên và logo từ doanh nghiệp của người đăng nhập.
-const DEMO_SHOP = { name: "Ecobath", subtitle: "Khách dùng thử" };
+import { NoOrgNotice } from "@/components/layout/no-org-notice";
+import { ShopCard, ShopCardSkeleton } from "@/components/layout/shop-card";
 
 /**
  * Khung có menu trái cho mọi trang bên trong.
- * Chỉ người đã đăng nhập mới vào được (src/proxy.ts chặn trước).
+ * - Chưa đăng nhập: src/proxy.ts đã chuyển về /dang-nhap.
+ * - Đăng nhập nhưng chưa thuộc shop nào: NoOrgNotice hiện dải thông báo đầu trang.
  */
 export default function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <AppShell
-      shop={DEMO_SHOP}
+      shop={
+        <Suspense fallback={<ShopCardSkeleton />}>
+          <ShopCard />
+        </Suspense>
+      }
       account={
         <Suspense fallback={<AccountMenuSkeleton />}>
           <AccountMenu />
         </Suspense>
       }
     >
+      <Suspense fallback={null}>
+        <NoOrgNotice />
+      </Suspense>
       {children}
     </AppShell>
   );

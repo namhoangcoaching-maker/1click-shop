@@ -7,14 +7,6 @@ import { MenuIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MAIN_NAV, SETTINGS_NAV, isActive, type NavItem } from "./nav-items";
 
-interface Shop {
-  name: string;
-  /** Dòng nhỏ dưới tên shop. */
-  subtitle: string;
-  /** Đường dẫn logo shop; chưa có thì hiện chữ cái đầu. */
-  logoUrl?: string;
-}
-
 /**
  * Khung chung của mọi trang sau khi đăng nhập: menu trái kiểu Pancake + nội dung.
  * Trên điện thoại, menu thu vào nút ☰ ở thanh trên cùng.
@@ -24,7 +16,8 @@ export function AppShell({
   account,
   children,
 }: {
-  shop: Shop;
+  /** Ô tên shop + vai trò ở đầu menu (đọc database), do layout máy chủ truyền vào. */
+  shop: React.ReactNode;
   /** Khối tài khoản (email + Đăng xuất) ở cuối menu, do layout máy chủ truyền vào. */
   account?: React.ReactNode;
   children: React.ReactNode;
@@ -99,7 +92,7 @@ function Sidebar({
   pathname,
   onNavigate,
 }: {
-  shop: Shop;
+  shop: React.ReactNode;
   account?: React.ReactNode;
   pathname: string;
   onNavigate?: () => void;
@@ -110,20 +103,7 @@ function Sidebar({
         <Logo />
       </div>
 
-      <div className="mx-3 mb-3 flex items-center gap-2.5 rounded-lg bg-muted px-2.5 py-2">
-        {shop.logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- logo shop do khách tải lên, kích thước nhỏ
-          <img src={shop.logoUrl} alt="" className="size-8 rounded-md object-cover" />
-        ) : (
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-slate-700 text-xs font-bold text-white">
-            {shop.name.slice(0, 2).toUpperCase()}
-          </span>
-        )}
-        <div className="min-w-0">
-          <div className="truncate text-sm font-semibold">{shop.name}</div>
-          <div className="truncate text-xs text-muted-foreground">{shop.subtitle}</div>
-        </div>
-      </div>
+      {shop}
 
       <ul className="flex-1 space-y-0.5 overflow-y-auto px-3">
         {MAIN_NAV.map((item) => (

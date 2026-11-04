@@ -2,7 +2,7 @@
 
 > File này luôn được cập nhật sau mỗi bước. Nếu thấy chỗ nào không khớp với thực tế, hãy nhắn Claude Code: *"HUONG_DAN.md đang sai ở mục …, sửa lại giúp tôi"*.
 
-**Tiến độ:** Giai đoạn 0 – Bước 0.1 (khởi tạo dự án) ✅ · Bước 0.2 (hệ thống thiết kế) ✅ · Bước 0.3 (menu trái) ✅ · Bước 0.4 (đăng nhập email, đợt 1) ✅
+**Tiến độ:** Giai đoạn 0 – Bước 0.1 (khởi tạo dự án) ✅ · Bước 0.2 (hệ thống thiết kế) ✅ · Bước 0.3 (menu trái) ✅ · Bước 0.4 (đăng nhập email, đợt 1) ✅ · Bước 0.5 (nhiều shop + khóa bảo vệ dữ liệu) ✅
 
 ---
 
@@ -15,7 +15,12 @@
 | `src/app/` | **Các trang web.** Mỗi thư mục con là một đường dẫn, ví dụ `src/app/thue/page.tsx` là trang `/thue`. |
 | `src/app/layout.tsx` | Khung chung của mọi trang: font chữ, tiêu đề tab trình duyệt. |
 | `src/app/(app)/` | **Các trang có menu trái.** Thư mục `(app)` có ngoặc nên không hiện trên đường dẫn: `src/app/(app)/thue/page.tsx` là trang `/thue`. |
-| `src/app/(app)/layout.tsx` | Khung chung có menu trái; tên shop đang hiện ở góc trên menu, email người đăng nhập + nút Đăng xuất ở cuối menu. |
+| `src/app/(app)/layout.tsx` | Khung chung có menu trái: tên shop + vai trò (đọc từ database) ở góc trên, email + nút Đăng xuất ở cuối menu. |
+| `src/components/layout/shop-card.tsx` | Ô tên shop + vai trò (Chủ shop / Quản lý / Nhân viên) ở đầu menu trái. |
+| `src/components/layout/no-org-notice.tsx` | Dải thông báo vàng "Tài khoản chưa được gắn vào shop". |
+| `src/lib/org/` | Lấy shop của người đang đăng nhập (`current.ts`), tên vai trò tiếng Việt (`roles.ts`), **test khóa bảo vệ dữ liệu** trên database thật (`rls.dbtest.ts`). |
+| `supabase/migrations/` | **Cấu trúc database**, mỗi file `.sql` là một lần thay đổi, đánh số thứ tự. `0001_organizations.sql`: bảng Doanh nghiệp, Thành viên và các khóa bảo vệ. Không sửa file đã chạy rồi; muốn đổi thì nhờ Claude Code tạo file mới. |
+| `scripts/` | Lệnh quản trị chạy trên máy: áp cấu trúc database (`db-migrate.mjs`), gắn người vào shop (`db-add-member.mjs`). |
 | `src/app/dang-nhap/` | **Trang Đăng nhập** (`/dang-nhap`): `page.tsx` là khung trang, `login-form.tsx` là ô nhập và nút. |
 | `src/proxy.ts` | **Người gác cổng**: chạy trước mỗi lượt mở trang, chưa đăng nhập thì đưa về `/dang-nhap` (sau khi đăng nhập sẽ quay lại đúng trang định mở). |
 | `src/lib/auth/` | Đăng nhập/đăng xuất (`actions.ts`), kiểm tra ô nhập và câu báo lỗi tiếng Việt (`login.ts`), danh sách trang không cần đăng nhập (`paths.ts`). |
@@ -72,6 +77,8 @@
 - Lỗi trên trang: Next.js hiện khung lỗi đỏ ngay trên trình duyệt; ngoài ra có thể nhấn `F12` → tab **Console**.
 - Cách nhanh nhất: copy nguyên đoạn lỗi, dán cho Claude Code kèm câu *"Tôi gặp lỗi này khi …"*.
 
+**Chạy test khóa bảo vệ dữ liệu trên database thật:** `npm run test:db` (cần mạng). Lệnh này tạo tạm vài tài khoản `@test.1click.local`, kiểm tra shop A không đọc/sửa được dữ liệu shop B, rồi tự xóa. Phải ra `13 passed` (hoặc nhiều hơn khi có thêm bảng).
+
 **Chạy unit test:** `npm test`. Dòng cuối phải là `Tests  N passed`. Nếu có dòng `failed` nghĩa là một công thức đang tính sai: đừng đưa lên mạng, dán kết quả cho Claude Code.
 
 **Kiểm tra trước khi đưa lên mạng:** `npm test` rồi `npm run build`. Cả hai không báo lỗi là ổn.
@@ -82,11 +89,23 @@
 
 Hiện **chưa mở đăng ký công khai**: chỉ người được bạn tạo tài khoản mới vào được web. Mọi trang (trừ `/dang-nhap`) đều bắt đăng nhập.
 
+Database của web này là project Supabase **"Doanh nghiệp 1 người"** (mã `jpzwdpbbrivebjvkdria`, đặt ở Sydney). Project **1Click** là của web tìm bài hot (idea.1click), **không đụng vào** khi làm web này.
+
 **Tạo tài khoản cho một người dùng:**
-1. Vào supabase.com → project **1Click** → menu trái **Authentication** → **Users**.
+1. Vào supabase.com → project **Doanh nghiệp 1 người** → menu trái **Authentication** → **Users**.
 2. Bấm **Add user** → **Create new user**.
 3. Nhập email và mật khẩu, **tích ô "Auto Confirm User"** (nếu không tích, người đó phải bấm link xác nhận trong email mới đăng nhập được).
 4. Bấm **Create user**, rồi gửi email + mật khẩu cho người đó (qua Zalo, nói họ đổi mật khẩu sau khi có tính năng đổi mật khẩu).
+
+5. **Gắn người đó vào shop** (bắt buộc, nếu không họ chỉ thấy dải vàng "Tài khoản chưa được gắn vào shop"): trong Terminal VS Code gõ
+   `npm.cmd run db:add-member -- email@cua-ho.com "Ecobath" staff`
+   Thay `staff` bằng `manager` (Quản lý) hoặc `owner` (Chủ). Tên shop chưa có thì lệnh tự tạo shop mới. Gõ lại lệnh với vai trò khác để đổi vai trò. Hoặc nhờ Claude Code: *"Gắn tài khoản x@gmail.com vào shop Ecobath làm Quản lý"*.
+
+**Hiện có:** shop **Ecobath**, Chủ là `namhoangcoaching@gmail.com`.
+
+**Vai trò:** Chủ shop (toàn quyền, thêm/bớt thành viên, sửa thông tin shop) · Quản lý · Nhân viên (chỉ xem; sau này chỉ thấy lương/KPI của mình). Mỗi shop luôn phải còn ít nhất một Chủ.
+
+**Khóa bảo vệ dữ liệu (RLS):** quy tắc nằm ngay trong database: người của shop nào chỉ đọc được dữ liệu shop đó, kể cả khi code web có lỗi. Chỉ quản trị 1Click (dùng khóa secret trên máy) mới tạo được shop mới.
 
 **Quên mật khẩu / đổi mật khẩu cho ai đó:** Authentication → Users → bấm vào người đó → **Reset password** (gửi email đặt lại) hoặc xóa và tạo lại.
 
@@ -120,6 +139,11 @@ Mỗi bước làm xong đều được lưu lại một "mốc" (commit).
 - Không chắc chắn thì hỏi Claude Code trước, đừng tự chạy lệnh có chữ `--hard` hay `--force`.
 
 ## 6. Mở rộng hệ thống
+
+### Thay đổi cấu trúc database
+
+- Mọi thay đổi bảng nằm trong `supabase/migrations/`, áp lên Supabase bằng `npm.cmd run db:migrate` (file đã chạy rồi sẽ tự bỏ qua).
+- Mọi bảng dữ liệu shop sau này đều có cột `org_id` + khóa bảo vệ + test trong `src/lib/org/rls.dbtest.ts` (quy ước ghi ở đầu file `0001_organizations.sql`).
 
 ### Quy tắc báo động tồn kho và đề xuất
 
