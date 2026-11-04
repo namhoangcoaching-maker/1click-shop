@@ -223,6 +223,57 @@ describe("Kết nối Pancake (khóa đã mã hóa)", () => {
   });
 });
 
+describe("Cấu hình tồn kho (chỉ Chủ shop sửa)", () => {
+  beforeAll(async () => {
+    const { error } = await admin.from("inventory_settings").insert({ org_id: orgB, safety_days: 9 });
+    if (error) throw error;
+  });
+
+  it("Chủ shop A lưu được cấu hình cho shop mình", async () => {
+    const ins = await ownerA.from("inventory_settings").insert({ org_id: orgA, safety_days: 3, target_cover_days: 21 });
+    expect(ins.error).toBeNull();
+    const upd = await ownerA
+      .from("inventory_settings")
+      .update({ safety_days: 5 })
+      .eq("org_id", orgA)
+      .select("safety_days");
+    expect(upd.data).toEqual([{ safety_days: 5 }]);
+  });
+
+  it("database từ chối số vô lý (dự phòng âm, tốc độ bán tính trên 0 ngày)", async () => {
+    const neg = await ownerA.from("inventory_settings").update({ safety_days: -1 }).eq("org_id", orgA);
+    expect(neg.error).not.toBeNull();
+    const zero = await ownerA.from("inventory_settings").update({ velocity_window_days: 0 }).eq("org_id", orgA);
+    expect(zero.error).not.toBeNull();
+  });
+
+  it("Nhân viên xem được nhưng không sửa được", async () => {
+    const read = await staffA.from("inventory_settings").select("safety_days");
+    expect(read.data).toEqual([{ safety_days: 5 }]);
+    const upd = await staffA
+      .from("inventory_settings")
+      .update({ safety_days: 1 })
+      .eq("org_id", orgA)
+      .select("safety_days");
+    expect(upd.data ?? []).toEqual([]);
+    const check = await admin.from("inventory_settings").select("safety_days").eq("org_id", orgA).single();
+    expect(check.data!.safety_days).toBe(5);
+  });
+
+  it("shop A không xem, không sửa được cấu hình shop B", async () => {
+    const read = await ownerA.from("inventory_settings").select("org_id");
+    expect(read.data!.map((r) => r.org_id)).toEqual([orgA]);
+    await ownerA.from("inventory_settings").update({ safety_days: 0 }).eq("org_id", orgB);
+    const check = await admin.from("inventory_settings").select("safety_days").eq("org_id", orgB).single();
+    expect(check.data!.safety_days).toBe(9);
+  });
+
+  it("không chuyển được cấu hình sang shop khác", async () => {
+    const { error } = await ownerA.from("inventory_settings").update({ org_id: orgB }).eq("org_id", orgA);
+    expect(error).not.toBeNull();
+  });
+});
+
 describe("Người chưa đăng nhập", () => {
   it("không đọc được gì", async () => {
     const anon = createClient(URL, PUBLISHABLE, noSession);
@@ -232,5 +283,7 @@ describe("Người chưa đăng nhập", () => {
     expect(members.data ?? []).toEqual([]);
     const conns = await anon.from("connections").select("id");
     expect(conns.data ?? []).toEqual([]);
+    const settings = await anon.from("inventory_settings").select("org_id");
+    expect(settings.data ?? []).toEqual([]);
   });
 });

@@ -12,12 +12,12 @@ import { formatDateVN, presetRange, todayInVN } from "@/lib/date-range";
 import { formatDecimal, formatNumber, formatVND } from "@/lib/format";
 import {
   STATUS_PRIORITY,
-  STOCK_RULES,
   analyzeInventory,
   summarizeInventory,
   type StockStatus,
 } from "@/lib/inventory/stock";
-import { DEFAULT_LEAD_TIME_DAYS } from "@/lib/inventory/lead-time";
+import { StockSettings } from "@/components/inventory/stock-settings";
+import { getShopStockRules } from "@/lib/inventory/settings-db";
 import { getDemoOverview } from "@/lib/overview/demo-data";
 
 export const metadata: Metadata = { title: "Tồn kho" };
@@ -48,8 +48,9 @@ async function Inventory({ searchParams }: Pick<PageProps<"/ton-kho">, "searchPa
   const params = await searchParams;
   const filter = STATUSES.find((s) => s === params.status) ?? null;
 
-  const { stock } = getDemoOverview(presetRange("today", today), null, today);
-  const analyses = analyzeInventory(stock, today);
+  const { rules, canEdit, isDefault } = await getShopStockRules();
+  const { stock } = getDemoOverview(presetRange("today", today), null, today, rules.velocityWindowDays);
+  const analyses = analyzeInventory(stock, today, rules);
   const totals = summarizeInventory(stock);
   const alarms = analyses.filter((a) => a.status === "out" || a.status === "urgent");
   const rows = filter ? analyses.filter((a) => a.status === filter) : analyses;
@@ -57,6 +58,8 @@ async function Inventory({ searchParams }: Pick<PageProps<"/ton-kho">, "searchPa
 
   return (
     <>
+      <StockSettings rules={rules} canEdit={canEdit} isDefault={isDefault} />
+
       {alarms.length > 0 && (
         <section
           aria-label="Báo động tồn kho"
@@ -76,7 +79,7 @@ async function Inventory({ searchParams }: Pick<PageProps<"/ton-kho">, "searchPa
                 <span className="text-muted-foreground tabular-nums">
                   {a.status === "out"
                     ? `Đã hết hàng, đang bán ${formatDecimal(a.velocity)} cái/ngày`
-                    : `Đủ bán ${formatDecimal(a.daysOfStock)} ngày < cần ${a.requiredDays} ngày (SX ${a.leadTimeDays}${a.leadTimeIsDefault ? " mặc định" : ""} + dự phòng ${STOCK_RULES.safetyDays})`}
+                    : `Đủ bán ${formatDecimal(a.daysOfStock)} ngày < cần ${a.requiredDays} ngày (SX ${a.leadTimeDays}${a.leadTimeIsDefault ? " mặc định" : ""} + dự phòng ${rules.safetyDays})`}
                   {" · "}
                   <span className="font-semibold text-foreground">
                     Đặt ngay {formatNumber(a.suggestedQuantity)} cái
@@ -113,11 +116,11 @@ async function Inventory({ searchParams }: Pick<PageProps<"/ton-kho">, "searchPa
       >
         <StockTable rows={rows} />
         <p className="mt-3 border-t pt-2 text-xs text-muted-foreground">
-          Báo động khi số ngày đủ bán ít hơn thời gian sản xuất/nhập + {STOCK_RULES.safetyDays} ngày dự phòng.
-          Tốc độ bán = trung bình {STOCK_RULES.velocityWindowDays} ngày gần nhất. “Nên sản xuất” = đủ bán{" "}
-          {STOCK_RULES.targetCoverDays} ngày sau khi hàng về. Đủ bán quá {STOCK_RULES.slowMovingDays} ngày là bán
+          Báo động khi số ngày đủ bán ít hơn thời gian sản xuất/nhập + {rules.safetyDays} ngày dự phòng.
+          Tốc độ bán = trung bình {rules.velocityWindowDays} ngày gần nhất. “Nên sản xuất” = đủ bán{" "}
+          {rules.targetCoverDays} ngày sau khi hàng về. Đủ bán quá {rules.slowMovingDays} ngày là bán
           chậm. Thời gian sản xuất/nhập đọc từ ô <b>Ghi chú nội bộ</b> của sản phẩm trên Pancake, ghi theo
-          dạng <b>“SX: 8”</b> (8 là số ngày); mã chưa ghi tạm dùng {DEFAULT_LEAD_TIME_DAYS} ngày. Cập nhật ngày{" "}
+          dạng <b>“SX: 8”</b> (8 là số ngày); mã chưa ghi tạm dùng {rules.defaultLeadTimeDays} ngày. Đổi các con số này ở nút <b>Cấu hình</b>. Cập nhật ngày{" "}
           {formatDateVN(today)}.
         </p>
       </Panel>

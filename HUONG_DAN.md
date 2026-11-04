@@ -2,7 +2,7 @@
 
 > File này luôn được cập nhật sau mỗi bước. Nếu thấy chỗ nào không khớp với thực tế, hãy nhắn Claude Code: *"HUONG_DAN.md đang sai ở mục …, sửa lại giúp tôi"*.
 
-**Tiến độ:** Giai đoạn 0 – Bước 0.1 (khởi tạo dự án) ✅ · Bước 0.2 (hệ thống thiết kế) ✅ · Bước 0.3 (menu trái) ✅ · Bước 0.4 (đăng nhập email, đợt 1) ✅ · Bước 0.5 (nhiều shop + khóa bảo vệ dữ liệu) ✅ · Bước 0.6 (trang Kết nối Pancake POS) ✅
+**Tiến độ:** Giai đoạn 0 – Bước 0.1 (khởi tạo dự án) ✅ · Bước 0.2 (hệ thống thiết kế) ✅ · Bước 0.3 (menu trái) ✅ · Bước 0.4 (đăng nhập email, đợt 1) ✅ · Bước 0.5 (nhiều shop + khóa bảo vệ dữ liệu) ✅ · Bước 0.6 (trang Kết nối Pancake POS) ✅ · Cấu hình tồn kho theo shop ✅
 
 ---
 
@@ -20,7 +20,7 @@
 | `src/components/layout/no-org-notice.tsx` | Dải thông báo vàng "Tài khoản chưa được gắn vào shop". |
 | `src/lib/org/` | Lấy shop của người đang đăng nhập (`current.ts`), tên vai trò tiếng Việt (`roles.ts`). |
 | `src/lib/rls.dbtest.ts` | **Test khóa bảo vệ dữ liệu** trên database thật, mỗi bảng một nhóm test. |
-| `supabase/migrations/` | **Cấu trúc database**, mỗi file `.sql` là một lần thay đổi, đánh số thứ tự. `0001_organizations.sql`: bảng Doanh nghiệp, Thành viên và các khóa bảo vệ. `0002_connections.sql`: bảng Kết nối (khóa Pancake đã mã hóa). Không sửa file đã chạy rồi; muốn đổi thì nhờ Claude Code tạo file mới. |
+| `supabase/migrations/` | **Cấu trúc database**, mỗi file `.sql` là một lần thay đổi, đánh số thứ tự. `0001_organizations.sql`: bảng Doanh nghiệp, Thành viên và các khóa bảo vệ. `0002_connections.sql`: bảng Kết nối (khóa Pancake đã mã hóa). `0003_inventory_settings.sql`: bảng Cấu hình tồn kho. Không sửa file đã chạy rồi; muốn đổi thì nhờ Claude Code tạo file mới. |
 | `scripts/` | Lệnh quản trị chạy trên máy: áp cấu trúc database (`db-migrate.mjs`), gắn người vào shop (`db-add-member.mjs`). |
 | `src/app/dang-nhap/` | **Trang Đăng nhập** (`/dang-nhap`): `page.tsx` là khung trang, `login-form.tsx` là ô nhập và nút. |
 | `src/proxy.ts` | **Người gác cổng**: chạy trước mỗi lượt mở trang, chưa đăng nhập thì đưa về `/dang-nhap` (sau khi đăng nhập sẽ quay lại đúng trang định mở). |
@@ -41,7 +41,9 @@
 | `src/components/dashboard/trend-chart.tsx` | **Biểu đồ đường** kỳ này (xanh) và kỳ trước (xám nét đứt). |
 | `src/app/(app)/ton-kho/page.tsx` | **Trang Tồn kho** (`/ton-kho`, số liệu giả): báo động mã cần sản xuất, bảng tồn theo mã, lọc theo trạng thái. |
 | `src/components/inventory/` | Bảng tồn kho và nhãn trạng thái (Hết hàng, Sản xuất ngay, Sắp đến hạn, Bán chậm, Đủ hàng). |
-| `src/lib/inventory/stock.ts` | **Công thức tồn kho**: tốc độ bán, số ngày đủ bán, khi nào phải sản xuất, nên sản xuất bao nhiêu. Các ngưỡng nằm ở `STOCK_RULES` đầu file. |
+| `src/lib/inventory/stock.ts` | **Công thức tồn kho**: tốc độ bán, số ngày đủ bán, khi nào phải sản xuất, nên sản xuất bao nhiêu. Số **mặc định** cho shop chưa cấu hình nằm ở `STOCK_RULES` đầu file. |
+| `src/lib/inventory/settings.ts` | Danh sách 6 ô **Cấu hình tồn kho** (tên, giải thích, giới hạn nhỏ nhất/lớn nhất). Muốn đổi câu giải thích hay giới hạn thì sửa ở đây (giới hạn phải sửa cả trong database, nhờ Claude Code). |
+| `src/components/inventory/stock-settings.tsx` | Nút **Cấu hình** và khung nhập trên trang Tồn kho. |
 | `src/lib/overview/recommendations.ts` | **Quy tắc "Đề xuất của AI"**: cần sản xuất, tập trung content, xả kho, chi phí quảng cáo cao. Các ngưỡng nằm ở `RECOMMENDATION_RULES` đầu file. |
 | `src/components/overview/recommendations.tsx` | Giao diện khối Đề xuất. |
 | `src/lib/overview/types.ts` | Danh sách các con số mà trang Tổng quan cần. |
@@ -82,7 +84,7 @@
 - Lỗi trên trang: Next.js hiện khung lỗi đỏ ngay trên trình duyệt; ngoài ra có thể nhấn `F12` → tab **Console**.
 - Cách nhanh nhất: copy nguyên đoạn lỗi, dán cho Claude Code kèm câu *"Tôi gặp lỗi này khi …"*.
 
-**Chạy test khóa bảo vệ dữ liệu trên database thật:** `npm run test:db` (cần mạng). Lệnh này tạo tạm vài tài khoản `@test.1click.local`, kiểm tra shop A không đọc/sửa được dữ liệu shop B, rồi tự xóa. Phải ra `20 passed` (hoặc nhiều hơn khi có thêm bảng).
+**Chạy test khóa bảo vệ dữ liệu trên database thật:** `npm run test:db` (cần mạng). Lệnh này tạo tạm vài tài khoản `@test.1click.local`, kiểm tra shop A không đọc/sửa được dữ liệu shop B, rồi tự xóa. Phải ra `25 passed` (hoặc nhiều hơn khi có thêm bảng).
 
 **Chạy unit test:** `npm test`. Dòng cuối phải là `Tests  N passed`. Nếu có dòng `failed` nghĩa là một công thức đang tính sai: đừng đưa lên mạng, dán kết quả cho Claude Code.
 
@@ -162,12 +164,20 @@ Mỗi bước làm xong đều được lưu lại một "mốc" (commit).
 
 ### Quy tắc báo động tồn kho và đề xuất
 
-- **Báo động "Sản xuất ngay"** khi: số ngày đủ bán < thời gian sản xuất + 3 ngày dự phòng.
-  Ví dụ: bán 7 cái/ngày, còn 60 cái → đủ bán 8,6 ngày; sản xuất 8 ngày + 3 = 11 ngày → báo động, nên sản xuất 164 cái (đủ bán 21 ngày sau khi hàng về).
-- **Thời gian sản xuất của từng sản phẩm** ghi trong Pancake: Sản phẩm → mở sản phẩm → ô **Ghi chú nội bộ**, ghi `SX: 8` (8 là số ngày). Cũng hiểu `SX 8 ngày`, `Sản xuất: 8 ngày`, hoặc ghi chú chỉ có số `8`. Không ghi thì tạm tính 7 ngày và hiện trong "Dữ liệu cần kiểm tra". Lưu ý: phải có dấu `:` hoặc khoảng trắng giữa "SX" và số (viết dính `SX098` sẽ không được hiểu, để tránh nhầm với mã sản phẩm).
-- Tốc độ bán = trung bình 30 ngày gần nhất. Đủ bán quá 90 ngày = bán chậm.
-- Chi phí quảng cáo vượt 12% tổng doanh thu, hoặc 25% doanh thu của một kênh → đề xuất tối ưu.
-- Muốn đổi các con số này: nhờ Claude Code *"Đổi số ngày dự phòng tồn kho thành 5 ngày"*. Sau này mỗi doanh nghiệp sẽ tự chỉnh trong phần cấu hình.
+**Mỗi shop tự chỉnh các con số** ở trang **Tồn kho → nút Cấu hình** (chỉ **Chủ shop** sửa được, người khác chỉ xem). Bấm **Lưu cấu hình** là báo động và "Đề xuất của AI" tính lại ngay. Shop chưa cấu hình dùng số mặc định:
+
+| Ô cấu hình | Mặc định | Ý nghĩa |
+|---|---|---|
+| Dự phòng | 3 ngày | Báo động "Sản xuất ngay" khi đủ bán < thời gian sản xuất + số ngày này |
+| Sản xuất đủ bán | 21 ngày | Mỗi lần đặt, đặt đủ hàng bán chừng này ngày sau khi hàng về |
+| Thời gian sản xuất mặc định | 7 ngày | Dùng cho sản phẩm chưa ghi "SX: …" |
+| Báo sớm | 7 ngày | Còn ít hơn chừng này ngày nữa đến hạn đặt thì báo "Sắp đến hạn đặt" |
+| Bán chậm khi đủ bán quá | 90 ngày | Tồn nhiều, nên có kế hoạch xả |
+| Tính tốc độ bán trên | 30 ngày | Bán trung bình/ngày = số bán trong chừng này ngày ÷ số ngày |
+
+- **Ví dụ:** váy size M bán 5 cái/ngày, còn 40 cái → đủ bán 8 ngày. Xưởng may 10 ngày + dự phòng 3 = 13 ngày → 8 < 13 nên **báo động**. Nên đặt = 5 × (10 + 3 + 21) − 40 = **130 cái** (đủ cho thời gian chờ xưởng, dự phòng và 21 ngày bán sau khi hàng về).
+- **Thời gian sản xuất của từng sản phẩm** ghi trong Pancake: Sản phẩm → mở sản phẩm → ô **Ghi chú nội bộ**, ghi `SX: 10` (10 là số ngày từ lúc đặt xưởng đến lúc hàng về kho). Cũng hiểu `SX 10 ngày`, `Sản xuất: 10 ngày`, hoặc ghi chú chỉ có số `10`. Không ghi thì dùng **Thời gian sản xuất mặc định** và hiện trong "Dữ liệu cần kiểm tra". Phải có dấu `:` hoặc khoảng trắng giữa "SX" và số (viết dính `SX098` sẽ không được hiểu, để tránh nhầm với mã sản phẩm).
+- Chi phí quảng cáo vượt 12% tổng doanh thu, hoặc 25% doanh thu của một kênh → đề xuất tối ưu (chưa có ô cấu hình, nhờ Claude Code nếu muốn đổi).
 - Các con số đều do code tính và có unit test; AI chỉ diễn giải, không tự tính.
 
 ### Sẽ bổ sung ở các giai đoạn sau

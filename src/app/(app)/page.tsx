@@ -18,7 +18,7 @@ import { TaxSummary } from "@/components/overview/tax-summary";
 import { TopContent } from "@/components/overview/top-content";
 import { TopProducts } from "@/components/overview/top-products";
 import { compareLabel, formatRangeVN, resolveFilter, todayInVN } from "@/lib/date-range";
-import { DEFAULT_LEAD_TIME_DAYS } from "@/lib/inventory/lead-time";
+import { getShopStockRules } from "@/lib/inventory/settings-db";
 import {
   analyzeInventory,
   summarizeInventory,
@@ -39,12 +39,13 @@ function demoIssues(
   data: OverviewData,
   inventory: InventoryTotals,
   stock: StockAnalysis[],
+  defaultLeadTimeDays: number,
 ): DataIssue[] {
   const noLeadTime = stock.filter((a) => a.leadTimeIsDefault);
   return [
     {
       title: `${noLeadTime.length} sản phẩm chưa ghi thời gian sản xuất`,
-      impact: `Đang tạm tính ${DEFAULT_LEAD_TIME_DAYS} ngày, báo động sản xuất có thể sớm hoặc muộn hơn thực tế.`,
+      impact: `Đang tạm tính ${defaultLeadTimeDays} ngày (số mặc định trong Tồn kho → Cấu hình), báo động sản xuất có thể sớm hoặc muộn hơn thực tế.`,
       howToFix:
         "Vào Pancake POS → Sản phẩm → mở sản phẩm → ô Ghi chú nội bộ, ghi “SX: 8” (8 là số ngày sản xuất/nhập hàng).",
       items: noLeadTime.map((a) => `${a.item.name} (${a.item.sku})`),
@@ -97,9 +98,10 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
   await connection();
   const today = todayInVN();
   const filter = resolveFilter(await searchParams, today);
-  const data = getDemoOverview(filter.range, filter.previousRange, today);
+  const { rules } = await getShopStockRules();
+  const data = getDemoOverview(filter.range, filter.previousRange, today, rules.velocityWindowDays);
   const totalRevenue = data.sources.reduce((sum, s) => sum + s.revenue.value, 0);
-  const stock = analyzeInventory(data.stock, today);
+  const stock = analyzeInventory(data.stock, today, rules);
   const inventory = summarizeInventory(data.stock);
   const urgentCount = stock.filter((a) => a.status === "out" || a.status === "urgent").length;
   const recommendations = buildRecommendations({
@@ -128,7 +130,7 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
 
       <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <Recommendations items={recommendations} />
-        <DataWarnings issues={demoIssues(data, inventory, stock).filter((i) => i.items?.length !== 0)} />
+        <DataWarnings issues={demoIssues(data, inventory, stock, rules.defaultLeadTimeDays).filter((i) => i.items?.length !== 0)} />
       </div>
 
       <SummaryCards

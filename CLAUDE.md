@@ -1,6 +1,6 @@
 # 1Click – ghi chú cho Claude Code
 
-Dự án: web SaaS **1Click** giúp shop nhỏ ở Việt Nam quản trị vận hành (tổng hợp số liệu từ Pancake POS, phân tích, đề xuất). Khách dùng thử đầu tiên: shop **Ecobath** (phụ kiện nhà tắm inox, bán Shopee/TikTok Shop) theo brief; **nhưng khóa Pancake thật chủ dự án dán là shop SUGAR CRUSH OFFICIAL** và họ chọn đổi tên shop trên 1Click thành Sugar Crush. Số liệu giả (demo-data) vẫn là sản phẩm Ecobath. Chưa hỏi Sugar Crush bán gì / có cần quy tắc tồn kho, thời gian sản xuất giống Ecobath không — hỏi trước Giai đoạn 1.
+Dự án: web SaaS **1Click** giúp shop nhỏ ở Việt Nam quản trị vận hành (tổng hợp số liệu từ Pancake POS, phân tích, đề xuất). Khách dùng thử đầu tiên: shop **Ecobath** (phụ kiện nhà tắm inox, bán Shopee/TikTok Shop) theo brief; **nhưng khóa Pancake thật chủ dự án dán là shop SUGAR CRUSH OFFICIAL** và họ chọn đổi tên shop trên 1Click thành Sugar Crush. Số liệu giả (demo-data) vẫn là sản phẩm Ecobath. Sugar Crush: thời trang nữ, shop tự thiết kế, thuê đơn vị thứ 3 sản xuất (mỗi màu/size là một mã).
 
 **Đọc trước khi làm:** `PROJECT_BRIEF.md` (yêu cầu gốc, lộ trình 9 giai đoạn), `HUONG_DAN.md` (bản đồ thư mục, cách chạy), `AGENTS.md` (lưu ý Next.js 16), `git log --oneline`.
 
@@ -24,7 +24,7 @@ Dự án: web SaaS **1Click** giúp shop nhỏ ở Việt Nam quản trị vận
 
 - Giao diện **giống Pancake POS** (chủ dự án chê bản đầu "trông AI quá"): thẻ trắng phẳng, icon tròn màu, tiền `1.250.000 ₫`, % 2 số lẻ, tăng xanh lá / giảm đỏ.
 - Thời gian sản xuất mỗi sản phẩm đọc từ ô **"Ghi chú nội bộ"** trên Pancake, quy ước `SX: 8`; chưa ghi → 7 ngày mặc định + cảnh báo. Tên trường trong API Pancake **chưa xác minh** (chờ API key, Giai đoạn 1).
-- Ngưỡng tồn kho: dự phòng 3 ngày; bán chậm khi đủ bán > 90 ngày; sản xuất đủ bán **21 ngày** (sợ tồn). Quảng cáo cao khi > 12% tổng doanh thu hoặc > 25% doanh thu một kênh.
+- Ngưỡng tồn kho **mỗi shop tự cấu hình** (bảng `inventory_settings`, trang Tồn kho → Cấu hình, **chỉ Chủ shop sửa**). Mặc định: dự phòng 3, sản xuất đủ bán **21**, SX mặc định 7, báo sớm 7, bán chậm 90, tốc độ bán 30 ngày. Sugar Crush (thời trang nữ, tự thiết kế, thuê xưởng ngoài may) giữ 3/21. Quảng cáo cao khi > 12% tổng doanh thu hoặc > 25% doanh thu một kênh (chưa cấu hình được).
 - Đăng nhập: email + mật khẩu và Google. Số điện thoại để sau (cần nhà cung cấp SMS trả phí).
 - **Chưa mở đăng ký công khai** (chủ dự án chọn): "Allow new users to sign up" trên Supabase để TẮT, không làm trang Đăng ký; tài khoản do chủ dự án tạo tay (Authentication → Users → Add user, tích Auto Confirm). Xác nhận email đang bật.
 - Supabase dùng bản trên mạng, project **"Doanh nghiệp 1 người"** (ref `jpzwdpbbrivebjvkdria`, Sydney `ap-southeast-2`, gói Free), không cài trên máy. `.env.local` có URL, publishable, secret, `SUPABASE_DB_URL` (session pooler). **KHÔNG dùng project "1Click"** (`ldohuak…`): đó là database của web tìm bài hot idea.1click. Gói Free chỉ 2 project nên không tạo thêm được.
@@ -41,4 +41,5 @@ Dự án: web SaaS **1Click** giúp shop nhỏ ở Việt Nam quản trị vận
 - ✅ Đã tắt đăng ký công khai ở project mới (kiểm tra 04/11/2026: thử đăng ký bị từ chối).
 - ✅ 0.6: trang `/ket-noi` Pancake POS: kiểm tra khóa bằng `GET /shops?api_key=` (đúng: 200 `{success, shops:[{id,name}]}`; sai: 403 `{success:false, message:"api_key is invalid", error_code:105}` — đã thử thật), mã hóa AES-256-GCM (`ENCRYPTION_KEY` đã tự tạo trong `.env.local`, AAD = `orgId:provider`), bảng `connections` (migration 0002): authenticated KHÔNG có quyền SELECT cột `secret_ciphertext` (column grants), chỉ owner ghi. 20 test RLS. Đã kết nối khóa Pancake THẬT: shop "SUGAR CRUSH OFFICIAL" (ID 100252065), đã kiểm tra giải mã + gọi lại Pancake thành công.
 - Tài liệu Pancake POS API: OpenAPI tại `https://docs.pancake.biz/pos/api/openapi.json?lang=en` (88 endpoint, auth `api_key` query). Đọc spec này trước khi gọi endpoint mới, không đoán tên trường.
+- ✅ Cấu hình tồn kho theo shop (migration 0003, 25 test RLS, 92 unit test). `getDemoOverview` nhận `velocityWindowDays` để quy đổi số bán giả; dữ liệu thật Giai đoạn 1 phải lấy số bán đúng `rules.velocityWindowDays` ngày.
 - ⏭️ Tiếp theo: 0.7 GitHub + Vercel (nhớ điền `ENCRYPTION_KEY` giống hệt trên Vercel). Sau đó Giai đoạn 1 (đồng bộ đơn/sản phẩm/tồn kho từ Pancake; đọc bản mã bằng khóa secret ở máy chủ). Để sau: đăng nhập Google, trang đổi mật khẩu.

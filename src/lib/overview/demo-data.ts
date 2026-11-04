@@ -85,6 +85,8 @@ export function getDemoOverview(
   range: DateRange,
   previousRange: DateRange | null,
   today: DateString,
+  /** Số ngày tính tốc độ bán theo cấu hình của shop: số bán giả quy đổi từ 30 ngày. */
+  velocityWindowDays = 30,
 ): OverviewData {
   const days = rangeLength(range);
   const hasPrev = previousRange !== null;
@@ -225,7 +227,10 @@ export function getDemoOverview(
       amount: compared(grossSales * 0.05, hasPrev ? prevGrossSales * 0.07 : null),
       count: compared(Math.max(1, Math.round(orders * 0.04)), hasPrev ? Math.max(1, Math.round(prevOrders * 0.06)) : null),
     },
-    stock: DEMO_STOCK,
+    stock: DEMO_STOCK.map((item) => ({
+      ...item,
+      soldInWindow: Math.round((item.soldInWindow * velocityWindowDays) / 30),
+    })),
     sources,
     topProducts: [
       { name: "Kệ góc nhà tắm inox SUS304 2 tầng", sku: "EB-KG2T", quantity: 7 * days, revenue: 2_030_000 * days, linked: true },

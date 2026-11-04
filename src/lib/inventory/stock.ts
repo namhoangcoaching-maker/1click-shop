@@ -11,32 +11,42 @@
 import { addDays, type DateString } from "@/lib/date-range";
 import { DEFAULT_LEAD_TIME_DAYS } from "./lead-time";
 
-/** Ngưỡng mặc định. Sau này mỗi doanh nghiệp tự chỉnh trong phần cấu hình. */
-export const STOCK_RULES = {
+/** Các con số mỗi shop tự cấu hình (trang Tồn kho → Cấu hình). Giới hạn nhập nằm ở settings.ts. */
+export interface StockRules {
   /** Số ngày dự phòng ngoài thời gian sản xuất ("rôi ra ít nhất 3 ngày chuẩn bị"). */
-  safetyDays: 3,
+  safetyDays: number;
   /** Báo "sắp đến hạn đặt" khi còn ít hơn chừng này ngày nữa là phải đặt sản xuất. */
-  warningWindowDays: 7,
+  warningWindowDays: number;
   /** Đủ bán quá chừng này ngày thì coi là bán chậm, cần kế hoạch đẩy tồn. */
-  slowMovingDays: 90,
+  slowMovingDays: number;
   /** Lượng hàng nên có sau khi hàng mới về, tính theo số ngày bán (21 ngày để tránh tồn nhiều). */
-  targetCoverDays: 21,
+  targetCoverDays: number;
   /** Tính tốc độ bán trung bình trên chừng này ngày gần nhất. */
-  velocityWindowDays: 30,
-} as const;
+  velocityWindowDays: number;
+  /** Thời gian sản xuất dùng cho sản phẩm chưa ghi "SX: …" trong Ghi chú nội bộ. */
+  defaultLeadTimeDays: number;
+}
 
-export type StockRules = typeof STOCK_RULES;
+/** Ngưỡng mặc định cho shop chưa cấu hình. */
+export const STOCK_RULES: Readonly<StockRules> = Object.freeze({
+  safetyDays: 3,
+  warningWindowDays: 7,
+  slowMovingDays: 90,
+  targetCoverDays: 21,
+  velocityWindowDays: 30,
+  defaultLeadTimeDays: DEFAULT_LEAD_TIME_DAYS,
+});
 
 export interface StockItem {
   sku: string;
   name: string;
   /** Số lượng còn có thể bán. */
   stock: number;
-  /** Số lượng đã bán trong cửa sổ tính tốc độ (mặc định 30 ngày gần nhất). */
+  /** Số lượng đã bán trong `velocityWindowDays` ngày gần nhất (mặc định 30). */
   soldInWindow: number;
   /**
    * Số ngày từ lúc đặt sản xuất/nhập đến khi hàng về kho, đọc từ "Ghi chú nội bộ" trên Pancake
-   * (xem lead-time.ts). null nếu chưa ghi: dùng DEFAULT_LEAD_TIME_DAYS và cảnh báo.
+   * (xem lead-time.ts). null nếu chưa ghi: dùng rules.defaultLeadTimeDays và cảnh báo.
    */
   leadTimeDays: number | null;
   /** Giá vốn, null nếu chưa nhập trên Pancake. */
@@ -88,7 +98,7 @@ export function analyzeStock(
 ): StockAnalysis {
   const velocity = item.soldInWindow / rules.velocityWindowDays;
   const daysOfStock = velocity > 0 ? item.stock / velocity : Infinity;
-  const leadTimeDays = item.leadTimeDays ?? DEFAULT_LEAD_TIME_DAYS;
+  const leadTimeDays = item.leadTimeDays ?? rules.defaultLeadTimeDays;
   const requiredDays = leadTimeDays + rules.safetyDays;
 
   let status: StockStatus;
