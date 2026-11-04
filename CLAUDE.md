@@ -38,5 +38,5 @@ Dự án: web SaaS **1Click** giúp shop nhỏ ở Việt Nam quản trị vận
 - ✅ 0.1 Khởi tạo · ✅ 0.2 Thiết kế kiểu Pancake + bản mẫu Tổng quan, Tồn kho, Đề xuất · ✅ 0.3 Menu trái
 - ✅ 0.4 đợt 1: đăng nhập email + mật khẩu (`/dang-nhap`, `src/proxy.ts` chặn trang khi chưa đăng nhập, nút Đăng xuất cuối menu).
 - ✅ 0.5: bảng `organizations` + `memberships` (vai trò owner/manager/staff), RLS, 13 test RLS thật; menu trái đọc tên shop + vai trò từ database. Shop Ecobath, Chủ = namhoangcoaching@gmail.com.
-- ⚠️ Đã nhắc chủ dự án tắt "Allow new users to sign up" ở project mới (lúc kiểm tra đang BẬT) — hỏi lại xem đã tắt chưa.
+- ✅ Đã tắt đăng ký công khai ở project mới (kiểm tra 04/11/2026: thử đăng ký bị từ chối).
 - ⏭️ Tiếp theo: 0.6 trang Kết nối (lưu key Pancake mã hóa, bảng có `org_id` + RLS + test) · 0.7 GitHub + Vercel. Để sau: 0.4 đợt 2 đăng nhập Google, trang đổi mật khẩu.
