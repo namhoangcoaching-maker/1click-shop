@@ -43,6 +43,9 @@ describe("đường dẫn đăng nhập", () => {
     expect(isPublicPath("/")).toBe(false);
     expect(isPublicPath("/ton-kho")).toBe(false);
     expect(isPublicPath("/dang-nhapx")).toBe(false);
+    expect(isPublicPath("/api/cron/pancake-sync")).toBe(true);
+    expect(isPublicPath("/api/cronx")).toBe(false);
+    expect(isPublicPath("/api/khac")).toBe(false);
   });
 
   it("safeNextPath giữ trang nội bộ, chặn web ngoài", () => {

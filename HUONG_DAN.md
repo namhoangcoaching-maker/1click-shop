@@ -2,7 +2,7 @@
 
 > File này luôn được cập nhật sau mỗi bước. Nếu thấy chỗ nào không khớp với thực tế, hãy nhắn Claude Code: *"HUONG_DAN.md đang sai ở mục …, sửa lại giúp tôi"*.
 
-**Tiến độ:** Giai đoạn 0 – Bước 0.1 (khởi tạo dự án) ✅ · Bước 0.2 (hệ thống thiết kế) ✅ · Bước 0.3 (menu trái) ✅ · Bước 0.4 (đăng nhập email, đợt 1) ✅ · Bước 0.5 (nhiều shop + khóa bảo vệ dữ liệu) ✅ · Bước 0.6 (trang Kết nối Pancake POS) ✅ · Cấu hình tồn kho theo shop ✅ · Bước 0.7 (GitHub + Vercel + tên miền) ✅
+**Tiến độ:** Giai đoạn 0 – Bước 0.1 (khởi tạo dự án) ✅ · Bước 0.2 (hệ thống thiết kế) ✅ · Bước 0.3 (menu trái) ✅ · Bước 0.4 (đăng nhập email, đợt 1) ✅ · Bước 0.5 (nhiều shop + khóa bảo vệ dữ liệu) ✅ · Bước 0.6 (trang Kết nối Pancake POS) ✅ · Cấu hình tồn kho theo shop ✅ · Bước 0.7 (GitHub + Vercel + tên miền) ✅ · **Giai đoạn 1** – Bước 1.1 (đồng bộ Pancake) ✅
 
 ---
 
@@ -20,7 +20,7 @@
 | `src/components/layout/no-org-notice.tsx` | Dải thông báo vàng "Tài khoản chưa được gắn vào shop". |
 | `src/lib/org/` | Lấy shop của người đang đăng nhập (`current.ts`), tên vai trò tiếng Việt (`roles.ts`). |
 | `src/lib/rls.dbtest.ts` | **Test khóa bảo vệ dữ liệu** trên database thật, mỗi bảng một nhóm test. |
-| `supabase/migrations/` | **Cấu trúc database**, mỗi file `.sql` là một lần thay đổi, đánh số thứ tự. `0001_organizations.sql`: bảng Doanh nghiệp, Thành viên và các khóa bảo vệ. `0002_connections.sql`: bảng Kết nối (khóa Pancake đã mã hóa). `0003_inventory_settings.sql`: bảng Cấu hình tồn kho. Không sửa file đã chạy rồi; muốn đổi thì nhờ Claude Code tạo file mới. |
+| `supabase/migrations/` | **Cấu trúc database**, mỗi file `.sql` là một lần thay đổi, đánh số thứ tự. `0001_organizations.sql`: bảng Doanh nghiệp, Thành viên và các khóa bảo vệ. `0002_connections.sql`: bảng Kết nối (khóa Pancake đã mã hóa). `0003_inventory_settings.sql`: bảng Cấu hình tồn kho. `0004`, `0005`: bảng Sản phẩm, Đơn hàng, Dòng hàng, Tiến độ đồng bộ. Không sửa file đã chạy rồi; muốn đổi thì nhờ Claude Code tạo file mới. |
 | `scripts/` | Lệnh quản trị chạy trên máy: áp cấu trúc database (`db-migrate.mjs`), gắn người vào shop (`db-add-member.mjs`). |
 | `src/app/dang-nhap/` | **Trang Đăng nhập** (`/dang-nhap`): `page.tsx` là khung trang, `login-form.tsx` là ô nhập và nút. |
 | `src/proxy.ts` | **Người gác cổng**: chạy trước mỗi lượt mở trang, chưa đăng nhập thì đưa về `/dang-nhap` (sau khi đăng nhập sẽ quay lại đúng trang định mở). |
@@ -32,6 +32,11 @@
 | `src/app/(app)/ket-noi/` | **Trang Kết nối** (`/ket-noi`): `page.tsx` khung trang + danh sách "Sắp có", `pancake-form.tsx` ô dán khóa Pancake và nút Kiểm tra & lưu. |
 | `src/lib/connections/` | Lưu / ngắt kết nối (`actions.ts`, chỉ Chủ shop), đọc trạng thái kết nối (`queries.ts`, không bao giờ đọc khóa). |
 | `src/lib/pancake/shops.ts` | Gọi Pancake POS để kiểm tra khóa (lệnh "Thông tin cửa hàng") và câu báo lỗi tiếng Việt. Tài liệu API Pancake: https://docs.pancake.biz/pos/api/en |
+| `src/lib/pancake/map.ts` | **Đọc dữ liệu Pancake**: tên trường của sản phẩm, đơn hàng; bảng **trạng thái đơn** (Mới, Đã xác nhận, Đã nhận, Đã hoàn…); đơn nào tính là **đơn chốt** (`CONFIRMED_STATUSES`). |
+| `src/lib/pancake/sync.ts`, `sync-plan.ts` | **Đồng bộ** Pancake → database: sản phẩm/tồn kho mỗi 10 phút, đơn mới/vừa đổi trạng thái, lấy dần lịch sử 90 ngày (số ngày nằm ở `SYNC_RULES`). |
+| `src/app/api/cron/pancake-sync/route.ts` | Địa chỉ lịch tự động gọi vào (có mật khẩu `CRON_SECRET`). |
+| `src/app/(app)/ket-noi/sync-button.tsx` | Nút **Đồng bộ ngay** trên trang Kết nối. |
+| `src/lib/supabase/admin.ts` | Kết nối Supabase bằng khóa secret, **chỉ** cho việc nền (đồng bộ). Không dùng để hiện dữ liệu cho người dùng. |
 | `src/lib/crypto/secret-box.ts` | **Mã hóa khóa API của khách** trước khi lưu (AES-256-GCM, dùng `ENCRYPTION_KEY`). |
 | `src/components/layout/nav-items.ts` | **Danh sách mục menu trái**: thêm, bớt, đổi tên, đổi thứ tự, đổi biểu tượng ở đây. |
 | `src/components/layout/app-shell.tsx` | Giao diện menu trái và nút ☰ trên điện thoại. |
@@ -84,7 +89,7 @@
 - Lỗi trên trang: Next.js hiện khung lỗi đỏ ngay trên trình duyệt; ngoài ra có thể nhấn `F12` → tab **Console**.
 - Cách nhanh nhất: copy nguyên đoạn lỗi, dán cho Claude Code kèm câu *"Tôi gặp lỗi này khi …"*.
 
-**Chạy test khóa bảo vệ dữ liệu trên database thật:** `npm run test:db` (cần mạng). Lệnh này tạo tạm vài tài khoản `@test.1click.local`, kiểm tra shop A không đọc/sửa được dữ liệu shop B, rồi tự xóa. Phải ra `25 passed` (hoặc nhiều hơn khi có thêm bảng).
+**Chạy test khóa bảo vệ dữ liệu trên database thật:** `npm run test:db` (cần mạng). Lệnh này tạo tạm vài tài khoản `@test.1click.local`, kiểm tra shop A không đọc/sửa được dữ liệu shop B, rồi tự xóa. Phải ra `34 passed` (hoặc nhiều hơn khi có thêm bảng).
 
 **Chạy unit test:** `npm test`. Dòng cuối phải là `Tests  N passed`. Nếu có dòng `failed` nghĩa là một công thức đang tính sai: đừng đưa lên mạng, dán kết quả cho Claude Code.
 
@@ -119,6 +124,15 @@ Database của web này là project Supabase **"Doanh nghiệp 1 người"** (m�
 **Khóa một người:** Authentication → Users → bấm dấu ⋮ ở dòng người đó → **Ban user** (hoặc **Delete user**).
 
 **Giữ nguyên cài đặt:** Authentication → Sign In / Providers → **Allow new users to sign up** đang **TẮT**. Đừng bật cho đến khi quyết định mở đăng ký công khai.
+
+### Đồng bộ dữ liệu từ Pancake
+
+- **Tự động mỗi 30 phút**: Supabase (chức năng hẹn giờ pg_cron) gọi web `…/api/cron/pancake-sync`. Mỗi lần lấy: sản phẩm + tồn kho, đơn mới hoặc vừa đổi trạng thái. Không tốn tiền AI.
+- **Đồng bộ ngay**: trang **Kết nối** → nút **Đồng bộ ngay** (ai trong shop cũng bấm được). Ở đó cũng thấy lần đồng bộ cuối, số mã sản phẩm, số đơn.
+- **Shop mới kết nối**: lịch tự động lấy dần lịch sử 90 ngày (mỗi lần 7 ngày); muốn lấy hết ngay thì chạy trên máy `npm.cmd run sync:now -- https://shop.nhankhoitu.com.vn` (khoảng 4–5 phút).
+- **Không lưu thông tin cá nhân của khách** (tên, SĐT, địa chỉ), chỉ lưu số liệu đơn.
+- Đổi khóa sang **shop Pancake khác** thì dữ liệu shop cũ bị xóa để không trộn số.
+- Cài lại / tắt lịch: `npm.cmd run db:setup-cron` (hoặc `npm.cmd run db:setup-cron -- off`). Xem lịch đã chạy chưa: Supabase → **Integrations → Cron** (hoặc **Database → Cron Jobs**).
 
 ### Kết nối Pancake POS
 
@@ -200,6 +214,6 @@ Mỗi bước làm xong đều được lưu lại một "mốc" (commit).
 
 **Bản mới bị lỗi?** Vercel → **Deployments** → bấm dấu ⋮ ở bản cũ đang chạy tốt → **Promote to Production** (hoặc **Instant Rollback**): web quay lại bản cũ ngay, rồi nhờ Claude Code sửa.
 
-**Khóa bí mật trên Vercel:** Settings → **Environment Variables**, có đúng 4 biến: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `ENCRYPTION_KEY` (phải **giống hệt** `.env.local`, kể cả dấu `=` cuối). Sửa biến xong phải **Redeploy** mới có hiệu lực. `SUPABASE_DB_URL` chỉ dùng trên máy, không đưa lên Vercel.
+**Khóa bí mật trên Vercel:** Settings → **Environment Variables**, có đúng 5 biến: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `ENCRYPTION_KEY`, `CRON_SECRET` (phải **giống hệt** `.env.local`, kể cả dấu `=` cuối). Sửa biến xong phải **Redeploy** mới có hiệu lực. `SUPABASE_DB_URL` chỉ dùng trên máy, không đưa lên Vercel.
 
 **Thay đổi database:** Vercel không tự chạy migration. Khi có file mới trong `supabase/migrations/`, chạy `npm.cmd run db:migrate` trên máy **trước** khi push code dùng bảng mới.

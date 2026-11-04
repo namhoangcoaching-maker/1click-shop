@@ -4,6 +4,8 @@ import { refresh } from "next/cache";
 import { encryptSecret, parseKey, secretHint } from "@/lib/crypto/secret-box";
 import { getCurrentOrg } from "@/lib/org/current";
 import { fetchPancakeShops, pickShop } from "@/lib/pancake/shops";
+import { runPancakeSync } from "@/lib/pancake/sync";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export interface SaveState {
@@ -59,11 +61,20 @@ export async function savePancakeConnection(_prev: SaveState, formData: FormData
 
   const existing = await supabase
     .from("connections")
-    .select("id")
+    .select("id, external_id")
     .eq("org_id", org.id)
     .eq("provider", PROVIDER)
     .maybeSingle();
   if (existing.error) return { ok: false, message: "Không lưu được, thử lại sau.", ...keep };
+
+  // Đổi sang shop Pancake KHÁC: xóa dữ liệu đã đồng bộ của shop cũ để số liệu không bị trộn.
+  if (existing.data && existing.data.external_id !== pick.shop.id) {
+    const admin = createAdminClient();
+    for (const table of ["orders", "products", "sync_state"] as const) {
+      const { error: e } = await admin.from(table).delete().eq("org_id", org.id);
+      if (e) return { ok: false, message: "Không xóa được dữ liệu của shop Pancake cũ, thử lại sau.", ...keep };
+    }
+  }
 
   const { error } = existing.data
     ? await supabase.from("connections").update(fields).eq("id", existing.data.id)
@@ -86,4 +97,24 @@ export async function deletePancakeConnection(): Promise<SaveState> {
   if (error) return { ok: false, message: "Không ngắt được kết nối, thử lại sau." };
   refresh();
   return { ok: true, message: "Đã ngắt kết nối Pancake POS và xóa khóa." };
+}
+
+/** Nút "Đồng bộ ngay": mọi thành viên shop bấm được (chỉ lấy dữ liệu về, không đổi gì trên Pancake). */
+export async function syncPancakeNow(): Promise<SaveState> {
+  const org = await getCurrentOrg();
+  if (!org) return { ok: false, message: "Tài khoản chưa được gắn vào shop." };
+  const r = await runPancakeSync(org.id, { budgetMs: 45_000 });
+  refresh();
+  switch (r.status) {
+    case "ok":
+      return { ok: true, message: `Đã đồng bộ: ${r.orders} đơn mới/cập nhật${r.products ? `, ${r.products} mã sản phẩm` : ""}.` };
+    case "partial":
+      return { ok: true, message: `Đã lấy ${r.orders} đơn. Vẫn còn dữ liệu, bấm lần nữa hoặc đợi lịch tự động.` };
+    case "busy":
+      return { ok: false, message: "Đang có một lượt đồng bộ chạy, đợi 1–2 phút rồi xem lại." };
+    case "not_connected":
+      return { ok: false, message: "Shop chưa kết nối Pancake POS." };
+    default:
+      return { ok: false, message: r.error ?? "Đồng bộ lỗi, thử lại sau." };
+  }
 }

@@ -1,7 +1,10 @@
 export const LOGIN_PATH = "/dang-nhap";
 
-/** Các trang mở được khi chưa đăng nhập. */
-const PUBLIC_PATHS = [LOGIN_PATH];
+/**
+ * Các đường dẫn mở được khi chưa đăng nhập.
+ * /api/cron: lịch tự động gọi vào, tự kiểm tra mật khẩu CRON_SECRET (không dùng phiên đăng nhập).
+ */
+const PUBLIC_PATHS = [LOGIN_PATH, "/api/cron"];
 
 export function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));

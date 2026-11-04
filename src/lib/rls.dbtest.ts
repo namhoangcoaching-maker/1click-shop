@@ -274,6 +274,54 @@ describe("Cấu hình tồn kho (chỉ Chủ shop sửa)", () => {
   });
 });
 
+describe("Dữ liệu bán hàng từ Pancake (chỉ đọc, theo shop)", () => {
+  beforeAll(async () => {
+    for (const org of [orgA, orgB]) {
+      const tag = org === orgA ? "A" : "B";
+      const p = await admin.from("products").insert({
+        org_id: org, variation_id: `v-${tag}`, product_id: `p-${tag}`, name: `Áo ${tag}`, retail_price: 100, stock: 5,
+      });
+      if (p.error) throw p.error;
+      const o = await admin.from("orders").insert({
+        org_id: org, order_id: `DON-${tag}`, inserted_at: new Date().toISOString(), status: 3, total_price: 100,
+      });
+      if (o.error) throw o.error;
+      const i = await admin.from("order_items").insert({
+        org_id: org, order_id: `DON-${tag}`, item_id: "1", variation_id: `v-${tag}`, quantity: 1,
+      });
+      if (i.error) throw i.error;
+      const s = await admin.from("sync_state").insert({ org_id: org, provider: "pancake_pos", last_status: "ok" });
+      if (s.error) throw s.error;
+    }
+  });
+
+  for (const table of ["products", "orders", "order_items", "sync_state"] as const) {
+    it(`${table}: shop A chỉ thấy dòng của shop A, Nhân viên cũng xem được`, async () => {
+      const a = await ownerA.from(table).select("org_id");
+      expect(a.error).toBeNull();
+      expect(a.data!.map((r) => r.org_id)).toEqual([orgA]);
+      const s = await staffA.from(table).select("org_id");
+      expect(s.data!.map((r) => r.org_id)).toEqual([orgA]);
+    });
+
+    it(`${table}: không ai ghi, sửa, xóa được qua trình duyệt, kể cả Chủ`, async () => {
+      const del = await ownerA.from(table).delete().eq("org_id", orgA);
+      expect(del.error).not.toBeNull();
+      const upd = await ownerA.from(table).update({ org_id: orgA }).eq("org_id", orgA);
+      expect(upd.error).not.toBeNull();
+      const { count } = await admin.from(table).select("*", { count: "exact", head: true }).eq("org_id", orgA);
+      expect(count).toBe(1);
+    });
+  }
+
+  it("không chèn được đơn giả vào shop B", async () => {
+    const { error } = await ownerA
+      .from("orders")
+      .insert({ org_id: orgB, order_id: "GIA", inserted_at: new Date().toISOString(), status: 3 });
+    expect(error).not.toBeNull();
+  });
+});
+
 describe("Người chưa đăng nhập", () => {
   it("không đọc được gì", async () => {
     const anon = createClient(URL, PUBLISHABLE, noSession);
@@ -285,5 +333,9 @@ describe("Người chưa đăng nhập", () => {
     expect(conns.data ?? []).toEqual([]);
     const settings = await anon.from("inventory_settings").select("org_id");
     expect(settings.data ?? []).toEqual([]);
+    for (const table of ["products", "orders", "order_items", "sync_state"]) {
+      const r = await anon.from(table).select("org_id");
+      expect(r.data ?? []).toEqual([]);
+    }
   });
 });

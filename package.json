@@ -11,7 +11,9 @@
     "test:watch": "vitest",
     "test:db": "vitest run --config vitest.db.config.mts",
     "db:migrate": "node scripts/db-migrate.mjs",
-    "db:add-member": "node scripts/db-add-member.mjs"
+    "db:add-member": "node scripts/db-add-member.mjs",
+    "sync:now": "node scripts/sync-now.mjs",
+    "db:setup-cron": "node scripts/db-setup-cron.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

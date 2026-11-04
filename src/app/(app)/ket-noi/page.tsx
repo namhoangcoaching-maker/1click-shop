@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { CircleCheckIcon, CircleAlertIcon, CircleDashedIcon, PlugIcon, ShoppingCartIcon } from "lucide-react";
 import { Panel } from "@/components/dashboard/panel";
-import { getConnections, type ConnectionInfo } from "@/lib/connections/queries";
+import { getConnections, getSyncInfo, type ConnectionInfo, type SyncInfo } from "@/lib/connections/queries";
 import { formatDateTimeVN } from "@/lib/date-range";
+import { formatNumber } from "@/lib/format";
 import { getCurrentOrg } from "@/lib/org/current";
 import { PancakeForm } from "./pancake-form";
+import { SyncButton } from "./sync-button";
 
 export const metadata: Metadata = { title: "Kết nối" };
 
@@ -51,6 +53,7 @@ async function PancakePanel() {
   const org = await getCurrentOrg();
   if (!org) return null;
   const conn = (await getConnections(org.id)).find((c) => c.provider === "pancake_pos");
+  const sync = conn ? await getSyncInfo(org.id) : null;
   const isOwner = org.role === "owner";
 
   return (
@@ -81,6 +84,8 @@ async function PancakePanel() {
         </dl>
       )}
 
+      {conn && <SyncStatus sync={sync} />}
+
       {isOwner ? (
         <>
           <PancakeForm connected={Boolean(conn)} currentShopId={conn?.externalId} />
@@ -90,6 +95,38 @@ async function PancakePanel() {
         <p className="text-sm text-muted-foreground">Chỉ Chủ shop mới thêm, đổi hoặc ngắt được kết nối.</p>
       )}
     </Panel>
+  );
+}
+
+function SyncStatus({ sync }: { sync: SyncInfo | null }) {
+  return (
+    <div className="mb-4 space-y-2 rounded-md border px-3 py-2.5 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-medium">Đồng bộ dữ liệu</span>
+        <SyncButton />
+      </div>
+      {!sync ? (
+        <p className="text-muted-foreground">Chưa đồng bộ lần nào. Bấm “Đồng bộ ngay” để lấy dữ liệu về.</p>
+      ) : (
+        <>
+          <p className="text-muted-foreground">
+            {sync.running
+              ? "Đang đồng bộ…"
+              : `Lần cuối: ${sync.lastRunAt ? formatDateTimeVN(sync.lastRunAt) : "—"}`}
+            {" · "}
+            {formatNumber(sync.products)} mã sản phẩm · {formatNumber(sync.orders)} đơn hàng
+            {sync.oldestOrderAt && ` (từ ${formatDateTimeVN(sync.oldestOrderAt).slice(0, 10)})`}
+            {" · "}Tự động mỗi 30 phút.
+          </p>
+          {sync.backfillPercent < 100 && (
+            <p className="text-warning">
+              Đang lấy lịch sử 90 ngày: {sync.backfillPercent}%. Số liệu các trang có thể chưa đủ cho tới khi xong.
+            </p>
+          )}
+          {sync.lastStatus === "error" && sync.lastError && <p className="text-destructive">{sync.lastError}</p>}
+        </>
+      )}
+    </div>
   );
 }
 
