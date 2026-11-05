@@ -18,37 +18,55 @@ Hai địa chỉ cần dùng khi đăng ký (chép nguyên văn):
 
 ## 1. Shopee (Shopee Open Platform)
 
-### Điều kiện: kiểm tra trước
+Theo tài liệu Shopee (đọc ngày 05/11/2026). Sugar Crush là **Shop Yêu thích**, đủ điều kiện ở Việt Nam (chỉ nhận Shop Yêu thích hoặc Mall).
 
-Ở Việt Nam, Shopee chỉ mở cho shop là **Shop Yêu thích (Preferred Seller)** hoặc **Shopee Mall**. Shop thường sẽ bị từ chối, nên anh/chị kiểm tra Sugar Crush trên Kênh Người Bán trước.
+### Bước 1: Tạo tài khoản nhà phát triển (khoảng 5 phút)
 
-### Các bước
-
-1. **Tạo tài khoản nhà phát triển**
-   - Vào https://open.shopee.com, bấm **Log In** rồi **Sign up**, nhập email.
+1. Vào https://open.shopee.com, bấm **Log In** rồi **Sign up**.
+2. Nhập email.
    - Email này **không đổi được** về sau, nên dùng email lâu dài của shop.
-   - Mở hộp thư lấy mã xác minh (không thấy thì xem mục Spam), nhập mã, đặt mật khẩu.
-2. **Chọn loại tài khoản và nộp hồ sơ**
-   - Chọn **Shopee Seller**, rồi chọn:
-     - **Registered Business Seller** nếu shop có giấy phép kinh doanh (hộ kinh doanh / công ty), nộp giấy tờ doanh nghiệp;
-     - **Individual Seller** nếu bán cá nhân, nộp giấy tờ tùy thân.
-   - Hai loại này đều chỉ dùng cho **chính shop của mình**, đúng nhu cầu của 1Click.
-   - Gửi duyệt và chờ Shopee trả lời qua email.
-3. **Tạo ứng dụng**
-   - Khi tài khoản được duyệt, vào **Console**, mở **App List** và tạo App mới loại **Seller In House System** (ứng dụng riêng cho shop mình).
-   - Tên gợi ý: `1Click Sugar Crush`.
-   - Ô **Redirect URL Domain** (cả Test và Live): nhập `shop.nhankhoitu.com.vn`.
-   - Nếu có chỗ chọn nhóm API (API permission / module), chọn **Ads**: 1Click chỉ cần **đọc chi phí quảng cáo**. Nếu không thấy mục Ads, chụp màn hình gửi mình, có thể phải gửi yêu cầu (Raise Ticket) cho Shopee.
-   - Gửi App đi duyệt.
-4. **Chờ duyệt rồi báo mình.** Duyệt xong, App sẽ có **Partner ID** và **Partner Key**. Anh/chị chỉ cần báo "Shopee đã duyệt", **không gửi** hai mã này qua chat.
-5. **Cho phép 1Click đọc shop Sugar Crush.** Bước này làm sau khi mình xong phần kết nối:
-   - Trong App List, bấm **Authorize**, điền Redirect URL ở bảng trên.
-   - Đăng nhập tài khoản Shopee của Sugar Crush và bấm đồng ý.
-   - Shopee cho tối đa **365 ngày**, sau đó phải bấm cho phép lại. 1Click sẽ nhắc trước.
+   - Shopee sẽ gửi thông báo duyệt và cảnh báo về địa chỉ này.
+3. Mở hộp thư lấy **mã xác minh**. Không thấy thì xem Spam, hoặc bấm **Resend**.
+4. Nhập mã, **đặt mật khẩu**. Trang tự đăng nhập vào Shopee Open Platform.
+
+### Bước 2: Khai báo là người bán và nộp duyệt (Shopee xử lý trong 3 ngày làm việc)
+
+1. Vào **Console**, chọn **App Management**, rồi **App List**. Shopee hỏi loại tài khoản: chọn **Shopee Seller**.
+2. Shopee chuyển sang trang **đăng nhập tài khoản người bán**: đăng nhập tài khoản Shopee của **Sugar Crush** (tài khoản Kênh Người Bán) để xác minh.
+3. Ô **Seller Type**, chọn:
+   - **Registered Business Seller** nếu shop có đăng ký kinh doanh (hộ kinh doanh hoặc công ty), chuẩn bị ảnh/PDF giấy phép;
+   - **Individual Seller** nếu bán cá nhân, chuẩn bị giấy tờ tùy thân.
+4. Ô **Key Account Manager's Email**: **để trống**, trừ khi shop có nhân viên Shopee phụ trách (email đuôi @shopee.com).
+5. Bấm **Next**, điền thông tin hồ sơ, bấm **Submit**.
+6. Chờ email kết quả. Nếu bị từ chối, lý do có trong email hoặc ở **Go to Profile** (trang App List); bấm **Edit** sửa rồi gửi lại.
+
+### Bước 3: Tạo ứng dụng (sau khi hồ sơ được duyệt)
+
+1. Trong Console, bấm **Create App**, phần **Basic Information** điền:
+   - **App Type**: **Seller In House System**. Đây là loại duy nhất có cả quyền Ads (loại ERP không có Ads).
+   - **App Name**: `1Click Sugar Crush`.
+   - **App Description**: "Ứng dụng nội bộ của shop Sugar Crush: đọc chi phí quảng cáo và số liệu bán hàng để quản trị."
+   - **App Logo**: logo shop.
+   - **Redirect URL Domain** (Test và Live, nếu có ô): `shop.nhankhoitu.com.vn`.
+2. Tạo xong sẽ có **Test Partner ID** và **Test Key** (chỉ để thử). **Không gửi** mã này qua chat.
+3. Trong trang chi tiết App, mục **API Permission**: kiểm tra có nhóm **Ads**. Không thấy thì chụp màn hình gửi mình.
+
+### Bước 4: Đưa ứng dụng lên chạy thật (Shopee duyệt khoảng 24 giờ)
+
+1. Ở **App List**, chọn App, bấm **Go Live**, điền thông tin rồi gửi.
+2. Nếu có mục **IT Assets / địa chỉ IP**: web 1Click chạy trên máy chủ đám mây (Vercel), IP thay đổi, nên chọn **IP address(es) unavailable**. Lý do ghi: "Web chạy trên dịch vụ đám mây Vercel, địa chỉ IP thay đổi theo hệ thống."
+3. Duyệt xong, mục **App Key** có **Live Partner_id** và **Live Key** (mã thật). Trạng thái App chuyển sang **Online**.
+4. **Báo mình "Shopee đã Online"**, **không gửi** Live Key qua chat. Mình làm trang Kết nối để anh/chị tự dán vào (mã được mã hóa).
+
+### Bước 5: Cho phép 1Click đọc shop (làm khi mình báo trang Kết nối đã sẵn)
+
+1. Trên 1Click, trang **Kết nối**, bấm **Kết nối Shopee**. 1Click mở trang của Shopee.
+2. Đăng nhập tài khoản người bán Sugar Crush và bấm đồng ý.
+3. Mỗi lần cho phép dùng được **tối đa 365 ngày**. 1Click sẽ nhắc trước khi hết hạn.
 
 ### 1Click sẽ lấy được gì
 
-- Chi phí quảng cáo **theo ngày** của cả shop (quảng cáo tìm kiếm / khám phá), kèm lượt hiển thị, lượt bấm, doanh thu từ quảng cáo.
+- Chi phí quảng cáo **theo ngày** của cả shop, kèm lượt hiển thị, lượt bấm, doanh thu từ quảng cáo.
 - Xem lại được tối đa **6 tháng** về trước.
 
 ---
