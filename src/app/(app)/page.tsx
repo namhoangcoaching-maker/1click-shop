@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
-import { Suspense } from "react";
+import { cache, Suspense } from "react";
 import {
   BadgeDollarSignIcon,
   ChartLineIcon,
@@ -34,7 +34,7 @@ import { getCashDays } from "@/lib/cash/data";
 import { getShopStockRules } from "@/lib/inventory/settings-db";
 import { analyzeInventory, summarizeInventory, type StockAnalysis } from "@/lib/inventory/stock";
 import { getCurrentOrg } from "@/lib/org/current";
-import { getRealOverview, type RealOverview } from "@/lib/overview/real-data";
+import { getOverviewStats, getOverviewStock } from "@/lib/overview/real-data";
 import { buildRecommendations } from "@/lib/overview/recommendations";
 import { getReportToShow } from "@/lib/report/generate";
 import { buildSourceGroups } from "@/lib/finance/efficiency";
@@ -47,7 +47,7 @@ const INVENTORY_HREF = "/ton-kho";
 const PANCAKE_URL = "https://pos.pages.fm";
 
 /** "Dữ liệu cần kiểm tra": tự phát hiện từ dữ liệu Pancake đã đồng bộ. */
-function dataIssues(data: RealOverview, stock: StockAnalysis[]): DataIssue[] {
+function dataIssues(unlinkedQty: number, stock: StockAnalysis[]): DataIssue[] {
   const noCost = stock.filter((a) => a.item.costPrice === null && a.item.stock > 0);
   const issues: DataIssue[] = [];
   if (noCost.length > 0) {
@@ -59,9 +59,9 @@ function dataIssues(data: RealOverview, stock: StockAnalysis[]): DataIssue[] {
       fixUrl: PANCAKE_URL,
     });
   }
-  if (data.unlinkedQty > 0) {
+  if (unlinkedQty > 0) {
     issues.push({
-      title: `${formatNumber(data.unlinkedQty)} sản phẩm bán ra chưa liên kết`,
+      title: `${formatNumber(unlinkedQty)} sản phẩm bán ra chưa liên kết`,
       impact: "Dòng hàng trong đơn không gắn với mã sản phẩm nào (hoặc mã đã xóa): không trừ tồn, không có giá vốn, không vào Top sản phẩm.",
       howToFix: "Vào Pancake POS → Sản phẩm kênh bán (Shopee, TikTok…), liên kết từng sản phẩm sàn với sản phẩm trong kho.",
       fixUrl: PANCAKE_URL,
@@ -87,6 +87,25 @@ export default function OverviewPage({ searchParams }: PageProps<"/">) {
   );
 }
 
+/** Tham số chung cho các khối của Tổng quan (chuỗi để React `cache` nhận ra cùng một lần gọi). */
+interface Ctx {
+  orgId: string;
+  today: string;
+  nowIso: string;
+  from: string;
+  to: string;
+  prevFrom: string | null;
+  prevTo: string | null;
+}
+
+/** Cấu hình tồn kho: chỉ đọc một lần cho cả trang. */
+const loadRules = cache(async () => (await getShopStockRules()).rules);
+const loadStats = (c: Ctx) => getOverviewStats(c.orgId, c.from, c.to, c.prevFrom, c.prevTo);
+const loadStock = async (c: Ctx) => {
+  const rules = await loadRules();
+  return getOverviewStock(c.orgId, c.from, c.to, rules.velocityWindowDays, c.nowIso);
+};
+
 async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) {
   // "Hôm nay" thay đổi theo thời điểm mở trang, nên phần này không được dựng sẵn trước.
   await connection();
@@ -97,58 +116,23 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
   const today = todayInVN(now);
   const params = await searchParams;
   const filter = resolveFilter(params, today);
-  // Chi phí ads theo kênh trong khoảng đang xem (cho bảng Nguồn đơn): hỏi song song với phần còn lại.
-  const adsPromise = getAdsByChannel(org.id, filter.range.from, filter.range.to).catch(() => new Map<string, number>());
-  const { rules } = await getShopStockRules();
-  const data = await getRealOverview(org.id, filter.range, filter.previousRange, rules.velocityWindowDays, now);
+  const ctx: Ctx = {
+    orgId: org.id,
+    today,
+    nowIso: now.toISOString(),
+    from: filter.range.from,
+    to: filter.range.to,
+    prevFrom: filter.previousRange?.from ?? null,
+    prevTo: filter.previousRange?.to ?? null,
+  };
+  // Bắt đầu hỏi số Pancake và tồn kho NGAY, song song; các khối bên dưới dùng lại kết quả (không hỏi lại).
+  void loadStats(ctx);
+  void loadStock(ctx).catch(() => {});
 
-  if (!data.connected && data.stock.length === 0) {
-    return (
-      <Panel title="Chưa có dữ liệu" icon={PlugIcon} tone="slate">
-        <p className="text-sm text-muted-foreground">
-          Shop chưa kết nối Pancake POS. Vào{" "}
-          <Link href="/ket-noi" className="text-primary hover:underline">
-            Kết nối
-          </Link>{" "}
-          để dán khóa API rồi bấm “Đồng bộ ngay”.
-        </p>
-      </Panel>
-    );
-  }
-
-  const active = data.stock.filter((i) => !i.inactive);
-  const stock = analyzeInventory(active, today, rules);
-  const inventory = summarizeInventory(active);
-  const [incoming, cashDays, adsByChannel] = await Promise.all([
-    getIncoming(org.id),
-    getCashDays(org.id, today, addDays(today, 7)),
-    adsPromise,
-  ]);
   // Giữ bộ lọc ngày khi bấm đổi tháng ở khối Hiệu quả kinh doanh.
   const keep = Object.fromEntries(
     Object.entries(params).filter((e): e is [string, string] => typeof e[1] === "string" && e[0] !== "hq"),
   );
-  const plan = buildOrderPlan(toPlanItems(active, incoming, rules.velocityWindowDays, today), today, rules);
-  const urgentPlan = plan.urgent.filter((p) => !p.slow);
-  const nextDay = plan.days[0]; // chỉ nhắc ngày đặt gần nhất
-  const stats = data.stats;
-  const revenue = stats?.metrics.find((m) => m.key === "revenue")?.value ?? 0;
-  const recommendations = buildRecommendations({
-    totalRevenue: revenue,
-    topProducts: stats?.topProducts ?? [],
-    adCosts: [],
-    stock,
-    inventoryHref: INVENTORY_HREF,
-    plan: {
-      urgent: urgentPlan,
-      nextDay: nextDay && {
-        label: nextDay.day.label,
-        date: nextDay.day.date,
-        products: nextDay.products.filter((p) => !p.slow),
-      },
-    },
-  });
-
   const datesText = filter.previousRange
     ? `${formatRangeVN(filter.range)} · so với ${formatRangeVN(filter.previousRange)}`
     : formatRangeVN(filter.range);
@@ -164,56 +148,42 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
         />
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground">
-            Số tiền lấy trực tiếp từ Pancake · tồn kho cập nhật {data.syncedAt ? formatDateTimeVN(data.syncedAt) : "—"}
+            Số tiền lấy trực tiếp từ Pancake · tồn kho cập nhật{" "}
+            <Suspense fallback="…">
+              <SyncedAt ctx={ctx} />
+            </Suspense>
           </span>
           <RefreshButton />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <Recommendations items={recommendations} />
-        <DataWarnings issues={dataIssues(data, stock)} />
-      </div>
-
-      {data.statsError && (
-        <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm text-destructive">
-          {data.statsError}
-        </p>
-      )}
-
-      {stats && (
-      <SummaryCards
-        closed={stats.closedOrders}
-        returned={stats.returnedOrders}
-        inventory={inventory}
-        urgentCount={urgentPlan.length}
-        inventoryHref={INVENTORY_HREF}
-      />
-      )}
+      {/* Mỗi khối tải riêng: khối nào có số trước hiện trước. */}
+      <Suspense fallback={<Skeleton className="h-56 bg-card" />}>
+        <AdviceSection ctx={ctx} />
+      </Suspense>
 
       <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-4">
-          {stats && (
-            <>
-              <Panel title="Kinh doanh" icon={ChartLineIcon}>
-                <MetricStrip metrics={stats.metrics} />
-              </Panel>
-              <OrderSources groups={buildSourceGroups(stats.sources, adsByChannel)} />
-            </>
-          )}
+          <Suspense fallback={<Skeleton className="h-[640px] bg-card" />}>
+            <BusinessSection ctx={ctx} />
+          </Suspense>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <TopProducts products={stats?.topProducts ?? []} />
+            <Suspense fallback={<Skeleton className="h-80 bg-card" />}>
+              <TopProductsSection ctx={ctx} />
+            </Suspense>
             <NoDataPanel
               title="Chi phí quảng cáo"
               icon={MegaphoneIcon}
               stage="Giai đoạn 3"
-              note="Sẽ nhập từ file CSV của Shopee, TikTok, Facebook Ads, sau đó lấy tự động; lợi nhuận hiện chưa trừ quảng cáo."
+              note="Tạm nhập bằng phiếu chi thẻ “Quảng cáo …” trên Pancake (xem cột Chi phí ads ở Nguồn đơn); sau sẽ lấy tự động."
             />
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <CashInPanel days={cashDays} today={today} />
+            <Suspense fallback={<Skeleton className="h-48 bg-card" />}>
+              <CashInSection ctx={ctx} />
+            </Suspense>
             <Suspense fallback={<Skeleton className="h-80 bg-card" />}>
               <MonthEfficiency orgId={org.id} today={today} hq={params.hq} params={keep} />
             </Suspense>
@@ -233,8 +203,9 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
           <Panel title="Cách tính" icon={BadgeDollarSignIcon} tone="blue">
             <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
               <li>Doanh số, Doanh thu, Lợi nhuận, Đơn chốt, GTTB, Phí sàn, Nguồn đơn, Top sản phẩm: lấy nguyên từ Thống kê của Pancake, nên luôn khớp Pancake.</li>
+              <li>Số Pancake được nhớ tạm khoảng 2 phút cho trang mở nhanh; bấm “Tải lại” để lấy số mới ngay.</li>
               <li>Hàng chốt / Hàng hoàn: “Số lượng” là số sản phẩm, giống Pancake.</li>
-              <li>Lợi nhuận chưa trừ quảng cáo, lương, mặt bằng.</li>
+              <li>Lợi nhuận ở dải Kinh doanh và Nguồn đơn theo Pancake (chưa trừ quảng cáo, lương…); lợi nhuận đã trừ đủ ở khối Hiệu quả kinh doanh.</li>
               <li>Tồn kho và báo động sản xuất: 1Click tính từ dữ liệu đồng bộ mỗi 30 phút.</li>
             </ul>
           </Panel>
@@ -242,6 +213,111 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
       </div>
     </>
   );
+}
+
+async function SyncedAt({ ctx }: { ctx: Ctx }) {
+  const { syncedAt } = await loadStock(ctx);
+  return syncedAt ? formatDateTimeVN(syncedAt) : "—";
+}
+
+/** Đề xuất, dữ liệu cần kiểm tra, thẻ hàng chốt/hoàn/tồn kho: cần cả số Pancake và tồn kho. */
+async function AdviceSection({ ctx }: { ctx: Ctx }) {
+  const [rules, { stats, statsError, connected }, stockData, incoming] = await Promise.all([
+    loadRules(),
+    loadStats(ctx),
+    loadStock(ctx),
+    getIncoming(ctx.orgId),
+  ]);
+
+  if (!connected && stockData.stock.length === 0) {
+    return (
+      <Panel title="Chưa có dữ liệu" icon={PlugIcon} tone="slate">
+        <p className="text-sm text-muted-foreground">
+          Shop chưa kết nối Pancake POS. Vào{" "}
+          <Link href="/ket-noi" className="text-primary hover:underline">
+            Kết nối
+          </Link>{" "}
+          để dán khóa API rồi bấm “Đồng bộ ngay”.
+        </p>
+      </Panel>
+    );
+  }
+
+  const today = ctx.today;
+  const active = stockData.stock.filter((i) => !i.inactive);
+  const stock = analyzeInventory(active, today, rules);
+  const inventory = summarizeInventory(active);
+  const plan = buildOrderPlan(toPlanItems(active, incoming, rules.velocityWindowDays, today), today, rules);
+  const urgentPlan = plan.urgent.filter((p) => !p.slow);
+  const nextDay = plan.days[0]; // chỉ nhắc ngày đặt gần nhất
+  const revenue = stats?.metrics.find((m) => m.key === "revenue")?.value ?? 0;
+  const recommendations = buildRecommendations({
+    totalRevenue: revenue,
+    topProducts: stats?.topProducts ?? [],
+    adCosts: [],
+    stock,
+    inventoryHref: INVENTORY_HREF,
+    plan: {
+      urgent: urgentPlan,
+      nextDay: nextDay && {
+        label: nextDay.day.label,
+        date: nextDay.day.date,
+        products: nextDay.products.filter((p) => !p.slow),
+      },
+    },
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <Recommendations items={recommendations} />
+        <DataWarnings issues={dataIssues(stockData.unlinkedQty, stock)} />
+      </div>
+
+      {statsError && (
+        <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+          {statsError}
+        </p>
+      )}
+
+      {stats && (
+        <SummaryCards
+          closed={stats.closedOrders}
+          returned={stats.returnedOrders}
+          inventory={inventory}
+          urgentCount={urgentPlan.length}
+          inventoryHref={INVENTORY_HREF}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Dải Kinh doanh + bảng Nguồn đơn (chỉ cần số Pancake + chi phí ads, không chờ tồn kho). */
+async function BusinessSection({ ctx }: { ctx: Ctx }) {
+  const [{ stats }, ads] = await Promise.all([
+    loadStats(ctx),
+    getAdsByChannel(ctx.orgId, ctx.from, ctx.to).catch(() => new Map<string, number>()),
+  ]);
+  if (!stats) return null;
+  return (
+    <div className="space-y-4">
+      <Panel title="Kinh doanh" icon={ChartLineIcon}>
+        <MetricStrip metrics={stats.metrics} />
+      </Panel>
+      <OrderSources groups={buildSourceGroups(stats.sources, ads)} />
+    </div>
+  );
+}
+
+async function TopProductsSection({ ctx }: { ctx: Ctx }) {
+  const { stats } = await loadStats(ctx);
+  return <TopProducts products={stats?.topProducts ?? []} />;
+}
+
+async function CashInSection({ ctx }: { ctx: Ctx }) {
+  const days = await getCashDays(ctx.orgId, ctx.today, addDays(ctx.today, 7));
+  return <CashInPanel days={days} today={ctx.today} />;
 }
 
 /** Khối Hiệu quả kinh doanh: theo tháng (?hq=YYYY-MM), tải riêng để không làm chậm phần còn lại. */

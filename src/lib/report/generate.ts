@@ -9,7 +9,7 @@ import { getRealInventory } from "@/lib/inventory/real-data";
 import { getRulesForOrg } from "@/lib/inventory/settings-db";
 import { fetchPancakeOverview } from "@/lib/overview/pancake-fetch";
 import type { PancakeOverview } from "@/lib/overview/pancake-stats";
-import { PancakeError, type PancakeCredentials } from "@/lib/pancake/client";
+import { PancakeError } from "@/lib/pancake/client";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { buildDailyReport, reportDateToShow, withFreshYesterday, type DailyReport } from "./build";
@@ -36,7 +36,7 @@ export async function generateDailyReport(orgId: string, now = new Date()): Prom
   let statsError: string | null = creds ? null : "Shop chưa kết nối Pancake POS.";
   if (creds) {
     try {
-      stats = await fetchYesterday(creds, today);
+      stats = await fetchYesterday(orgId, today);
     } catch (err) {
       statsError = err instanceof PancakeError ? err.message : "Không lấy được số liệu từ Pancake lúc lập báo cáo.";
     }
@@ -69,10 +69,10 @@ export async function generateDailyReport(orgId: string, now = new Date()): Prom
 }
 
 /** Thống kê Pancake của "hôm qua" so với "hôm kia" tính từ ngày báo cáo (giống lúc lập lúc 8:00). */
-async function fetchYesterday(creds: PancakeCredentials, reportDate: DateString): Promise<PancakeOverview> {
+async function fetchYesterday(orgId: string, reportDate: DateString): Promise<PancakeOverview> {
   const yesterday = addDays(reportDate, -1);
   return fetchPancakeOverview(
-    creds,
+    orgId,
     { from: yesterday, to: yesterday },
     { from: addDays(yesterday, -1), to: addDays(yesterday, -1) },
     false,
@@ -88,7 +88,7 @@ export async function refreshYesterday(orgId: string, report: DailyReport, now =
   try {
     const creds = await getPancakeCredentials(orgId);
     if (!creds) return report;
-    return withFreshYesterday(report, await fetchYesterday(creds, report.date), now);
+    return withFreshYesterday(report, await fetchYesterday(orgId, report.date), now);
   } catch {
     return withFreshYesterday(report, null, now);
   }

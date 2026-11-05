@@ -3,7 +3,7 @@ import { getCashDays } from "@/lib/cash/data";
 import { getPancakeCredentials } from "@/lib/connections/credentials";
 import { addDays, type DateString } from "@/lib/date-range";
 import { rangeToPancake } from "@/lib/overview/compute";
-import { fetchOrderSources, fetchSaleStats } from "@/lib/pancake/analytics";
+import { cachedOrderSources, cachedSaleStats } from "@/lib/pancake/cached";
 import { createClient } from "@/lib/supabase/server";
 import type { AnySupabase } from "@/lib/supabase/types";
 import {
@@ -89,9 +89,9 @@ export async function getMonthFinance(orgId: string, month: MonthString, today: 
     try {
       const range = rangeToPancake({ from, to: statsTo });
       const [[total], bySource, sourceNames] = await Promise.all([
-        fetchSaleStats(creds, range),
-        fetchSaleStats(creds, range, "Order.order_sources"),
-        fetchOrderSources(creds),
+        cachedSaleStats(orgId, range),
+        cachedSaleStats(orgId, range, "Order.order_sources"),
+        cachedOrderSources(orgId),
       ]);
       // Doanh thu từng kênh (Shopee, TikTok…) để so với quảng cáo kênh đó.
       for (const r of bySource) {
@@ -151,7 +151,7 @@ export async function getMonthEfficiency(orgId: string, month: MonthString, toda
   const [creds, cashOut] = await Promise.all([getPancakeCredentials(orgId), getCashOut(orgId, from, to)]);
   if (!creds) return { efficiency: null, error: "Shop chưa kết nối Pancake POS." };
   try {
-    const [total] = await fetchSaleStats(creds, rangeToPancake({ from, to: to < today ? to : today }));
+    const [total] = await cachedSaleStats(orgId, rangeToPancake({ from, to: to < today ? to : today }));
     return {
       efficiency: buildEfficiency({
         pancakeRevenue: total?.result.revenue ?? 0,

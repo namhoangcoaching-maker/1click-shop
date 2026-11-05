@@ -1,7 +1,8 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { refresh, updateTag } from "next/cache";
 import { encryptSecret, parseKey, secretHint } from "@/lib/crypto/secret-box";
+import { pancakeStatsTag } from "@/lib/pancake/cached";
 import { getCurrentOrg } from "@/lib/org/current";
 import { fetchPancakeShops, pickShop } from "@/lib/pancake/shops";
 import { runPancakeSync } from "@/lib/pancake/sync";
@@ -104,6 +105,8 @@ export async function syncPancakeNow(): Promise<SaveState> {
   const org = await getCurrentOrg();
   if (!org) return { ok: false, message: "Tài khoản chưa được gắn vào shop." };
   const r = await runPancakeSync(org.id, { budgetMs: 45_000 });
+  // Xóa số Pancake đang nhớ tạm của shop để trang hiện số mới nhất ngay.
+  updateTag(pancakeStatsTag(org.id));
   refresh();
   switch (r.status) {
     case "ok":
