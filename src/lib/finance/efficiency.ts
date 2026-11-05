@@ -3,8 +3,11 @@
  *
  *  DOANH THU (đơn chốt, CHƯA trừ phí sàn) = Doanh thu Pancake + Phí sàn
  *    (Doanh thu Pancake đã trừ chiết khấu, hàng hoàn VÀ phí sàn; cộng lại phí sàn để thấy phí sàn là một khoản chi.)
- *  − Phí sàn − Phí vận chuyển ngoại sàn − Sản xuất − Lương − Quay chụp − Quảng cáo (gộp mọi kênh) − Chi phí khác
- *  = LỢI NHUẬN (bằng đúng "Lợi nhuận kinh doanh" ở trang Dòng tiền). Mỗi dòng có % so với Doanh thu.
+ *  − Phí sàn − Phí vận chuyển ngoại sàn − GIÁ VỐN HÀNG BÁN (Pancake `capital`: giá vốn từng sản phẩm bán ra)
+ *  − Lương − Quay chụp − Quảng cáo (gộp mọi kênh) − Chi phí khác
+ *  = LỢI NHUẬN. Mỗi dòng có % so với Doanh thu.
+ *  Phiếu chi "Sản xuất" (tiền trả xưởng) KHÔNG tính ở đây (chủ dự án chốt 05/11/2026): đó là dòng tiền, còn hiệu quả
+ *  kinh doanh dùng giá vốn của hàng đã bán. ⇒ Lợi nhuận = Lợi nhuận Pancake − Lương − Quay chụp − Quảng cáo − Chi phí khác.
  *
  *  Nguồn đơn: Doanh thu chưa trừ phí sàn, Phí sàn, Chi phí ads, ME/RE = ads ÷ doanh thu,
  *  Phí sàn + ads (% doanh thu). Quảng cáo Facebook gộp Facebook + Instagram: doanh thu vẫn tách 2 dòng,
@@ -16,7 +19,9 @@ import { adsChannel, isAdsCategory, sourcesForAdsChannel, type ExpenseLine } fro
 const fold = (s: string) => s.normalize("NFC").toLocaleLowerCase("vi").trim();
 
 /** Các loại chi phí hiện riêng (theo tên thẻ); còn lại gộp vào "Chi phí khác". */
-const NAMED_COSTS = ["Sản xuất", "Lương", "Quay chụp"] as const;
+const NAMED_COSTS = ["Lương", "Quay chụp"] as const;
+/** Thẻ phiếu chi KHÔNG tính vào hiệu quả kinh doanh (đã có giá vốn thay thế). */
+const EXCLUDED = ["Sản xuất"];
 
 export interface EfficiencyLine {
   label: string;
@@ -38,7 +43,9 @@ export function buildEfficiency(i: {
   pancakeRevenue: number;
   fee: number;
   partnerFee: number;
-  /** Phiếu chi có thẻ trong tháng (gồm cả thẻ "Quảng cáo …"). */
+  /** Giá vốn hàng bán (Pancake `capital`). */
+  capital: number;
+  /** Phiếu chi có thẻ trong tháng (gồm cả thẻ "Quảng cáo …"; thẻ "Sản xuất" bị bỏ qua). */
   expenses: ExpenseLine[];
   /** Quảng cáo lấy tự động (API); null = chưa có. */
   autoAds?: number | null;
@@ -50,11 +57,14 @@ export function buildEfficiency(i: {
 
   const ads = sum((l) => isAdsCategory(l.category)) + (i.autoAds ?? 0);
   const named = NAMED_COSTS.map((name) => ({ name, amount: sum((l) => isNamed(l, name)) }));
-  const other = sum((l) => !isAdsCategory(l.category) && !NAMED_COSTS.some((n) => isNamed(l, n)));
+  const other = sum(
+    (l) => !isAdsCategory(l.category) && !NAMED_COSTS.some((n) => isNamed(l, n)) && !EXCLUDED.some((n) => isNamed(l, n)),
+  );
 
   const raw: [string, number][] = [
     ["Phí sàn", i.fee],
     ["Phí vận chuyển", i.partnerFee],
+    ["Giá vốn hàng bán", i.capital],
     ...named.map((n): [string, number] => [n.name === "Lương" ? "Lương nhân sự" : n.name, n.amount]),
     ["Quảng cáo", ads],
     ["Chi phí khác", other],

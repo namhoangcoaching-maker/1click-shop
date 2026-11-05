@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { adsByChannel, buildEfficiency, buildSourceGroups, type SourceInput } from "./efficiency";
-import { buildMonthFinance, type ExpenseLine } from "./month";
+import type { ExpenseLine } from "./month";
 
 const line = (category: string, amount: number, date = "2026-11-05"): ExpenseLine => ({
   date,
@@ -21,18 +21,20 @@ const expenses = [
   line("Quảng cáo Shopee", 5_000_000),
 ];
 
-describe("buildEfficiency – Hiệu quả kinh doanh theo tháng", () => {
-  const e = buildEfficiency({ pancakeRevenue: 181_080_576, fee: 54_350_388, partnerFee: 240_600, expenses });
+describe("buildEfficiency – Hiệu quả kinh doanh theo tháng (giá vốn thay cho phiếu Sản xuất)", () => {
+  // Số thật Pancake tháng 11/2026 (tới 05/11): revenue, fee_marketplace, partner_fee, capital, profit.
+  const P = { revenue: 181_898_076, fee: 53_971_888, partnerFee: 254_600, capital: 67_614_000, profit: 114_029_476 };
+  const e = buildEfficiency({ pancakeRevenue: P.revenue, fee: P.fee, partnerFee: P.partnerFee, capital: P.capital, expenses });
 
   it("Doanh thu = Doanh thu Pancake + phí sàn (chưa trừ phí sàn)", () => {
-    expect(e.revenue).toBe(235_430_964);
+    expect(e.revenue).toBe(235_869_964);
   });
 
-  it("đủ các loại chi phí theo thứ tự, quảng cáo 3 kênh gộp một dòng", () => {
+  it("đủ các loại chi phí theo thứ tự; Giá vốn hàng bán thay Sản xuất; quảng cáo 3 kênh gộp một dòng", () => {
     expect(e.costs.map((c) => [c.label, c.amount])).toEqual([
-      ["Phí sàn", 54_350_388],
-      ["Phí vận chuyển", 240_600],
-      ["Sản xuất", 30_000_000],
+      ["Phí sàn", 53_971_888],
+      ["Phí vận chuyển", 254_600],
+      ["Giá vốn hàng bán", 67_614_000],
       ["Lương nhân sự", 5_000_000],
       ["Quay chụp", 5_600_000],
       ["Quảng cáo", 16_000_000],
@@ -40,24 +42,19 @@ describe("buildEfficiency – Hiệu quả kinh doanh theo tháng", () => {
     ]);
   });
 
-  it("Lợi nhuận bằng đúng Lợi nhuận kinh doanh của trang Dòng tiền", () => {
-    expect(e.profit).toBe(124_239_976);
-    const month = buildMonthFinance({
-      month: "2026-11",
-      today: "2026-11-05",
-      pancake: { sales: 0, revenue: 181_080_576, fee: 54_350_388, partnerFee: 240_600 },
-      cashDays: [],
-      expenses,
-      shippingFeePaid: 0,
-      ads: null,
-    });
-    expect(e.profit).toBe(month.profit.result);
+  it("phiếu chi Sản xuất (30tr trả xưởng) KHÔNG trừ ở đây, không lọt vào Chi phí khác", () => {
+    expect(e.costs.some((c) => c.label === "Sản xuất")).toBe(false);
+    expect(e.costTotal).toBe(53_971_888 + 254_600 + 67_614_000 + 5_000_000 + 5_600_000 + 16_000_000);
+  });
+
+  it("Lợi nhuận = Lợi nhuận Pancake − Lương − Quay chụp − Quảng cáo (khớp cách Pancake tính)", () => {
+    expect(e.profit).toBe(P.profit - 5_000_000 - 5_600_000 - 16_000_000);
+    expect(e.profit).toBe(87_429_476);
   });
 
   it("% từng khoản so với doanh thu", () => {
-    expect(e.costs[0].percent).toBeCloseTo(23.09, 2);
-    expect(e.costs.find((c) => c.label === "Quảng cáo")!.percent).toBeCloseTo(6.8, 2);
-    expect(e.profitPercent).toBeCloseTo(52.77, 2);
+    expect(e.costs.find((c) => c.label === "Giá vốn hàng bán")!.percent).toBeCloseTo(28.67, 2);
+    expect(e.profitPercent).toBeCloseTo(37.07, 2);
   });
 
   it("thẻ khác (Phần mềm, thẻ chưa đặt tên…) gộp vào Chi phí khác; doanh thu 0 thì không chia %", () => {
@@ -65,7 +62,8 @@ describe("buildEfficiency – Hiệu quả kinh doanh theo tháng", () => {
       pancakeRevenue: 0,
       fee: 0,
       partnerFee: 0,
-      expenses: [line("Phần mềm", 300_000), line("Thẻ chưa đặt tên", 200_000), line("lương", 1)],
+      capital: 0,
+      expenses: [line("Phần mềm", 300_000), line("Thẻ chưa đặt tên", 200_000), line("lương", 1), line("sản xuất", 9)],
     });
     expect(x.costs.find((c) => c.label === "Chi phí khác")!.amount).toBe(500_000);
     expect(x.costs.find((c) => c.label === "Lương nhân sự")!.amount).toBe(1);

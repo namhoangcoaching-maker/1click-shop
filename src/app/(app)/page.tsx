@@ -170,7 +170,7 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Suspense fallback={<Skeleton className="h-80 bg-card" />}>
-              <TopProductsSection ctx={ctx} />
+              <MonthEfficiency orgId={org.id} today={today} hq={params.hq} params={keep} />
             </Suspense>
             <NoDataPanel
               title="Chi phí quảng cáo"
@@ -185,7 +185,7 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
               <CashInSection ctx={ctx} />
             </Suspense>
             <Suspense fallback={<Skeleton className="h-80 bg-card" />}>
-              <MonthEfficiency orgId={org.id} today={today} hq={params.hq} params={keep} />
+              <TopProductsSection ctx={ctx} />
             </Suspense>
             <NoDataPanel title="Thuế" icon={FileTextIcon} stage="Giai đoạn 7" note="Hóa đơn đã xuất, cần điều chỉnh, lịch nộp thuế." />
           </div>
@@ -205,7 +205,7 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
               <li>Doanh số, Doanh thu, Lợi nhuận, Đơn chốt, GTTB, Phí sàn, Nguồn đơn, Top sản phẩm: lấy nguyên từ Thống kê của Pancake, nên luôn khớp Pancake.</li>
               <li>Số Pancake được nhớ tạm khoảng 2 phút cho trang mở nhanh; bấm “Tải lại” để lấy số mới ngay.</li>
               <li>Hàng chốt / Hàng hoàn: “Số lượng” là số sản phẩm, giống Pancake.</li>
-              <li>Lợi nhuận ở dải Kinh doanh và Nguồn đơn theo Pancake (chưa trừ quảng cáo, lương…); lợi nhuận đã trừ đủ ở khối Hiệu quả kinh doanh.</li>
+              <li>Lợi nhuận ở dải Kinh doanh và Nguồn đơn theo Pancake (đã trừ giá vốn, chưa trừ quảng cáo, lương…). Khối Hiệu quả kinh doanh trừ thêm lương, quay chụp, quảng cáo, chi phí khác; tiền trả xưởng (Sản xuất) xem ở Dòng tiền.</li>
               <li>Tồn kho và báo động sản xuất: 1Click tính từ dữ liệu đồng bộ mỗi 30 phút.</li>
             </ul>
           </Panel>

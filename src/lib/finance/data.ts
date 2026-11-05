@@ -157,6 +157,7 @@ export async function getMonthEfficiency(orgId: string, month: MonthString, toda
         pancakeRevenue: total?.result.revenue ?? 0,
         fee: total?.result.fee_marketplace ?? 0,
         partnerFee: total?.result.partner_fee ?? 0,
+        capital: total?.result.capital ?? 0,
         expenses: cashOut.expenses,
       }),
       error: null,
