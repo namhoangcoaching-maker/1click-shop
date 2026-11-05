@@ -104,6 +104,7 @@ export async function deletePancakeConnection(): Promise<SaveState> {
 export async function syncPancakeNow(): Promise<SaveState> {
   const org = await getCurrentOrg();
   if (!org) return { ok: false, message: "Tài khoản chưa được gắn vào shop." };
+  if (org.role === "staff") return { ok: false, message: "Chỉ Chủ shop hoặc Quản lý mới đồng bộ được." };
   const r = await runPancakeSync(org.id, { budgetMs: 45_000 });
   // Xóa số Pancake đang nhớ tạm của shop để trang hiện số mới nhất ngay.
   updateTag(pancakeStatsTag(org.id));

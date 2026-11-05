@@ -16,7 +16,7 @@ import { buildOrderPlan, type ProductSuggestion } from "@/lib/inventory/plan";
 import { getRealInventory } from "@/lib/inventory/real-data";
 import { getShopStockRules } from "@/lib/inventory/settings-db";
 import { summarizeInventory } from "@/lib/inventory/stock";
-import { getCurrentOrg } from "@/lib/org/current";
+import { getManagerOrg } from "@/lib/org/guard";
 
 export const metadata: Metadata = { title: "Tồn kho" };
 
@@ -35,7 +35,7 @@ export default function InventoryPage({ searchParams }: PageProps<"/ton-kho">) {
 
 async function Inventory({ searchParams }: Pick<PageProps<"/ton-kho">, "searchParams">) {
   await connection();
-  const org = await getCurrentOrg();
+  const org = await getManagerOrg();
   if (!org) return null; // Dải "chưa gắn vào shop" đã hiện ở đầu trang.
 
   const now = new Date();

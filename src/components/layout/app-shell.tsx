@@ -1,11 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { MenuIcon, XIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { MAIN_NAV, SETTINGS_NAV, isActive, type NavItem } from "./nav-items";
+import { MenuCloseContext } from "./nav-list";
 
 /**
  * Khung chung của mọi trang sau khi đăng nhập: menu trái kiểu Pancake + nội dung.
@@ -14,15 +12,20 @@ import { MAIN_NAV, SETTINGS_NAV, isActive, type NavItem } from "./nav-items";
 export function AppShell({
   shop,
   account,
+  nav,
+  settingsNav,
   children,
 }: {
+  /** Menu chính theo vai trò (máy chủ quyết định mục nào được hiện). */
+  nav: React.ReactNode;
+  /** Mục cài đặt cuối menu theo vai trò. */
+  settingsNav: React.ReactNode;
   /** Ô tên shop + vai trò ở đầu menu (đọc database), do layout máy chủ truyền vào. */
   shop: React.ReactNode;
   /** Khối tài khoản (email + Đăng xuất) ở cuối menu, do layout máy chủ truyền vào. */
   account?: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Đóng menu điện thoại bằng phím Esc.
@@ -37,7 +40,7 @@ export function AppShell({
     <div className="flex min-h-dvh">
       {/* Menu cố định bên trái trên màn hình lớn */}
       <aside className="sticky top-0 hidden h-dvh w-56 shrink-0 border-r bg-card lg:block">
-        <Sidebar shop={shop} account={account} pathname={pathname} />
+        <Sidebar shop={shop} account={account} nav={nav} settingsNav={settingsNav} />
       </aside>
 
       {/* Menu trượt ra trên điện thoại */}
@@ -58,12 +61,9 @@ export function AppShell({
             >
               <XIcon className="size-5" />
             </button>
-            <Sidebar
-              shop={shop}
-              account={account}
-              pathname={pathname}
-              onNavigate={() => setMenuOpen(false)}
-            />
+            <MenuCloseContext.Provider value={() => setMenuOpen(false)}>
+              <Sidebar shop={shop} account={account} nav={nav} settingsNav={settingsNav} />
+            </MenuCloseContext.Provider>
           </aside>
         </div>
       )}
@@ -89,13 +89,13 @@ export function AppShell({
 function Sidebar({
   shop,
   account,
-  pathname,
-  onNavigate,
+  nav,
+  settingsNav,
 }: {
   shop: React.ReactNode;
   account?: React.ReactNode;
-  pathname: string;
-  onNavigate?: () => void;
+  nav: React.ReactNode;
+  settingsNav: React.ReactNode;
 }) {
   return (
     <nav aria-label="Menu chính" className="flex h-full flex-col">
@@ -105,51 +105,12 @@ function Sidebar({
 
       {shop}
 
-      <ul className="flex-1 space-y-0.5 overflow-y-auto px-3">
-        {MAIN_NAV.map((item) => (
-          <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onNavigate} />
-        ))}
-      </ul>
+      <div className="flex-1 overflow-y-auto">{nav}</div>
 
-      <ul className="space-y-0.5 border-t px-3 py-3">
-        {SETTINGS_NAV.map((item) => (
-          <NavLink key={item.href} item={item} pathname={pathname} onNavigate={onNavigate} />
-        ))}
-      </ul>
+      {settingsNav}
 
       {account && <div className="border-t px-1 py-2">{account}</div>}
     </nav>
-  );
-}
-
-function NavLink({
-  item,
-  pathname,
-  onNavigate,
-}: {
-  item: NavItem;
-  pathname: string;
-  onNavigate?: () => void;
-}) {
-  const active = isActive(item.href, pathname);
-  const Icon = item.icon;
-  return (
-    <li>
-      <Link
-        href={item.href}
-        onClick={onNavigate}
-        aria-current={active ? "page" : undefined}
-        className={cn(
-          "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
-          active
-            ? "bg-primary/10 font-semibold text-primary"
-            : "text-foreground/80 hover:bg-muted hover:text-foreground",
-        )}
-      >
-        <Icon className="size-4.5 shrink-0" aria-hidden />
-        {item.label}
-      </Link>
-    </li>
   );
 }
 

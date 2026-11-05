@@ -9,6 +9,8 @@ export interface CurrentOrg {
   name: string;
   logoUrl: string | null;
   role: OrgRole;
+  /** Họ tên trong shop (Chủ đặt ở trang Nhân sự); null nếu chưa đặt. */
+  displayName: string | null;
 }
 
 /**
@@ -28,8 +30,9 @@ export const getCurrentOrg = cache(async (): Promise<CurrentOrg | null> => {
 
   const { data, error } = await supabase
     .from("memberships")
-    .select("role, organizations!inner(id, name, logo_url)")
+    .select("role, display_name, organizations!inner(id, name, logo_url)")
     .eq("user_id", userId)
+    .is("disabled_at", null) // tài khoản bị khóa (nghỉ việc) coi như không thuộc shop
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
@@ -38,5 +41,11 @@ export const getCurrentOrg = cache(async (): Promise<CurrentOrg | null> => {
   if (!data) return null;
 
   const org = data.organizations as unknown as { id: string; name: string; logo_url: string | null };
-  return { id: org.id, name: org.name, logoUrl: org.logo_url, role: data.role as OrgRole };
+  return {
+    id: org.id,
+    name: org.name,
+    logoUrl: org.logo_url,
+    role: data.role as OrgRole,
+    displayName: (data.display_name as string | null) ?? null,
+  };
 });

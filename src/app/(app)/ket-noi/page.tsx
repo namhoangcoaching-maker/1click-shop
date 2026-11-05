@@ -5,7 +5,7 @@ import { Panel } from "@/components/dashboard/panel";
 import { getConnections, getSyncInfo, type ConnectionInfo, type SyncInfo } from "@/lib/connections/queries";
 import { formatDateTimeVN } from "@/lib/date-range";
 import { formatNumber } from "@/lib/format";
-import { getCurrentOrg } from "@/lib/org/current";
+import { getManagerOrg } from "@/lib/org/guard";
 import { PancakeForm } from "./pancake-form";
 import { SyncButton } from "./sync-button";
 
@@ -50,7 +50,7 @@ export default function ConnectionsPage() {
 }
 
 async function PancakePanel() {
-  const org = await getCurrentOrg();
+  const org = await getManagerOrg();
   if (!org) return null;
   const conn = (await getConnections(org.id)).find((c) => c.provider === "pancake_pos");
   const sync = conn ? await getSyncInfo(org.id) : null;

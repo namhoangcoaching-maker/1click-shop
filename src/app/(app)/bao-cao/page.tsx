@@ -6,7 +6,7 @@ import { ChevronRightIcon } from "lucide-react";
 import { Skeleton } from "@/components/dashboard/stat-card";
 import { DailyReportBody } from "@/components/report/daily-report";
 import { formatDateTimeVN, formatDateVN } from "@/lib/date-range";
-import { getCurrentOrg } from "@/lib/org/current";
+import { getManagerOrg } from "@/lib/org/guard";
 import { getRecentReports, getReportToShow, refreshYesterday } from "@/lib/report/generate";
 
 export const metadata: Metadata = { title: "Báo cáo" };
@@ -30,7 +30,7 @@ export default function ReportsPage({ searchParams }: PageProps<"/bao-cao">) {
 
 async function Reports({ searchParams }: Pick<PageProps<"/bao-cao">, "searchParams">) {
   await connection();
-  const org = await getCurrentOrg();
+  const org = await getManagerOrg();
   if (!org) return null;
   // Đã quá 8:00 mà chưa có báo cáo hôm nay thì lập ngay; trả về bản đã lấy số mới.
   const [shown, reports, params] = await Promise.all([getReportToShow(org.id), getRecentReports(org.id), searchParams]);

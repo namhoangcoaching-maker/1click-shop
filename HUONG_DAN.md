@@ -214,6 +214,15 @@ Database của web này là project Supabase **"Doanh nghiệp 1 người"** (m�
 
 **⚠️ `ENCRYPTION_KEY` trong `.env.local` là chìa khóa mở mọi khóa Pancake đã lưu.** Mất hoặc đổi nó thì mọi shop phải dán lại khóa Pancake. Hãy chép giá trị này lưu vào nơi an toàn (trình quản lý mật khẩu); khi đưa web lên Vercel (Bước 0.7) phải điền đúng giá trị này.
 
+### Nhân viên và phân quyền (Giai đoạn 6.1)
+
+- **Thêm nhân viên:** Chủ shop vào **Nhân sự** → "Thêm nhân viên": họ tên, email, mật khẩu tạm (≥ 8 ký tự), bộ phận, vai trò → gửi cho nhân viên địa chỉ web + email + mật khẩu tạm; họ đăng nhập rồi vào **Của tôi** để đổi mật khẩu. Không cần vào Supabase nữa (đăng ký công khai vẫn tắt).
+- **Vai trò:** **Chủ shop** = mọi trang, sửa mọi cấu hình, quản lý nhân viên. **Quản lý** = xem mọi trang (số tiền, tồn kho, báo cáo), nhập hàng sắp về; không sửa kết nối/cấu hình, không quản lý nhân viên. **Nhân viên** = CHỈ trang **Của tôi** (sau này: chấm công, công việc, lương của mình); mở thẳng đường dẫn trang khác sẽ bị chuyển về Của tôi.
+- Database cũng chặn (migration 0013): Nhân viên không đọc được đơn hàng, sản phẩm, thu chi, báo cáo, kết nối, cấu hình tồn kho, hàng sắp về, thẻ chi phí; chỉ thấy dòng thành viên của chính mình.
+- **Nghỉ việc:** bấm **"Khóa (nghỉ việc)"** → người đó mất quyền vào shop ngay (dữ liệu cũ vẫn giữ); "Mở khóa" để cho vào lại. Không khóa được Chủ cuối cùng, không tự khóa/đổi vai trò của mình.
+- **Quên mật khẩu:** Chủ shop bấm "Đặt lại mật khẩu" ở dòng nhân viên (không làm được với Chủ shop khác, hoặc tài khoản còn thuộc shop khác – để chống chiếm tài khoản).
+- **Của tôi** (mọi vai trò): thông tin tài khoản, **đổi mật khẩu** (phải nhập đúng mật khẩu hiện tại).
+
 ## 4. Nhờ Claude Code sửa hoặc thêm tính năng
 
 Mẫu câu hay dùng:

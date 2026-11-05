@@ -33,7 +33,7 @@ import { buildOrderPlan } from "@/lib/inventory/plan";
 import { getCashDays } from "@/lib/cash/data";
 import { getShopStockRules } from "@/lib/inventory/settings-db";
 import { analyzeInventory, summarizeInventory, type StockAnalysis } from "@/lib/inventory/stock";
-import { getCurrentOrg } from "@/lib/org/current";
+import { getManagerOrg } from "@/lib/org/guard";
 import { getOverviewStats, getOverviewStock } from "@/lib/overview/real-data";
 import { buildRecommendations } from "@/lib/overview/recommendations";
 import { getReportToShow } from "@/lib/report/generate";
@@ -109,7 +109,7 @@ const loadStock = async (c: Ctx) => {
 async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) {
   // "Hôm nay" thay đổi theo thời điểm mở trang, nên phần này không được dựng sẵn trước.
   await connection();
-  const org = await getCurrentOrg();
+  const org = await getManagerOrg();
   if (!org) return null; // Dải "chưa gắn vào shop" đã hiện ở đầu trang.
 
   const now = new Date();
@@ -341,7 +341,7 @@ async function MonthEfficiency({
 
 async function MorningReport() {
   await connection();
-  const org = await getCurrentOrg();
+  const org = await getManagerOrg();
   if (!org) return null;
   return <DailyReportCard report={await getReportToShow(org.id)} />;
 }

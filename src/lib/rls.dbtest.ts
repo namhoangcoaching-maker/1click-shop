@@ -1,7 +1,7 @@
 /**
  * Chứng minh khóa bảo vệ (RLS) trên database thật: shop A không đọc/sửa được dữ liệu shop B.
  * Mỗi bảng dữ liệu shop mới phải có thêm một nhóm test ở đây.
- * Tạo tạm 3 tài khoản @test.1click.local + 2 shop, tự xóa hết khi xong.
+ * Tạo tạm 4 tài khoản @test.1click.local (Chủ A, Quản lý A, Nhân viên A, Chủ B) + 2 shop, tự xóa hết khi xong.
  * Chạy: npm run test:db
  */
 import { randomUUID } from "node:crypto";
@@ -47,11 +47,17 @@ async function signIn(email: string): Promise<SupabaseClient> {
 }
 
 let orgA: string, orgB: string;
-let ownerAId: string, ownerBId: string, staffAId: string;
-let ownerA: SupabaseClient, staffA: SupabaseClient, ownerB: SupabaseClient;
+let ownerAId: string, ownerBId: string, staffAId: string, managerAId: string;
+let ownerA: SupabaseClient, staffA: SupabaseClient, ownerB: SupabaseClient, managerA: SupabaseClient;
 
 beforeAll(async () => {
-  const [uA, uB, uS] = await Promise.all([makeUser("owner-a"), makeUser("owner-b"), makeUser("staff-a")]);
+  const [uA, uB, uS, uM] = await Promise.all([
+    makeUser("owner-a"),
+    makeUser("owner-b"),
+    makeUser("staff-a"),
+    makeUser("manager-a"),
+  ]);
+  managerAId = uM.id;
   ownerAId = uA.id;
   ownerBId = uB.id;
   staffAId = uS.id;
@@ -60,10 +66,16 @@ beforeAll(async () => {
   const { error } = await admin.from("memberships").insert([
     { org_id: orgA, user_id: ownerAId, role: "owner" },
     { org_id: orgA, user_id: staffAId, role: "staff" },
+    { org_id: orgA, user_id: managerAId, role: "manager" },
     { org_id: orgB, user_id: ownerBId, role: "owner" },
   ]);
   if (error) throw error;
-  [ownerA, staffA, ownerB] = await Promise.all([signIn(uA.email!), signIn(uS.email!), signIn(uB.email!)]);
+  [ownerA, staffA, ownerB, managerA] = await Promise.all([
+    signIn(uA.email!),
+    signIn(uS.email!),
+    signIn(uB.email!),
+    signIn(uM.email!),
+  ]);
 });
 
 afterAll(async () => {
@@ -81,7 +93,7 @@ describe("Shop A không thấy shop B", () => {
 
   it("chỉ thấy thành viên shop mình", async () => {
     const { data } = await ownerA.from("memberships").select("org_id, user_id");
-    expect(data).toHaveLength(2);
+    expect(data).toHaveLength(3);
     expect(data!.every((m) => m.org_id === orgA)).toBe(true);
   });
 
@@ -208,9 +220,11 @@ describe("Kết nối Pancake (khóa đã mã hóa)", () => {
     expect(error).not.toBeNull();
   });
 
-  it("Nhân viên xem được trạng thái nhưng không đổi, không xóa được", async () => {
+  it("Nhân viên KHÔNG xem được kết nối (6.1), không đổi, không xóa được; Quản lý xem được", async () => {
     const read = await staffA.from("connections").select("external_id");
-    expect(read.data).toEqual([{ external_id: "123" }]);
+    expect(read.data).toEqual([]);
+    const mgr = await managerA.from("connections").select("external_id");
+    expect(mgr.data).toEqual([{ external_id: "123" }]);
     const upd = await staffA.from("connections").update({ external_id: "999" }).eq("org_id", orgA).select("id");
     expect(upd.data ?? []).toEqual([]);
     await staffA.from("connections").delete().eq("org_id", orgA);
@@ -248,9 +262,11 @@ describe("Cấu hình tồn kho (chỉ Chủ shop sửa)", () => {
     expect(zero.error).not.toBeNull();
   });
 
-  it("Nhân viên xem được nhưng không sửa được", async () => {
+  it("Nhân viên không xem, không sửa được; Quản lý xem được", async () => {
     const read = await staffA.from("inventory_settings").select("safety_days");
-    expect(read.data).toEqual([{ safety_days: 5 }]);
+    expect(read.data).toEqual([]);
+    const mgr = await managerA.from("inventory_settings").select("safety_days");
+    expect(mgr.data).toEqual([{ safety_days: 5 }]);
     const upd = await staffA
       .from("inventory_settings")
       .update({ safety_days: 1 })
@@ -303,12 +319,14 @@ describe("Dữ liệu bán hàng từ Pancake (chỉ đọc, theo shop)", () => 
   });
 
   for (const table of ["products", "orders", "order_items", "sync_state", "cash_transactions", "daily_reports"] as const) {
-    it(`${table}: shop A chỉ thấy dòng của shop A, Nhân viên cũng xem được`, async () => {
+    it(`${table}: shop A chỉ thấy dòng của shop A; Quản lý xem được, Nhân viên KHÔNG`, async () => {
       const a = await ownerA.from(table).select("org_id");
       expect(a.error).toBeNull();
       expect(a.data!.map((r) => r.org_id)).toEqual([orgA]);
+      const m = await managerA.from(table).select("org_id");
+      expect(m.data!.map((r) => r.org_id)).toEqual([orgA]);
       const s = await staffA.from(table).select("org_id");
-      expect(s.data!.map((r) => r.org_id)).toEqual([orgA]);
+      expect(s.data).toEqual([]);
     });
 
     it(`${table}: không ai ghi, sửa, xóa được qua trình duyệt, kể cả Chủ`, async () => {
@@ -374,10 +392,12 @@ describe("Hàng sắp về (Chủ/Quản lý nhập)", () => {
     expect(del.data).toHaveLength(1);
   });
 
-  it("Nhân viên xem được nhưng không thêm/xóa được", async () => {
+  it("Nhân viên không xem, không thêm/xóa được; Quản lý xem được", async () => {
     await admin.from("incoming_stock").insert(row(orgA));
     const read = await staffA.from("incoming_stock").select("quantity");
-    expect(read.data).toEqual([{ quantity: 40 }]);
+    expect(read.data).toEqual([]);
+    const mgr = await managerA.from("incoming_stock").select("quantity");
+    expect(mgr.data).toEqual([{ quantity: 40 }]);
     const ins = await staffA.from("incoming_stock").insert(row(orgA));
     expect(ins.error).not.toBeNull();
     const del = await staffA.from("incoming_stock").delete().eq("org_id", orgA).select("id");
@@ -409,9 +429,11 @@ describe("Tên thẻ chi phí (chỉ Chủ shop đặt)", () => {
     expect(read.data).toEqual([{ tag_id: "tag-1", name: "Quảng cáo TikTok" }]);
   });
 
-  it("Nhân viên xem được nhưng không đặt, không đổi tên được", async () => {
+  it("Nhân viên không xem, không đặt, không đổi tên được; Quản lý xem được", async () => {
     const read = await staffA.from("expense_tags").select("name").eq("tag_id", "tag-1");
-    expect(read.data).toEqual([{ name: "Quảng cáo TikTok" }]);
+    expect(read.data).toEqual([]);
+    const mgr = await managerA.from("expense_tags").select("name").eq("tag_id", "tag-1");
+    expect(mgr.data).toEqual([{ name: "Quảng cáo TikTok" }]);
     expect((await saveExpenseTagName(staffA, orgA, "tag-1", "Đổi bậy")).error).not.toBeNull();
     expect((await saveExpenseTagName(staffA, orgA, "tag-2", "Thẻ lạ")).error).not.toBeNull();
   });
@@ -420,6 +442,62 @@ describe("Tên thẻ chi phí (chỉ Chủ shop đặt)", () => {
     const read = await ownerB.from("expense_tags").select("tag_id").eq("org_id", orgA);
     expect(read.data).toEqual([]);
     expect((await saveExpenseTagName(ownerB, orgA, "tag-3", "Chen")).error).not.toBeNull();
+  });
+});
+
+describe("6.1 Thành viên: danh sách, khóa tài khoản", () => {
+  it("Nhân viên chỉ thấy dòng thành viên của chính mình; Quản lý, Chủ thấy cả shop", async () => {
+    const s = await staffA.from("memberships").select("user_id").eq("org_id", orgA);
+    expect(s.data!.map((r) => r.user_id)).toEqual([staffAId]);
+    const m = await managerA.from("memberships").select("user_id").eq("org_id", orgA);
+    expect(m.data).toHaveLength(3);
+  });
+
+  it("Chủ đặt họ tên, bộ phận cho nhân viên; Quản lý không sửa được", async () => {
+    const ok = await ownerA
+      .from("memberships")
+      .update({ display_name: "Lan", department: "Đóng gói" })
+      .eq("org_id", orgA)
+      .eq("user_id", staffAId)
+      .select("display_name, department");
+    expect(ok.data).toEqual([{ display_name: "Lan", department: "Đóng gói" }]);
+    const bad = await managerA.from("memberships").update({ department: "X" }).eq("user_id", staffAId).select("department");
+    expect(bad.data ?? []).toEqual([]);
+  });
+
+  it("Nhân viên bị khóa: không còn thấy shop; mở khóa thì thấy lại", async () => {
+    const lock = await ownerA
+      .from("memberships")
+      .update({ disabled_at: new Date().toISOString() })
+      .eq("org_id", orgA)
+      .eq("user_id", staffAId)
+      .select("disabled_at");
+    expect(lock.data).toHaveLength(1);
+    const read = await staffA.from("organizations").select("id");
+    expect(read.data).toEqual([]);
+    await ownerA.from("memberships").update({ disabled_at: null }).eq("org_id", orgA).eq("user_id", staffAId);
+    const again = await staffA.from("organizations").select("id");
+    expect(again.data!.map((o) => o.id)).toEqual([orgA]);
+  });
+
+  it("Quản lý bị khóa thì mất quyền xem dữ liệu kinh doanh", async () => {
+    await ownerA.from("memberships").update({ disabled_at: new Date().toISOString() }).eq("user_id", managerAId);
+    const read = await managerA.from("orders").select("org_id");
+    expect(read.data).toEqual([]);
+    await ownerA.from("memberships").update({ disabled_at: null }).eq("user_id", managerAId);
+    const back = await managerA.from("orders").select("org_id");
+    expect(back.data!.map((r) => r.org_id)).toEqual([orgA]);
+  });
+
+  it("không khóa được Chủ cuối cùng còn hoạt động", async () => {
+    const r = await ownerA
+      .from("memberships")
+      .update({ disabled_at: new Date().toISOString() })
+      .eq("org_id", orgA)
+      .eq("user_id", ownerAId);
+    expect(r.error).not.toBeNull();
+    const check = await admin.from("memberships").select("disabled_at").eq("user_id", ownerAId).single();
+    expect(check.data!.disabled_at).toBeNull();
   });
 });
 

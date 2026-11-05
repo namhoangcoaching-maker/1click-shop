@@ -1,7 +1,9 @@
 import { Suspense } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { AccountMenu, AccountMenuSkeleton } from "@/components/layout/account-menu";
+import { NavListSkeleton } from "@/components/layout/nav-list";
 import { NoOrgNotice } from "@/components/layout/no-org-notice";
+import { RoleNav } from "@/components/layout/role-nav";
 import { ShopCard, ShopCardSkeleton } from "@/components/layout/shop-card";
 
 /**
@@ -15,6 +17,16 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
       shop={
         <Suspense fallback={<ShopCardSkeleton />}>
           <ShopCard />
+        </Suspense>
+      }
+      nav={
+        <Suspense fallback={<NavListSkeleton />}>
+          <RoleNav part="main" />
+        </Suspense>
+      }
+      settingsNav={
+        <Suspense fallback={null}>
+          <RoleNav part="settings" />
         </Suspense>
       }
       account={

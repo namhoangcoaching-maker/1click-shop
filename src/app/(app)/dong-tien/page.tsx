@@ -15,7 +15,7 @@ import { getCashOut, getMonthFinance } from "@/lib/finance/data";
 import { cashOutByDay } from "@/lib/finance/month";
 import { recentMonths, resolveMonth } from "@/lib/finance/month";
 import { formatVND } from "@/lib/format";
-import { getCurrentOrg } from "@/lib/org/current";
+import { getManagerOrg } from "@/lib/org/guard";
 
 export const metadata: Metadata = { title: "Dòng tiền" };
 
@@ -49,7 +49,7 @@ export default function CashflowPage({ searchParams }: PageProps<"/dong-tien">) 
 /** Lợi nhuận kinh doanh + Dòng tiền thực tế theo tháng, và tên thẻ phiếu chi. */
 async function Month({ searchParams }: Pick<PageProps<"/dong-tien">, "searchParams">) {
   await connection();
-  const org = await getCurrentOrg();
+  const org = await getManagerOrg();
   if (!org) return null;
   const today = todayInVN();
   const month = resolveMonth((await searchParams).thang, today);
@@ -96,7 +96,7 @@ async function Month({ searchParams }: Pick<PageProps<"/dong-tien">, "searchPara
 /** Phần Tiền về: dự kiến 7 ngày tới; bảng chi tiết theo ngày/kênh ẩn, shop tự mở khi cần. */
 async function CashIn() {
   await connection();
-  const org = await getCurrentOrg();
+  const org = await getManagerOrg();
   if (!org) return null;
   const today = todayInVN();
   const from = addDays(today, -PAST_DAYS);
