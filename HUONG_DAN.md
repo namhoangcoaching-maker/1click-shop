@@ -221,7 +221,22 @@ Database của web này là project Supabase **"Doanh nghiệp 1 người"** (m�
 - **Cấu hình từng người** (`/nhan-su/cau-hinh/<mã>`): Thông tin (họ tên, bộ phận, vai trò, Khóa (nghỉ việc), Đặt lại mật khẩu); **Chấm công**: *Online tại nhà* (không kiểm tra vị trí) hoặc *GPS tại shop* (chọn địa điểm); **Ca làm** cố định trong tuần (ngày làm, giờ vào/ra, phút cho phép trễ); **Lương cứng**: lương tháng theo ngày công (lương ÷ ngày công chuẩn × ngày công), theo ngày, hoặc theo giờ; phụ cấp/tháng; phạt mỗi lần đi muộn. Nút "Sao chép cấu hình từ…" để người cùng bộ phận khỏi điền lại. KPI: bước 6.6.
 - **Ai làm được gì:** **Chủ shop** thêm/cấu hình/khóa mọi người. **Quản lý** thêm, cấu hình, khóa, đặt lại mật khẩu cho người vai trò **Nhân viên**; không đụng tới Chủ/Quản lý khác, không xem lương của họ. **Nhân viên** chỉ xem cấu hình (lương cứng, ca) của chính mình, không sửa được. Database chặn đúng như vậy (migration 0013, 0014).
 - Không khóa được Chủ cuối cùng, không tự khóa/đổi vai trò của mình. Đặt lại mật khẩu không làm được với tài khoản còn thuộc shop khác (chống chiếm tài khoản).
-- Đã chốt cho 6.3: bảng chấm công tháng N chỉ được sửa từ mùng 1 tới hết mùng 5 tháng N+1 (Quản lý, Chủ); Chủ có nút mở khóa sổ khi cần sửa muộn.
+
+### Chấm công (Giai đoạn 6.3)
+
+- **Nhân viên:** trang **Của tôi** → nút lớn **Vào ca** / **Ra ca** (dùng trên điện thoại). Giờ ghi theo **đồng hồ máy chủ**, sửa giờ điện thoại không có tác dụng.
+  - Chấm **GPS tại shop**: điện thoại hỏi quyền vị trí → bấm Cho phép. Ở ngoài bán kính địa điểm thì không chấm được và web báo đang cách bao xa. Vị trí kém chính xác thì bật "Vị trí chính xác" rồi thử lại.
+  - Chấm **Online tại nhà**: bấm là ghi, không kiểm tra vị trí.
+  - Bấm Ra ca lần nữa trong ngày = ghi đè giờ ra mới.
+  - Dưới nút có tổng tháng: ngày công, giờ làm trong ca, số lần đi muộn, ngày vắng / thiếu giờ ra; "Xem từng ngày" để xem chi tiết.
+- **Cách tính (chủ dự án chốt 05/11/2026):**
+  - **Công một ngày = giờ làm nằm trong ca ÷ độ dài ca**, tối đa 1 (ví dụ ca 9 tiếng làm 6 tiếng = 0,67). Đến sớm / về muộn hơn ca không tính thêm (làm thêm giờ để sau).
+  - **Đi muộn** = vào sau giờ vào ca + số phút cho phép. Phút muộn vẫn bị trừ vào giờ làm.
+  - **Quên Ra ca** = ngày đó **chưa có công** (ô "?" vàng), chờ Quản lý/Chủ điền giờ ra.
+  - Ngày làm theo ca mà không chấm = **Vắng**. Ca làm được chụp lại lúc chấm: đổi cấu hình ca sau đó không làm sai các ngày cũ.
+- **Chủ / Quản lý:** trang **Nhân sự** có cột **Hôm nay** (giờ vào/ra, đang làm, chưa vào…) và **Công tháng này**. Nút **Bảng chấm công** (`/nhan-su/cham-cong`): mỗi người một dòng, mỗi ngày một ô; rê chuột xem giờ vào/ra; **bấm ô để sửa** (giờ vào, giờ ra, **lý do bắt buộc**; để trống cả hai = ghi nhận không đi làm). Quản lý chỉ thấy và sửa công của Nhân viên; Chủ sửa được mọi người.
+- **Khóa sổ:** tháng N sửa được tới hết **mùng 5 tháng N+1**; sau đó khóa. Chủ shop có nút **Mở khóa sổ để sửa** / **Khóa sổ lại**. Database chặn đúng như vậy (migration 0015), không chỉ giao diện.
+- Nhân viên không tự sửa được giờ của mình (kể cả gọi thẳng database); tọa độ GPS lúc chấm được lưu, người sửa không đổi được.
 
 ## 4. Nhờ Claude Code sửa hoặc thêm tính năng
 

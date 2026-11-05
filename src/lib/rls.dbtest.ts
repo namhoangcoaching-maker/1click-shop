@@ -574,6 +574,92 @@ describe("6.2 Cấu hình nhân sự và địa điểm chấm công", () => {
   });
 });
 
+describe("6.3 Chấm công", () => {
+  // Ngày VN hôm nay và một ngày tháng trước đã khóa sổ (quá mùng 5 tháng sau) – chọn ngày cách xa hẳn 2 tháng.
+  const vnToday = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
+  const day = (offset: number) => new Date(Date.parse(`${vnToday}T00:00:00Z`) + offset * 86_400_000).toISOString().slice(0, 10);
+  const yesterday = day(-1);
+  const locked = day(-70);
+  const shift = { shift_start: "08:00", shift_end: "17:00", late_grace_min: 10 };
+
+  beforeAll(async () => {
+    // Máy chủ (khóa secret) ghi giờ vào ca hôm qua cho Nhân viên A.
+    const { error } = await admin.from("attendance").insert({
+      org_id: orgA,
+      user_id: staffAId,
+      work_date: yesterday,
+      check_in_at: `${yesterday}T01:05:00Z`,
+      attendance_mode: "gps",
+      in_lat: 21.03,
+      in_lng: 105.85,
+      ...shift,
+    });
+    if (error) throw error;
+  });
+
+  afterAll(async () => {
+    await admin.from("attendance_unlocks").delete().eq("org_id", orgA);
+  });
+
+  it("Nhân viên chỉ xem được chấm công của mình, KHÔNG tự ghi / sửa giờ được", async () => {
+    const own = await staffA.from("attendance").select("work_date");
+    expect(own.data).toEqual([{ work_date: yesterday }]);
+    const ins = await staffA.from("attendance").insert({ org_id: orgA, user_id: staffAId, work_date: vnToday, check_in_at: new Date().toISOString(), attendance_mode: "online", edit_note: "tự chấm", ...shift });
+    expect(ins.error).not.toBeNull();
+    const up = await staffA.from("attendance").update({ check_out_at: `${yesterday}T10:00:00Z`, edit_note: "x" }).eq("user_id", staffAId).select("work_date");
+    expect(up.data ?? []).toEqual([]);
+  });
+
+  it("Quản lý sửa được công Nhân viên (phải ghi lý do; tọa độ GPS giữ nguyên, ghi người sửa)", async () => {
+    const noNote = await managerA.from("attendance").update({ check_out_at: `${yesterday}T10:00:00Z` }).eq("user_id", staffAId).eq("work_date", yesterday);
+    expect(noNote.error).not.toBeNull();
+    const ok = await managerA
+      .from("attendance")
+      .update({ check_out_at: `${yesterday}T10:00:00Z`, edit_note: "Quên ra ca", in_lat: 1 })
+      .eq("user_id", staffAId)
+      .eq("work_date", yesterday)
+      .select("check_out_at, in_lat, edited_by");
+    expect(ok.error).toBeNull();
+    expect(ok.data![0]).toMatchObject({ in_lat: 21.03, edited_by: managerAId });
+  });
+
+  it("Quản lý KHÔNG xem, không sửa được công của Chủ; Chủ xem được cả shop; shop B không thấy", async () => {
+    await admin.from("attendance").insert({ org_id: orgA, user_id: ownerAId, work_date: yesterday, check_in_at: `${yesterday}T01:00:00Z`, attendance_mode: "online", ...shift });
+    const m = await managerA.from("attendance").select("user_id").eq("user_id", ownerAId);
+    expect(m.data).toEqual([]);
+    const mUp = await managerA.from("attendance").update({ edit_note: "x", check_out_at: null }).eq("user_id", ownerAId).select("user_id");
+    expect(mUp.data ?? []).toEqual([]);
+    const o = await ownerA.from("attendance").select("user_id").eq("org_id", orgA);
+    expect(o.data!.length).toBe(2);
+    const b = await ownerB.from("attendance").select("user_id").eq("org_id", orgA);
+    expect(b.data).toEqual([]);
+  });
+
+  it("không sửa được ngày tương lai; tháng đã khóa sổ chỉ sửa được khi Chủ mở khóa", async () => {
+    const future = await managerA.from("attendance").insert({ org_id: orgA, user_id: staffAId, work_date: day(3), edit_note: "nghỉ phép", attendance_mode: "manual", ...shift });
+    expect(future.error).not.toBeNull();
+    const closed = await managerA.from("attendance").insert({ org_id: orgA, user_id: staffAId, work_date: locked, edit_note: "bổ sung", attendance_mode: "manual", ...shift });
+    expect(closed.error).not.toBeNull();
+    // Quản lý không mở khóa được; Chủ mở được.
+    const month = `${locked.slice(0, 7)}-01`;
+    const mUnlock = await managerA.from("attendance_unlocks").insert({ org_id: orgA, month });
+    expect(mUnlock.error).not.toBeNull();
+    const oUnlock = await ownerA.from("attendance_unlocks").insert({ org_id: orgA, month });
+    expect(oUnlock.error).toBeNull();
+    const reopened = await managerA.from("attendance").insert({ org_id: orgA, user_id: staffAId, work_date: locked, edit_note: "bổ sung", attendance_mode: "manual", ...shift });
+    expect(reopened.error).toBeNull();
+  });
+
+  it("database chặn giờ ra trước giờ vào", async () => {
+    const bad = await ownerA
+      .from("attendance")
+      .update({ check_out_at: `${yesterday}T00:00:00Z`, edit_note: "sai" })
+      .eq("user_id", staffAId)
+      .eq("work_date", yesterday);
+    expect(bad.error).not.toBeNull();
+  });
+});
+
 describe("Người chưa đăng nhập", () => {
   it("không đọc được gì", async () => {
     const anon = createClient(URL, PUBLISHABLE, noSession);
@@ -585,7 +671,7 @@ describe("Người chưa đăng nhập", () => {
     expect(conns.data ?? []).toEqual([]);
     const settings = await anon.from("inventory_settings").select("org_id");
     expect(settings.data ?? []).toEqual([]);
-    for (const table of ["products", "orders", "order_items", "sync_state", "incoming_stock", "cash_transactions", "daily_reports"]) {
+    for (const table of ["products", "orders", "order_items", "sync_state", "incoming_stock", "cash_transactions", "daily_reports", "attendance", "attendance_unlocks"]) {
       const r = await anon.from(table).select("org_id");
       expect(r.data ?? []).toEqual([]);
     }

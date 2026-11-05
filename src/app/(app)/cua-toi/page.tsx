@@ -5,7 +5,13 @@ import { ClipboardCheckIcon, ClockIcon, IdCardIcon, WalletIcon } from "lucide-re
 import { NoDataPanel } from "@/components/dashboard/no-data-panel";
 import { Panel } from "@/components/dashboard/panel";
 import { Skeleton } from "@/components/dashboard/stat-card";
+import { DayList, SummaryLine } from "@/components/staff/attendance-view";
+import { ClockCard } from "@/components/staff/clock-card";
+import { todayInVN } from "@/lib/date-range";
+import { monthRange } from "@/lib/finance/month";
 import { formatVND } from "@/lib/format";
+import { personMonth, vnTimeOf } from "@/lib/staff/attendance";
+import { currentUserId, getAttendance } from "@/lib/staff/attendance-data";
 import { getCurrentOrg } from "@/lib/org/current";
 import { createClient } from "@/lib/supabase/server";
 import { getLocations, getMySettings } from "@/lib/staff/data";
@@ -22,15 +28,17 @@ export default function MyPage() {
   return (
     <main className="mx-auto w-full max-w-[720px] space-y-4 px-4 py-4 md:px-6">
       <h1 className="text-xl font-bold">Của tôi</h1>
-      <NoDataPanel title="Chấm công" icon={ClockIcon} stage="Bước 6.3" note="Nút Vào ca / Ra ca, giờ công hôm nay và trong tháng." />
+      <Suspense fallback={<Skeleton className="h-48 bg-card" />}>
+        <MyAttendance />
+      </Suspense>
       <Suspense fallback={<Skeleton className="h-32 bg-card" />}>
         <MySetup />
       </Suspense>
       <NoDataPanel
-        title="Tháng này: ngày công, KPI, lương dự kiến"
+        title="KPI, lương dự kiến"
         icon={WalletIcon}
         stage="Bước 6.4"
-        note="Số ngày công, KPI, hiệu suất và lương dự kiến tới hôm nay của bạn."
+        note="KPI, hiệu suất và lương dự kiến tới hôm nay của bạn."
       />
       <NoDataPanel
         title="Kế hoạch hôm nay và báo cáo cuối ngày"
@@ -39,6 +47,52 @@ export default function MyPage() {
         note="Danh sách việc cần làm trong ngày; cuối ngày điền báo cáo."
       />
     </main>
+  );
+}
+
+/** Chấm công hôm nay (nút Vào ca / Ra ca) + bảng công tháng này của chính mình. */
+async function MyAttendance() {
+  await connection();
+  const org = await getCurrentOrg();
+  if (!org) return null;
+  const me = await currentUserId();
+  if (!me) return null;
+  const today = todayInVN();
+  const { from, to } = monthRange(today.slice(0, 7));
+  const [s, locations, rows] = await Promise.all([getMySettings(org.id, me), getLocations(org.id), getAttendance(org.id, from, to, me)]);
+  if (!s) {
+    return (
+      <Panel title="Chấm công" icon={ClockIcon} tone="green">
+        <p className="text-sm text-muted-foreground">Chủ shop / Quản lý chưa cấu hình chấm công cho bạn.</p>
+      </Panel>
+    );
+  }
+  const todayRow = rows.find((r) => r.workDate === today);
+  const month = personMonth(rows, s.workDays, from, to, today);
+
+  return (
+    <Panel title="Chấm công" icon={ClockIcon} tone="green">
+      <ClockCard
+        mode={s.attendanceMode}
+        locationName={locations.find((l) => l.id === s.locationId)?.name ?? null}
+        checkIn={todayRow?.checkInAt ? vnTimeOf(todayRow.checkInAt) : null}
+        checkOut={todayRow?.checkOutAt ? vnTimeOf(todayRow.checkOutAt) : null}
+        shift={`${s.shiftStart}–${s.shiftEnd}`}
+      />
+      <h3 className="mt-5 mb-2 font-semibold">Tháng {today.slice(5, 7)}/{today.slice(0, 4)}</h3>
+      <SummaryLine s={month.summary} />
+      <details className="group mt-3 rounded-md border" suppressHydrationWarning>
+        <summary className="cursor-pointer list-none px-3 py-2 text-sm font-medium hover:bg-muted/60 [&::-webkit-details-marker]:hidden">
+          Xem từng ngày
+        </summary>
+        <div className="px-3 pb-3">
+          <DayList days={month.days} />
+          <p className="mt-2 text-xs text-muted-foreground">
+            Công = giờ làm trong ca ÷ độ dài ca (tối đa 1). Quên Ra ca thì ngày đó chưa có công, báo Quản lý sửa.
+          </p>
+        </div>
+      </details>
+    </Panel>
   );
 }
 
