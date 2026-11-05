@@ -15,6 +15,7 @@ export const SALE_FIELDS = [
   "success_order_count", // Đơn chốt
   "avg_order", // GTTB
   "fee_marketplace", // Phí sàn
+  "partner_fee", // Phí vận chuyển shop trả đơn vị vận chuyển (đơn ngoại sàn; Doanh thu KHÔNG trừ khoản này)
   "product_count", // SL bán thực
   "price", // Tiền hàng
   "returned_order_count", // Đơn hoàn

@@ -9,10 +9,10 @@ import { getRealInventory } from "@/lib/inventory/real-data";
 import { getRulesForOrg } from "@/lib/inventory/settings-db";
 import { fetchPancakeOverview } from "@/lib/overview/pancake-fetch";
 import type { PancakeOverview } from "@/lib/overview/pancake-stats";
-import { PancakeError } from "@/lib/pancake/client";
+import { PancakeError, type PancakeCredentials } from "@/lib/pancake/client";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { buildDailyReport, reportDateToShow, type DailyReport } from "./build";
+import { buildDailyReport, reportDateToShow, withFreshYesterday, type DailyReport } from "./build";
 
 /**
  * Lập báo cáo hôm nay cho MỘT shop và lưu lại (ghi đè nếu đã có).
@@ -21,7 +21,6 @@ import { buildDailyReport, reportDateToShow, type DailyReport } from "./build";
 export async function generateDailyReport(orgId: string, now = new Date()): Promise<DailyReport> {
   const admin = createAdminClient();
   const today = todayInVN(now);
-  const yesterday = addDays(today, -1);
 
   const [creds, rules, incoming] = await Promise.all([
     getPancakeCredentials(orgId),
@@ -37,12 +36,7 @@ export async function generateDailyReport(orgId: string, now = new Date()): Prom
   let statsError: string | null = creds ? null : "Shop chưa kết nối Pancake POS.";
   if (creds) {
     try {
-      stats = await fetchPancakeOverview(
-        creds,
-        { from: yesterday, to: yesterday },
-        { from: addDays(yesterday, -1), to: addDays(yesterday, -1) },
-        false,
-      );
+      stats = await fetchYesterday(creds, today);
     } catch (err) {
       statsError = err instanceof PancakeError ? err.message : "Không lấy được số liệu từ Pancake lúc lập báo cáo.";
     }
@@ -74,6 +68,32 @@ export async function generateDailyReport(orgId: string, now = new Date()): Prom
   return report;
 }
 
+/** Thống kê Pancake của "hôm qua" so với "hôm kia" tính từ ngày báo cáo (giống lúc lập lúc 8:00). */
+async function fetchYesterday(creds: PancakeCredentials, reportDate: DateString): Promise<PancakeOverview> {
+  const yesterday = addDays(reportDate, -1);
+  return fetchPancakeOverview(
+    creds,
+    { from: yesterday, to: yesterday },
+    { from: addDays(yesterday, -1), to: addDays(yesterday, -1) },
+    false,
+  );
+}
+
+/**
+ * Báo cáo để XEM: phần "Hôm qua" lấy lại số mới từ Pancake ngay lúc này (đơn hủy sau 8:00 bị Pancake rút
+ * khỏi ngày tạo đơn), phần còn lại giữ như lúc 8:00. Không ghi đè bản đã lưu. Pancake lỗi → giữ số cũ + ghi chú.
+ * `orgId` phải lấy từ getCurrentOrg().
+ */
+export async function refreshYesterday(orgId: string, report: DailyReport, now = new Date()): Promise<DailyReport> {
+  try {
+    const creds = await getPancakeCredentials(orgId);
+    if (!creds) return report;
+    return withFreshYesterday(report, await fetchYesterday(creds, report.date), now);
+  } catch {
+    return withFreshYesterday(report, null, now);
+  }
+}
+
 /** Giờ hiện tại theo giờ Việt Nam (0–23). */
 export function vnHour(now: Date): number {
   return new Date(now.getTime() + 7 * 3_600_000).getUTCHours();
@@ -81,7 +101,7 @@ export function vnHour(now: Date): number {
 
 /**
  * Báo cáo để hiện trên web: từ 8:00 là báo cáo hôm nay, trước 8:00 là của hôm qua.
- * Đọc qua RLS. Nếu đã quá 8:00 mà lịch tự động chưa lập (máy chủ lỗi…) thì lập ngay lúc này;
+ * Phần "Hôm qua" luôn lấy lại số mới từ Pancake (refreshYesterday). Đọc qua RLS. Nếu đã quá 8:00 mà lịch tự động chưa lập (máy chủ lỗi…) thì lập ngay lúc này;
  * thiếu báo cáo của ngày đó thì hiện báo cáo gần nhất trước đó.
  * `orgId` phải lấy từ getCurrentOrg().
  */
@@ -97,16 +117,16 @@ export async function getReportToShow(orgId: string, now = new Date()): Promise<
     .order("report_date", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (data && data.report_date === date) return data.data as DailyReport;
+  if (data && data.report_date === date) return refreshYesterday(orgId, data.data as DailyReport, now);
   if (date === todayInVN(now)) {
     // Đã quá 8:00 mà lịch tự động chưa lập (máy chủ lỗi…): lập ngay.
     try {
-      return await generateDailyReport(orgId, now);
+      return await generateDailyReport(orgId, now); // vừa lập: số đã mới
     } catch {
       /* lập không được thì hiện bản gần nhất */
     }
   }
-  return data ? (data.data as DailyReport) : null;
+  return data ? refreshYesterday(orgId, data.data as DailyReport, now) : null;
 }
 
 /** Danh sách báo cáo gần đây (trang Báo cáo). */

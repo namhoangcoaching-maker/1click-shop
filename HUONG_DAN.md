@@ -2,7 +2,7 @@
 
 > File này luôn được cập nhật sau mỗi bước. Nếu thấy chỗ nào không khớp với thực tế, hãy nhắn Claude Code: *"HUONG_DAN.md đang sai ở mục …, sửa lại giúp tôi"*.
 
-**Tiến độ:** Giai đoạn 0 – Bước 0.1 (khởi tạo dự án) ✅ · Bước 0.2 (hệ thống thiết kế) ✅ · Bước 0.3 (menu trái) ✅ · Bước 0.4 (đăng nhập email, đợt 1) ✅ · Bước 0.5 (nhiều shop + khóa bảo vệ dữ liệu) ✅ · Bước 0.6 (trang Kết nối Pancake POS) ✅ · Cấu hình tồn kho theo shop ✅ · Bước 0.7 (GitHub + Vercel + tên miền) ✅ · **Giai đoạn 1** – Bước 1.1 (đồng bộ Pancake) ✅ · Bước 1.2 (Tồn kho số thật) ✅ · Bước 1.3 (Tổng quan số thật) ✅ · Kế hoạch đặt hàng theo lịch ✅ · Tiền về tự động ✅ · Báo cáo 8:00 hằng ngày ✅
+**Tiến độ:** Giai đoạn 0 – Bước 0.1 (khởi tạo dự án) ✅ · Bước 0.2 (hệ thống thiết kế) ✅ · Bước 0.3 (menu trái) ✅ · Bước 0.4 (đăng nhập email, đợt 1) ✅ · Bước 0.5 (nhiều shop + khóa bảo vệ dữ liệu) ✅ · Bước 0.6 (trang Kết nối Pancake POS) ✅ · Cấu hình tồn kho theo shop ✅ · Bước 0.7 (GitHub + Vercel + tên miền) ✅ · **Giai đoạn 1** – Bước 1.1 (đồng bộ Pancake) ✅ · Bước 1.2 (Tồn kho số thật) ✅ · Bước 1.3 (Tổng quan số thật) ✅ · Kế hoạch đặt hàng theo lịch ✅ · Tiền về tự động ✅ · Báo cáo 8:00 hằng ngày ✅ · Kết quả theo tháng ✅ · Tiền chi theo ngày + phí ship ngoại sàn + báo cáo số mới ✅
 
 ---
 
@@ -154,6 +154,7 @@ Database của web này là project Supabase **"Doanh nghiệp 1 người"** (m�
 - **8:00 sáng** mỗi ngày Supabase gọi web (`/api/cron/daily-report`): đồng bộ nhanh Pancake rồi lập báo cáo cho mọi shop và lưu lại.
 - Báo cáo gồm: **kết quả hôm qua** (số Pancake, so với hôm kia, nguồn đơn, 3 sản phẩm bán chạy), **tiền về** (dự kiến 7 ngày tới, hôm nay), **đặt hàng** (ngày đặt gần nhất, số mẫu/cái; hôm nay là ngày đặt thì ghi rõ), **việc cần làm**.
 - Xem ở **đầu trang Tổng quan** (bấm tiêu đề để thu gọn) và trang **Báo cáo** (30 ngày gần nhất). Trước 8:00 hiện báo cáo của sáng hôm trước. Nếu 8:00 lịch bị lỗi, mở web sau 8:00 sẽ tự lập ngay.
+- **Phần "Hôm qua" luôn là số mới:** mỗi lần mở báo cáo (Tổng quan, hoặc bấm một ngày ở trang Báo cáo), 1Click hỏi lại Pancake số của ngày đó (đơn hủy sau 8:00 bị Pancake rút khỏi ngày tạo đơn) và ghi "Số mới từ Pancake lúc HH:MM". Tiền về, đặt hàng, việc cần làm giữ như lúc 8:00. Pancake lỗi thì hiện số lúc 8:00 kèm ghi chú vàng. Trang Báo cáo chỉ mở một ngày một lúc (đỡ hỏi Pancake 30 lần).
 
 ### Tiền về (tự động, không cần đối soát)
 
@@ -171,11 +172,12 @@ Database của web này là project Supabase **"Doanh nghiệp 1 người"** (m�
 - Muốn đổi số ngày của một kênh: nhờ Claude Code sửa `CASH_RULES` trong `src/lib/cash/compute.ts` (chưa có ô cấu hình).
 - Đây là ước tính theo luật; có thể lệch vài ngày với tiền thật về tài khoản.
 - **Phiếu chi có gắn thẻ** (Sản xuất, Quay chụp, Lương…) là **chi phí**, KHÔNG trừ vào Tiền về; chúng hiện tách từng loại ở phần "Kết quả theo tháng".
+- Bảng **"Xem chi tiết theo ngày"**: đầu bảng là **Tổng tiền về – Tổng chi – Còn lại** (còn lại = về − chi của ngày đó, âm thì đỏ); sau đó tiền về theo kênh; rồi nhóm **Tiền chi**: mỗi thẻ đã đặt tên một cột (Sản xuất, Quay chụp, Lương…, theo ngày phát sinh), cột **Khác** luôn có sẵn, và **Phí ship trả riêng** (theo ngày tạo phiếu). Bảng rộng: kéo ngang để xem hết. Thẻ "Khác" mới dùng lần đầu trên Pancake sẽ hiện "Thẻ chưa đặt tên" cho tới khi Chủ shop đặt tên **Khác** ở khung Thẻ chi phí.
 
 ### Kết quả theo tháng (trang Dòng tiền)
 
 - Chọn tháng bằng các nút "Tháng MM/YYYY" (6 tháng gần nhất).
-- **Lợi nhuận kinh doanh** = Doanh thu Pancake (đã trừ chiết khấu, hàng hoàn, phí sàn) − từng loại chi phí theo thẻ − Quảng cáo.
+- **Lợi nhuận kinh doanh** = Doanh thu Pancake (đã trừ chiết khấu, hàng hoàn, phí sàn) − **Phí vận chuyển ngoại sàn** (số `partner_fee` trong thống kê Pancake: phí ship shop trả SPX/J&T… cho đơn ngoại sàn, Doanh thu Pancake chưa trừ) − từng loại chi phí theo thẻ − Quảng cáo. Dòng tiền thực tế KHÔNG trừ dòng này (tiền về đã trừ sẵn phí ship hoặc có dòng "Phí ship trả riêng") nên không trừ trùng.
 - **Dòng tiền thực tế** = Tiền về trong tháng − từng loại chi phí theo thẻ − Phí ship trả riêng − Quảng cáo. Tháng đang chạy hiện thêm tiền về dự kiến tới cuối tháng.
 - Chi phí = **chỉ phiếu chi Pancake có gắn thẻ**, tính theo **ngày phát sinh** của phiếu. Phiếu Pancake tự sinh theo đơn (trả trước, hoàn, đổi số tiền) không phải chi phí. Trả xưởng / nhập hàng: tạo phiếu chi thẻ **Sản xuất** đúng số tiền trả (không dùng phiếu nhập hàng).
 - Bấm vào một loại chi phí để xem từng phiếu (ngày, mã phiếu, nội dung, số tiền).

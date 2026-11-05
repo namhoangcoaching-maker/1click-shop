@@ -38,6 +38,12 @@ export function DailyReportBody({ report }: { report: DailyReport }) {
       <Box title={y ? `Hôm qua ${formatDateVN(y.date).slice(0, 5)} (so với hôm kia)` : "Hôm qua"} icon={TrendingUpIcon}>
         {y ? (
           <>
+            {report.refreshedAt && (
+              <p className="text-xs text-muted-foreground">
+                Số mới từ Pancake lúc {formatDateTimeVN(report.refreshedAt).slice(11)} (đã trừ đơn hủy sau 8:00)
+              </p>
+            )}
+            {report.refreshError && <p className="text-xs text-warning">{report.refreshError}</p>}
             <Row label="Doanh số" m={y.sales} />
             <Row label="Doanh thu" m={y.revenue} />
             <Row label="Lợi nhuận" m={y.profit} />

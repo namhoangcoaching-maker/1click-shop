@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildOrderPlan, type PlanItem } from "@/lib/inventory/plan";
-import { buildDailyReport, reportDateToShow } from "./build";
+import { buildDailyReport, reportDateToShow, withFreshYesterday } from "./build";
 import type { PancakeOverview } from "@/lib/overview/pancake-stats";
 
 const stats: PancakeOverview = {
@@ -94,5 +94,45 @@ describe("reportDateToShow", () => {
     expect(reportDateToShow("2026-11-05", 23)).toBe("2026-11-05");
     expect(reportDateToShow("2026-11-05", 7)).toBe("2026-11-04");
     expect(reportDateToShow("2026-11-05", 0)).toBe("2026-11-04");
+  });
+});
+
+describe("withFreshYesterday – phần Hôm qua lấy số mới khi xem (cách b)", () => {
+  const today = "2026-11-05";
+  const base = buildDailyReport({
+    today, now: new Date("2026-11-05T01:00:00Z"), stats, statsError: null,
+    cashDays: [{ date: today, total: 500, byChannel: { Shopee: 500 } }],
+    plan: buildOrderPlan([], today), missingCost: 1, incomingToday: [],
+  });
+  // Pancake sau 8:00: 2 đơn Shopee bị hủy (1.069.000 + 1.400.000) → Doanh số hôm qua giảm 2.469.000
+  const later: PancakeOverview = {
+    ...stats,
+    metrics: stats.metrics.map((m) => (m.key === "grossSales" ? { ...m, value: m.value - 2_469_000 } : m)),
+  };
+  const now = new Date("2026-11-05T04:00:00Z");
+
+  it("thay số Hôm qua bằng số mới, giữ nguyên Tiền về / đặt hàng / việc cần làm của lúc 8:00", () => {
+    const r = withFreshYesterday(base, later, now);
+    expect(r.yesterday?.date).toBe("2026-11-04");
+    expect(r.yesterday?.sales.value).toBe(64_804_900 - 2_469_000);
+    expect(r.cash).toEqual(base.cash);
+    expect(r.order).toEqual(base.order);
+    expect(r.todo).toEqual(base.todo);
+    expect(r.createdAt).toBe(base.createdAt);
+    expect(r.refreshedAt).toBe(now.toISOString());
+  });
+
+  it("lúc 8:00 Pancake lỗi mà giờ lấy được thì có số, bỏ lỗi cũ", () => {
+    const failed = { ...base, yesterday: null, statsError: "Pancake lỗi" };
+    const r = withFreshYesterday(failed, later, now);
+    expect(r.statsError).toBeNull();
+    expect(r.yesterday?.orders.value).toBe(96);
+  });
+
+  it("Pancake lỗi lúc xem: giữ số lúc 8:00 kèm ghi chú", () => {
+    const r = withFreshYesterday(base, null, now);
+    expect(r.yesterday).toEqual(base.yesterday);
+    expect(r.refreshError).toMatch(/số lúc lập báo cáo/);
+    expect(r.refreshedAt).toBeUndefined();
   });
 });

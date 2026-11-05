@@ -3,6 +3,7 @@ import { ArrowRightIcon, ChevronDownIcon, WalletIcon } from "lucide-react";
 import { Panel } from "@/components/dashboard/panel";
 import { channelsOf, type CashDay } from "@/lib/cash/compute";
 import { formatDateVN, type DateString } from "@/lib/date-range";
+import type { CashOutDay } from "@/lib/finance/month";
 import { formatVND } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -83,21 +84,67 @@ export function CashInPanel({ days, today }: { days: CashDay[]; today: DateStrin
   );
 }
 
-/** Bảng tiền về theo ngày và theo kênh (trang Dòng tiền). */
-export function CashTable({ days, today }: { days: CashDay[]; today: DateString }) {
+/**
+ * Bảng tiền về theo ngày, kèm tiền chi cùng ngày (trang Dòng tiền).
+ * Ba cột tổng (về / chi / còn lại) đứng đầu cho dễ thấy; chi tiết theo kênh và theo loại chi ở sau.
+ */
+export function CashTable({
+  days,
+  today,
+  out,
+}: {
+  days: CashDay[];
+  today: DateString;
+  /** Tiền chi từng ngày (phiếu chi có thẻ + phí ship trả riêng). */
+  out: { days: CashOutDay[]; categories: string[] };
+}) {
   const channels = channelsOf(days);
-  const sum = (c: string) => days.reduce((s, d) => s + (d.byChannel[c] ?? 0), 0);
-  const total = days.reduce((s, d) => s + d.total, 0);
+  const outOf = new Map(out.days.map((d) => [d.date, d]));
+  const o = (d: CashDay) => outOf.get(d.date) ?? EMPTY_OUT;
+  const sum = (pick: (d: CashDay) => number) => days.reduce((s, d) => s + pick(d), 0);
+  const money = (v: number) => (v ? formatVND(v) : "—");
+  const spent = (v: number) => (v ? formatVND(-v) : "—");
+  const td = "px-3 py-2 text-right";
+
+  // Cột: [tiêu đề, giá trị của một ngày, cách hiển thị, nhóm]
+  const cols: { key: string; label: string; value: (d: CashDay) => number; show: (v: number) => string; cls?: string; first?: boolean }[] = [
+    { key: "in", label: "Tổng tiền về", value: (d) => d.total, show: formatVND, cls: "font-semibold text-foreground" },
+    { key: "out", label: "Tổng chi", value: (d) => o(d).total, show: spent, cls: "font-semibold text-foreground" },
+    { key: "left", label: "Còn lại", value: (d) => d.total - o(d).total, show: formatVND, cls: "font-semibold" },
+    ...channels.map((c, i) => ({ key: `c-${c}`, label: c, value: (d: CashDay) => d.byChannel[c] ?? 0, show: money, first: i === 0 })),
+    ...out.categories.map((c, i) => ({ key: `e-${c}`, label: c, value: (d: CashDay) => o(d).byCategory[c] ?? 0, show: spent, first: i === 0 })),
+    {
+      key: "ship",
+      label: "Phí ship trả riêng",
+      value: (d: CashDay) => o(d).shippingFee,
+      show: spent,
+      first: out.categories.length === 0,
+    },
+  ];
+  const tone = (key: string, v: number) =>
+    key === "left" ? (v < 0 ? "text-destructive" : "text-success") : v < 0 && !key.startsWith("e-") && key !== "out" && key !== "ship" ? "text-destructive" : "";
+
   return (
     <div className="-mx-4 overflow-x-auto px-4">
       <table className="w-full min-w-[760px] text-sm whitespace-nowrap">
         <thead>
+          <tr className="text-xs text-muted-foreground">
+            <th />
+            <th colSpan={3} />
+            {channels.length > 0 && (
+              <th colSpan={channels.length} className="border-b border-l px-3 pt-1 text-center font-medium text-success">
+                Tiền về theo kênh
+              </th>
+            )}
+            <th colSpan={out.categories.length + 1} className="border-b border-l px-3 pt-1 text-center font-medium text-destructive">
+              Tiền chi
+            </th>
+          </tr>
           <tr className="border-b text-muted-foreground">
             <th className="py-2 pr-3 text-left font-normal">Ngày</th>
-            <th className="px-3 py-2 text-right font-normal text-foreground">Tổng tiền về</th>
-            {channels.map((c) => (
-              <th key={c} className="px-3 py-2 text-right font-normal">
-                {c}
+            {cols.map((c) => (
+              <th key={c.key} className={cn(td, "font-normal", c.cls && "text-foreground", c.first && "border-l")}>
+                {c.label}
               </th>
             ))}
           </tr>
@@ -117,29 +164,33 @@ export function CashTable({ days, today }: { days: CashDay[]; today: DateString 
                 {d.date === today && <span className="ml-1 text-xs text-primary">hôm nay</span>}
                 {d.date > today && <span className="ml-1 text-xs">dự kiến</span>}
               </td>
-              <td className={cn("px-3 py-2 text-right font-semibold text-foreground", d.total < 0 && "text-destructive")}>
-                {formatVND(d.total)}
-              </td>
-              {channels.map((c) => (
-                <td key={c} className={cn("px-3 py-2 text-right", (d.byChannel[c] ?? 0) < 0 && "text-destructive")}>
-                  {d.byChannel[c] ? formatVND(d.byChannel[c]) : "—"}
-                </td>
-              ))}
+              {cols.map((c) => {
+                const v = c.value(d);
+                return (
+                  <td key={c.key} className={cn(td, c.cls, c.first && "border-l", tone(c.key, v))}>
+                    {c.show(v)}
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr className="border-t-2 font-semibold tabular-nums">
             <td className="py-2 pr-3">Tổng</td>
-            <td className="px-3 py-2 text-right">{formatVND(total)}</td>
-            {channels.map((c) => (
-              <td key={c} className="px-3 py-2 text-right">
-                {formatVND(sum(c))}
-              </td>
-            ))}
+            {cols.map((c) => {
+              const v = sum(c.value);
+              return (
+                <td key={c.key} className={cn(td, c.first && "border-l", tone(c.key, v))}>
+                  {c.show(v)}
+                </td>
+              );
+            })}
           </tr>
         </tfoot>
       </table>
     </div>
   );
 }
+
+const EMPTY_OUT: CashOutDay = { date: "", byCategory: {}, shippingFee: 0, total: 0 };

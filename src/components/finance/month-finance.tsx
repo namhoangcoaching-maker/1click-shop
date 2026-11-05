@@ -16,7 +16,7 @@ function Line({ label, value, sign, strong, muted, note }: { label: string; valu
         {label}
         {note && <span className="ml-1 text-xs text-muted-foreground">({note})</span>}
       </span>
-      <span className={cn("tabular-nums", strong && value !== null && value < 0 && "text-destructive", strong && value !== null && value >= 0 && "text-success")}>
+      <span className={cn("whitespace-nowrap tabular-nums", strong && value !== null && value < 0 && "text-destructive", strong && value !== null && value >= 0 && "text-success")}>
         {value === null ? "—" : formatVND(value)}
       </span>
     </div>
@@ -86,6 +86,12 @@ export function MonthFinanceView({ f, pancakeError }: { f: MonthFinance; pancake
         <Line label="Doanh số" value={f.profit.sales} muted />
         <Line label="Phí sàn" value={f.profit.fee} sign="−" muted note="đã trừ sẵn trong Doanh thu" />
         <Line label="Doanh thu" value={f.profit.revenue} note="Pancake: đã trừ chiết khấu, hàng hoàn, phí sàn" />
+        <Line
+          label="Phí vận chuyển ngoại sàn"
+          value={f.profit.partnerFee}
+          sign="−"
+          note="shop trả đơn vị vận chuyển, Doanh thu chưa trừ"
+        />
         {f.expenseGroups.map((g) => (
           <ExpenseRow key={g.category} group={g} />
         ))}

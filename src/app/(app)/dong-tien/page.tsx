@@ -11,7 +11,8 @@ import { TagNames } from "@/components/finance/tag-names";
 import { CASH_RULES } from "@/lib/cash/compute";
 import { getCashDays } from "@/lib/cash/data";
 import { addDays, todayInVN } from "@/lib/date-range";
-import { getMonthFinance } from "@/lib/finance/data";
+import { getCashOut, getMonthFinance } from "@/lib/finance/data";
+import { cashOutByDay } from "@/lib/finance/month";
 import { recentMonths, resolveMonth } from "@/lib/finance/month";
 import { formatVND } from "@/lib/format";
 import { getCurrentOrg } from "@/lib/org/current";
@@ -95,7 +96,11 @@ async function CashIn() {
   const org = await getCurrentOrg();
   if (!org) return null;
   const today = todayInVN();
-  const days = await getCashDays(org.id, addDays(today, -PAST_DAYS), addDays(today, FUTURE_DAYS));
+  const from = addDays(today, -PAST_DAYS);
+  const to = addDays(today, FUTURE_DAYS);
+  const [days, cashOut] = await Promise.all([getCashDays(org.id, from, to), getCashOut(org.id, from, to)]);
+  // Cột chi: mọi thẻ đã đặt tên + "Khác" luôn hiện, kể cả ngày chưa chi.
+  const out = cashOutByDay(cashOut.expenses, cashOut.shippingFees, from, to, [...cashOut.tagNames.values()]);
   const todayTotal = days.find((d) => d.date === today)?.total ?? 0;
   const next7 = days.filter((d) => d.date > today && d.date <= addDays(today, 7));
   const next7Total = next7.reduce((s, d) => s + d.total, 0);
@@ -119,10 +124,10 @@ async function CashIn() {
       <details className="group mt-4 rounded-md border" suppressHydrationWarning>
         <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium hover:bg-muted/60 [&::-webkit-details-marker]:hidden">
           <ChevronDownIcon className="size-4 transition-transform group-open:rotate-180" aria-hidden />
-          Xem chi tiết theo ngày và theo kênh ({PAST_DAYS} ngày qua, {FUTURE_DAYS} ngày tới) · cách tính
+          Xem chi tiết theo ngày: tiền về theo kênh, tiền chi, còn lại ({PAST_DAYS} ngày qua, {FUTURE_DAYS} ngày tới) · cách tính
         </summary>
         <div className="space-y-3 px-3 pb-3">
-          <CashTable days={[...days].reverse()} today={today} />
+          <CashTable days={[...days].reverse()} today={today} out={out} />
           <ul className="list-disc space-y-0.5 pl-5 text-sm text-muted-foreground">
             <li>
               Shopee: tiền sàn trả (đã trừ phí sàn) về ngày khách nhận + {CASH_RULES.marketplaceDelay.Shopee} ngày. TikTok: +
@@ -137,7 +142,11 @@ async function CashIn() {
               đổi theo tỷ giá mua chuyển khoản Vietcombank của ngày đó.
             </li>
             <li>Đã nhận rồi mới hoàn: trừ vào ngày đơn chuyển “Đã hoàn”.</li>
-            <li>Phiếu chi có thẻ (Sản xuất, Quay chụp…) là chi phí, không trừ vào tiền về.</li>
+            <li>
+              Tiền chi: phiếu chi có thẻ trên Pancake (Sản xuất, Quay chụp, Lương, Khác…) theo ngày phát sinh; mỗi thẻ đã
+              đặt tên (mục Thẻ chi phí bên dưới) luôn có một cột, cột “Khác” luôn có sẵn; và phí ship trả
+              riêng (phiếu “Thanh toán phí vận chuyển”) theo ngày tạo phiếu. Còn lại = tiền về − tiền chi của ngày đó.
+            </li>
             <li>
               Số dự kiến chỉ gồm đơn khách đã nhận; đơn đang giao được cộng khi khách nhận. Là ước tính theo luật, có thể
               lệch vài ngày với tiền thật về tài khoản.

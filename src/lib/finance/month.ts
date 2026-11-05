@@ -3,6 +3,7 @@
  * Thuần tính toán, có unit test.
  *
  *  LỢI NHUẬN KINH DOANH = Doanh thu (Pancake, ĐÃ trừ chiết khấu, hàng hoàn, phí sàn)
+ *                         − phí vận chuyển ngoại sàn (Pancake `partner_fee`: Doanh thu Pancake không trừ khoản này)
  *                         − chi phí theo thẻ phiếu chi (Sản xuất = trả xưởng/nhập hàng, Quay chụp, Lương…)
  *                         − quảng cáo
  *    (khác Lợi nhuận của Pancake: Pancake trừ giá vốn từng sản phẩm bán ra; ở đây trừ tiền thực trả xưởng trong tháng)
@@ -91,6 +92,69 @@ export function expenseLines(
     .filter((l) => l.date >= from && l.date <= to);
 }
 
+export interface ShippingFeeLine {
+  date: DateString;
+  /** Số tiền chi (dương). */
+  amount: number;
+}
+
+/** Phiếu "Thanh toán phí vận chuyển…" (phí ship trả riêng) trong khoảng, theo ngày tạo phiếu giờ VN; bỏ phiếu hủy. */
+export function shippingFeeLines(txs: ExpenseTransaction[], from: DateString, to: DateString): ShippingFeeLine[] {
+  return txs
+    .filter((t) => /^Thanh toán phí vận chuyển/i.test(t.name ?? "") && !t.is_canceled)
+    .map((t) => ({ date: vnDate(t.posted_at), amount: -t.amount }))
+    .filter((l) => l.date >= from && l.date <= to);
+}
+
+export interface CashOutDay {
+  date: DateString;
+  /** Chi theo loại thẻ (tên thẻ → số dương). */
+  byCategory: Record<string, number>;
+  shippingFee: number;
+  /** Tổng chi trong ngày (số dương). */
+  total: number;
+}
+
+/** Cột chi phí "Khác" luôn có sẵn (thẻ "Khác" trên Pancake), kể cả khi chưa có phiếu nào. */
+export const OTHER_EXPENSE = "Khác";
+
+/**
+ * Tiền chi từng ngày trong [from, to] (kể cả ngày không chi = 0) và danh sách loại chi để làm cột:
+ * mọi thẻ đã đặt tên (`knownCategories`) + thẻ có tiền trong khoảng + "Khác" (luôn có).
+ * Thứ tự: Sản xuất trước, rồi theo số tiền, thẻ chưa có tiền theo tên, "Khác" cuối.
+ */
+export function cashOutByDay(
+  expenses: ExpenseLine[],
+  shippingFees: ShippingFeeLine[],
+  from: DateString,
+  to: DateString,
+  knownCategories: string[] = [],
+): { days: CashOutDay[]; categories: string[] } {
+  const days: CashOutDay[] = [];
+  for (let d = from; d <= to; d = addDays(d, 1)) days.push({ date: d, byCategory: {}, shippingFee: 0, total: 0 });
+  const index = new Map(days.map((d, i) => [d.date, i]));
+  const inRange = expenses.filter((l) => index.has(l.date));
+  for (const l of inRange) {
+    const day = days[index.get(l.date)!];
+    day.byCategory[l.category] = (day.byCategory[l.category] ?? 0) + l.amount;
+    day.total += l.amount;
+  }
+  for (const l of shippingFees) {
+    const i = index.get(l.date);
+    if (i === undefined) continue;
+    days[i].shippingFee += l.amount;
+    days[i].total += l.amount;
+  }
+  const withMoney = groupExpenses(inRange).map((g) => g.category);
+  const idle = [...new Set(knownCategories)]
+    .filter((c) => c && !withMoney.includes(c))
+    .sort((a, b) => Number(b === "Sản xuất") - Number(a === "Sản xuất") || a.localeCompare(b, "vi"));
+  const all = [...withMoney, ...idle];
+  const isOther = (c: string) => c.toLocaleLowerCase("vi") === OTHER_EXPENSE.toLocaleLowerCase("vi");
+  const categories = [...all.filter((c) => !isOther(c)), all.find(isOther) ?? OTHER_EXPENSE];
+  return { days, categories };
+}
+
 export interface ExpenseGroup {
   category: string;
   total: number;
@@ -110,7 +174,7 @@ export interface MonthFinanceInput {
   month: MonthString;
   today: DateString;
   /** Thống kê Pancake của tháng (đến hôm nay nếu là tháng hiện tại); null nếu không lấy được. */
-  pancake: { sales: number; revenue: number; fee: number } | null;
+  pancake: { sales: number; revenue: number; fee: number; partnerFee: number } | null;
   /** Tiền về từng ngày của cả tháng (gồm ngày tới = dự kiến). */
   cashDays: { date: DateString; total: number }[];
   expenses: ExpenseLine[];
@@ -129,6 +193,8 @@ export interface MonthFinance {
     sales: number | null;
     fee: number | null;
     revenue: number | null;
+    /** Phí vận chuyển ngoại sàn shop trả đơn vị vận chuyển (Pancake `partner_fee`). */
+    partnerFee: number | null;
     ads: number | null;
     /** null khi không có Doanh thu Pancake. */
     result: number | null;
@@ -163,8 +229,9 @@ export function buildMonthFinance(i: MonthFinanceInput): MonthFinance {
       sales: i.pancake?.sales ?? null,
       fee: i.pancake?.fee ?? null,
       revenue: i.pancake?.revenue ?? null,
+      partnerFee: i.pancake?.partnerFee ?? null,
       ads: i.ads,
-      result: i.pancake ? i.pancake.revenue - expenseTotal - ads : null,
+      result: i.pancake ? i.pancake.revenue - i.pancake.partnerFee - expenseTotal - ads : null,
     },
     cash: {
       received,

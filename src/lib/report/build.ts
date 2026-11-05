@@ -14,24 +14,33 @@ export interface ReportMetric {
   previous: number | null;
 }
 
+export interface YesterdayStats {
+  date: DateString;
+  sales: ReportMetric;
+  revenue: ReportMetric;
+  profit: ReportMetric;
+  orders: ReportMetric;
+  returnedAmount: ReportMetric;
+  returnedQty: ReportMetric;
+  topSources: { name: string; revenue: number; orders: number }[];
+  topProducts: { name: string; code: string | null; imageUrl: string | null; quantity: number; revenue: number }[];
+}
+
 export interface DailyReport {
   /** Ngày báo cáo (giờ VN). */
   date: DateString;
   /** Lúc lập (ISO). */
   createdAt: string;
-  yesterday: {
-    date: DateString;
-    sales: ReportMetric;
-    revenue: ReportMetric;
-    profit: ReportMetric;
-    orders: ReportMetric;
-    returnedAmount: ReportMetric;
-    returnedQty: ReportMetric;
-    topSources: { name: string; revenue: number; orders: number }[];
-    topProducts: { name: string; code: string | null; imageUrl: string | null; quantity: number; revenue: number }[];
-  } | null;
+  yesterday: YesterdayStats | null;
   /** Không lấy được số Pancake (ghi lý do). */
   statsError: string | null;
+  /**
+   * Chỉ có khi hiển thị (KHÔNG lưu): lúc phần "Hôm qua" vừa lấy lại số mới từ Pancake (ISO),
+   * vì đơn hủy sau 8:00 bị Pancake rút khỏi ngày tạo đơn.
+   */
+  refreshedAt?: string;
+  /** Chỉ có khi hiển thị: lấy lại số mới không được, đang hiện số lúc lập báo cáo. */
+  refreshError?: string;
   cash: {
     today: number;
     byChannel: { channel: string; amount: number }[];
@@ -69,6 +78,40 @@ const metric = (stats: PancakeOverview, key: string): ReportMetric => {
   return { value: m?.value ?? 0, previous: m?.previous ?? null };
 };
 
+/** Phần "Hôm qua" từ thống kê Pancake của ngày `date` (so với ngày trước đó). */
+export function yesterdayStats(stats: PancakeOverview, date: DateString): YesterdayStats {
+  return {
+    date,
+    sales: metric(stats, "grossSales"),
+    revenue: metric(stats, "revenue"),
+    profit: metric(stats, "profit"),
+    orders: metric(stats, "orders"),
+    returnedAmount: stats.returnedOrders.amount,
+    returnedQty: stats.returnedOrders.count,
+    topSources: stats.sources
+      .filter((s) => s.orders > 0)
+      .slice(0, 3)
+      .map((s) => ({ name: s.source, revenue: s.revenue.value, orders: s.orders })),
+    topProducts: stats.topProducts.slice(0, 3).map((p) => ({
+      name: p.name,
+      code: p.sku,
+      imageUrl: p.imageUrl ?? null,
+      quantity: p.quantity,
+      revenue: p.revenue,
+    })),
+  };
+}
+
+/**
+ * Thay phần "Hôm qua" bằng số mới lấy lúc xem (cách (b), chủ dự án chốt 05/11/2026).
+ * Các phần khác (Tiền về, đặt hàng, việc cần làm) giữ như lúc 8:00.
+ * `fresh = null` (Pancake lỗi) → giữ số đã lưu, kèm ghi chú.
+ */
+export function withFreshYesterday(report: DailyReport, fresh: PancakeOverview | null, now: Date): DailyReport {
+  if (!fresh) return { ...report, refreshError: "Không lấy được số mới từ Pancake, đang hiện số lúc lập báo cáo." };
+  return { ...report, yesterday: yesterdayStats(fresh, addDays(report.date, -1)), statsError: null, refreshedAt: now.toISOString() };
+}
+
 export function buildDailyReport(i: ReportInputs): DailyReport {
   const todayCash = i.cashDays.find((d) => d.date === i.today);
   const next7 = i.cashDays
@@ -82,28 +125,7 @@ export function buildDailyReport(i: ReportInputs): DailyReport {
   return {
     date: i.today,
     createdAt: i.now.toISOString(),
-    yesterday: i.stats
-      ? {
-          date: addDays(i.today, -1),
-          sales: metric(i.stats, "grossSales"),
-          revenue: metric(i.stats, "revenue"),
-          profit: metric(i.stats, "profit"),
-          orders: metric(i.stats, "orders"),
-          returnedAmount: i.stats.returnedOrders.amount,
-          returnedQty: i.stats.returnedOrders.count,
-          topSources: i.stats.sources
-            .filter((s) => s.orders > 0)
-            .slice(0, 3)
-            .map((s) => ({ name: s.source, revenue: s.revenue.value, orders: s.orders })),
-          topProducts: i.stats.topProducts.slice(0, 3).map((p) => ({
-            name: p.name,
-            code: p.sku,
-            imageUrl: p.imageUrl ?? null,
-            quantity: p.quantity,
-            revenue: p.revenue,
-          })),
-        }
-      : null,
+    yesterday: i.stats ? yesterdayStats(i.stats, addDays(i.today, -1)) : null,
     statsError: i.statsError,
     cash: {
       today: todayCash?.total ?? 0,

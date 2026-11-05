@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   buildMonthFinance,
+  cashOutByDay,
   expenseLines,
   groupExpenses,
   monthRange,
   recentMonths,
   resolveMonth,
+  shippingFeeLines,
   UNNAMED_TAG,
   type ExpenseTransaction,
 } from "./month";
@@ -96,7 +98,7 @@ describe("buildMonthFinance – hai phần tách bạch", () => {
   const f = buildMonthFinance({
     month: "2026-11",
     today: "2026-11-05",
-    pancake: { sales: 120_000_000, revenue: 90_000_000, fee: 25_000_000 },
+    pancake: { sales: 120_000_000, revenue: 90_000_000, fee: 25_000_000, partnerFee: 240_600 },
     cashDays: [
       { date: "2026-11-04", total: 53_369_775 },
       { date: "2026-11-05", total: 32_768_085 },
@@ -107,9 +109,15 @@ describe("buildMonthFinance – hai phần tách bạch", () => {
     ads: null,
   });
 
-  it("Lợi nhuận kinh doanh = Doanh thu (đã trừ phí sàn) − chi phí theo thẻ; KHÔNG trừ phí sàn lần nữa", () => {
+  it("Lợi nhuận kinh doanh = Doanh thu (đã trừ phí sàn) − phí vận chuyển ngoại sàn − chi phí theo thẻ; KHÔNG trừ phí sàn lần nữa", () => {
     expect(f.expenseTotal).toBe(40_600_000);
-    expect(f.profit).toEqual({ sales: 120_000_000, fee: 25_000_000, revenue: 90_000_000, ads: null, result: 49_400_000 });
+    expect(f.profit).toEqual({
+      sales: 120_000_000, fee: 25_000_000, revenue: 90_000_000, partnerFee: 240_600, ads: null,
+      result: 90_000_000 - 240_600 - 40_600_000,
+    });
+  });
+  it("phí ship ngoại sàn chỉ trừ ở Lợi nhuận; Dòng tiền trừ phí ship trả riêng (không trừ trùng)", () => {
+    expect(f.cash.net).toBe(86_137_860 - 40_600_000 - 1_530_066);
   });
 
   it("Dòng tiền = Tiền về đã tới hạn − chi phí − phí ship trả riêng; tách phần dự kiến", () => {
@@ -121,7 +129,7 @@ describe("buildMonthFinance – hai phần tách bạch", () => {
 
   it("có quảng cáo thì trừ ở cả hai phần", () => {
     const g = buildMonthFinance({
-      month: "2026-11", today: "2026-11-05", pancake: { sales: 1, revenue: 100, fee: 0 },
+      month: "2026-11", today: "2026-11-05", pancake: { sales: 1, revenue: 100, fee: 0, partnerFee: 0 },
       cashDays: [{ date: "2026-11-01", total: 100 }], expenses: [], shippingFeePaid: 0, ads: 30,
     });
     expect(g.profit.result).toBe(70);
@@ -133,5 +141,47 @@ describe("buildMonthFinance – hai phần tách bạch", () => {
       month: "2026-11", today: "2026-11-05", pancake: null, cashDays: [], expenses: [], shippingFeePaid: 0, ads: null,
     });
     expect(g.profit.result).toBeNull();
+  });
+});
+
+describe("tiền chi theo ngày (bảng Tiền về)", () => {
+  const txs = [
+    ...real,
+    // Phí ship trả riêng 2 phiếu cùng ngày 05/11 (giờ VN), 1 phiếu hủy, 1 ngoài khoảng
+    tx({ name: "Thanh toán phí vận chuyển cho đơn hàng #41000", amount: -30_000, posted_at: "2026-11-05T02:00:00Z" }),
+    tx({ name: "Thanh toán phí vận chuyển cho đơn hàng #41001", amount: -14_000, posted_at: "2026-11-04T17:30:00Z" }),
+    tx({ name: "Thanh toán phí vận chuyển cho đơn hàng #41002", amount: -99_000, posted_at: "2026-11-05T02:00:00Z", is_canceled: true }),
+    tx({ name: "Thanh toán phí vận chuyển cho đơn hàng #40000", amount: -20_000, posted_at: "2026-10-20T02:00:00Z" }),
+  ];
+  const ship = shippingFeeLines(txs, "2026-11-04", "2026-11-06");
+
+  it("phí ship trả riêng theo ngày tạo phiếu giờ VN, bỏ phiếu hủy và ngoài khoảng", () => {
+    expect(ship).toEqual([
+      { date: "2026-11-05", amount: 30_000 },
+      { date: "2026-11-05", amount: 14_000 },
+    ]);
+  });
+
+  it("mỗi ngày: chi theo thẻ + phí ship, ngày không chi = 0; loại Sản xuất trước", () => {
+    const { days, categories } = cashOutByDay(expenseLines(txs, names, "2026-11-04", "2026-11-06"), ship, "2026-11-04", "2026-11-06");
+    expect(categories).toEqual(["Sản xuất", "Quay chụp", "Lương", "Khác"]);
+    expect(days.map((d) => [d.date, d.total, d.shippingFee])).toEqual([
+      ["2026-11-04", 0, 0],
+      ["2026-11-05", 40_600_000 + 44_000, 44_000],
+      ["2026-11-06", 0, 0],
+    ]);
+    expect(days[1].byCategory).toEqual({ "Sản xuất": 30_000_000, "Quay chụp": 5_600_000, Lương: 5_000_000 });
+  });
+
+  it("không có phiếu chi nào: vẫn có sẵn cột Khác", () => {
+    expect(cashOutByDay(expenseLines(txs, names, "2026-11-06", "2026-11-08"), [], "2026-11-06", "2026-11-08").categories).toEqual(["Khác"]);
+  });
+});
+
+describe("cột chi phí luôn có sẵn", () => {
+  it("mọi thẻ đã đặt tên đều có cột dù chưa chi; thẻ tên Khác dùng đúng tên đó, xếp cuối", () => {
+    const lines = expenseLines(real, names, "2026-11-05", "2026-11-05");
+    const { categories } = cashOutByDay(lines, [], "2026-11-05", "2026-11-05", ["Mặt bằng", "khác", "Lương", "Phần mềm"]);
+    expect(categories).toEqual(["Sản xuất", "Quay chụp", "Lương", "Mặt bằng", "Phần mềm", "khác"]);
   });
 });
