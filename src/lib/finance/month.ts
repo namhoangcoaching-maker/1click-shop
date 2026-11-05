@@ -170,31 +170,92 @@ export function groupExpenses(lines: ExpenseLine[]): ExpenseGroup[] {
     .sort((a, b) => Number(b.category === "Sản xuất") - Number(a.category === "Sản xuất") || b.total - a.total);
 }
 
+/**
+ * Quảng cáo nhập tay qua Pancake (chủ dự án chọn cách (b), 05/11/2026): phiếu chi gắn thẻ có tên bắt đầu
+ * bằng "Quảng cáo" (ví dụ "Quảng cáo Shopee", "Quảng cáo TikTok") là chi phí QUẢNG CÁO, không phải chi phí thường.
+ * Khi kết nối API Shopee/TikTok xong, số tự động sẽ thay phần này.
+ */
+export const ADS_PREFIX = "Quảng cáo";
+/** Ngưỡng quảng cáo cao (đã chốt): > 12% tổng doanh thu, hoặc > 25% doanh thu của một kênh. */
+export const ADS_LIMITS = { total: 0.12, channel: 0.25 };
+
+const fold = (s: string) => s.normalize("NFC").toLocaleLowerCase("vi").trim();
+export const isAdsCategory = (category: string) => fold(category).startsWith(fold(ADS_PREFIX));
+/** "Quảng cáo Shopee" → "Shopee"; "Quảng cáo" (không ghi kênh) → null. */
+export const adsChannel = (category: string): string | null =>
+  category.normalize("NFC").trim().slice(ADS_PREFIX.length).replace(/^[\s:–-]+/, "").trim() || null;
+
+export interface AdsAlert {
+  /** null = toàn shop. */
+  channel: string | null;
+  amount: number;
+  revenue: number;
+  /** Tỷ lệ quảng cáo / doanh thu (0–1). */
+  ratio: number;
+  limit: number;
+}
+
+/** Cảnh báo quảng cáo cao: toàn shop so với tổng Doanh thu, từng kênh so với Doanh thu kênh đó (tên nguồn Pancake). */
+export function adsAlerts(
+  adsGroups: ExpenseGroup[],
+  revenue: number | null,
+  revenueBySource: Record<string, number>,
+): AdsAlert[] {
+  const alerts: AdsAlert[] = [];
+  const total = adsGroups.reduce((s, g) => s + g.total, 0);
+  if (revenue && revenue > 0 && total / revenue > ADS_LIMITS.total) {
+    alerts.push({ channel: null, amount: total, revenue, ratio: total / revenue, limit: ADS_LIMITS.total });
+  }
+  const bySource = new Map(Object.entries(revenueBySource).map(([k, v]) => [fold(k), v]));
+  const byChannel = new Map<string, number>();
+  for (const g of adsGroups) {
+    const ch = adsChannel(g.category);
+    if (ch) byChannel.set(ch, (byChannel.get(ch) ?? 0) + g.total);
+  }
+  for (const [channel, amount] of byChannel) {
+    const rev = bySource.get(fold(channel)) ?? 0;
+    if (rev > 0 && amount / rev > ADS_LIMITS.channel) {
+      alerts.push({ channel, amount, revenue: rev, ratio: amount / rev, limit: ADS_LIMITS.channel });
+    }
+  }
+  return alerts;
+}
+
 export interface MonthFinanceInput {
   month: MonthString;
   today: DateString;
   /** Thống kê Pancake của tháng (đến hôm nay nếu là tháng hiện tại); null nếu không lấy được. */
   pancake: { sales: number; revenue: number; fee: number; partnerFee: number } | null;
+  /** Doanh thu Pancake theo tên nguồn đơn (Shopee, TikTok…), để so quảng cáo từng kênh. */
+  revenueBySource?: Record<string, number>;
   /** Tiền về từng ngày của cả tháng (gồm ngày tới = dự kiến). */
   cashDays: { date: DateString; total: number }[];
+  /** Phiếu chi có thẻ (gồm cả thẻ "Quảng cáo …": hàm tự tách ra). */
   expenses: ExpenseLine[];
   /** Phí ship shop trả riêng (Thu chi Pancake) trong tháng, số dương. */
   shippingFeePaid: number;
-  /** Chi phí quảng cáo; null = chưa kết nối. */
+  /** Quảng cáo lấy tự động (API); null = chưa kết nối. */
   ads: number | null;
+  /** Shop đã có thẻ "Quảng cáo …" (dù tháng này chưa chi) → hiện 0 thay vì "chưa có số". */
+  hasAdsTags?: boolean;
 }
 
 export interface MonthFinance {
   month: MonthString;
   isCurrentMonth: boolean;
+  /** Chi phí thường (KHÔNG gồm quảng cáo). */
   expenseGroups: ExpenseGroup[];
   expenseTotal: number;
+  /** Quảng cáo theo thẻ "Quảng cáo …". */
+  adsGroups: ExpenseGroup[];
+  adsAlerts: AdsAlert[];
   profit: {
     sales: number | null;
     fee: number | null;
     revenue: number | null;
     /** Phí vận chuyển ngoại sàn shop trả đơn vị vận chuyển (Pancake `partner_fee`). */
     partnerFee: number | null;
+    /** Tổng quảng cáo; null = chưa có số (chưa kết nối, chưa có thẻ). */
     ads: number | null;
     /** null khi không có Doanh thu Pancake. */
     result: number | null;
@@ -214,9 +275,14 @@ export interface MonthFinance {
 }
 
 export function buildMonthFinance(i: MonthFinanceInput): MonthFinance {
-  const groups = groupExpenses(i.expenses);
+  const all = groupExpenses(i.expenses);
+  const groups = all.filter((g) => !isAdsCategory(g.category));
+  const adsGroups = all.filter((g) => isAdsCategory(g.category));
   const expenseTotal = groups.reduce((s, g) => s + g.total, 0);
-  const ads = i.ads ?? 0;
+  const adsTagged = adsGroups.reduce((s, g) => s + g.total, 0);
+  const adsKnown = i.ads !== null || adsGroups.length > 0 || i.hasAdsTags === true;
+  const adsValue = adsKnown ? (i.ads ?? 0) + adsTagged : null;
+  const ads = adsValue ?? 0;
   const received = i.cashDays.filter((d) => d.date <= i.today).reduce((s, d) => s + d.total, 0);
   const expected = i.cashDays.filter((d) => d.date > i.today).reduce((s, d) => s + d.total, 0);
   const net = received - expenseTotal - i.shippingFeePaid - ads;
@@ -225,19 +291,21 @@ export function buildMonthFinance(i: MonthFinanceInput): MonthFinance {
     isCurrentMonth: i.today.startsWith(i.month),
     expenseGroups: groups,
     expenseTotal,
+    adsGroups,
+    adsAlerts: adsAlerts(adsGroups, i.pancake?.revenue ?? null, i.revenueBySource ?? {}),
     profit: {
       sales: i.pancake?.sales ?? null,
       fee: i.pancake?.fee ?? null,
       revenue: i.pancake?.revenue ?? null,
       partnerFee: i.pancake?.partnerFee ?? null,
-      ads: i.ads,
+      ads: adsValue,
       result: i.pancake ? i.pancake.revenue - i.pancake.partnerFee - expenseTotal - ads : null,
     },
     cash: {
       received,
       expected,
       shippingFeePaid: i.shippingFeePaid,
-      ads: i.ads,
+      ads: adsValue,
       net,
       netWithExpected: net + expected,
     },

@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildMonthFinance,
+  adsChannel,
+  adsAlerts,
   cashOutByDay,
+  isAdsCategory,
   expenseLines,
   groupExpenses,
   monthRange,
@@ -183,5 +186,57 @@ describe("cột chi phí luôn có sẵn", () => {
     const lines = expenseLines(real, names, "2026-11-05", "2026-11-05");
     const { categories } = cashOutByDay(lines, [], "2026-11-05", "2026-11-05", ["Mặt bằng", "khác", "Lương", "Phần mềm"]);
     expect(categories).toEqual(["Sản xuất", "Quay chụp", "Lương", "Mặt bằng", "Phần mềm", "khác"]);
+  });
+});
+
+describe("quảng cáo nhập tay qua thẻ “Quảng cáo …” (cách b)", () => {
+  const adNames = new Map([...names, ["qs", "Quảng cáo Shopee"], ["qt", "quảng cáo TikTok"]]);
+  const txs = [
+    ...real,
+    tx({ display_id: "QC1", name: "Nạp QC Shopee", amount: -4_000_000, tag_ids: ["qs"], time_incurred: "2026-11-02T03:00:00Z" }),
+    tx({ display_id: "QC2", name: "GMV Max", amount: -3_000_000, tag_ids: ["qt"], time_incurred: "2026-11-03T03:00:00Z" }),
+  ];
+  const base = {
+    month: "2026-11", today: "2026-11-05",
+    pancake: { sales: 120_000_000, revenue: 50_000_000, fee: 0, partnerFee: 0 },
+    revenueBySource: { Shopee: 30_000_000, Tiktok: 10_000_000 },
+    cashDays: [{ date: "2026-11-05", total: 100_000_000 }],
+    expenses: expenseLines(txs, adNames, "2026-11-01", "2026-11-30"),
+    shippingFeePaid: 0, ads: null,
+  };
+  const f = buildMonthFinance(base);
+
+  it("nhận ra thẻ quảng cáo, tách kênh theo tên thẻ", () => {
+    expect(isAdsCategory("Quảng cáo Shopee")).toBe(true);
+    expect(isAdsCategory("quảng cáo TikTok")).toBe(true);
+    expect(isAdsCategory("Quay chụp")).toBe(false);
+    expect(adsChannel("Quảng cáo Shopee")).toBe("Shopee");
+    expect(adsChannel("Quảng cáo: TikTok")).toBe("TikTok");
+    expect(adsChannel("Quảng cáo")).toBeNull();
+  });
+
+  it("quảng cáo KHÔNG nằm trong chi phí thường; trừ ở cả Lợi nhuận và Dòng tiền, không trừ hai lần", () => {
+    expect(f.expenseTotal).toBe(40_600_000);
+    expect(f.adsGroups.map((g) => [g.category, g.total])).toEqual([["Quảng cáo Shopee", 4_000_000], ["quảng cáo TikTok", 3_000_000]]);
+    expect(f.profit.ads).toBe(7_000_000);
+    expect(f.profit.result).toBe(50_000_000 - 40_600_000 - 7_000_000);
+    expect(f.cash.net).toBe(100_000_000 - 40_600_000 - 7_000_000);
+  });
+
+  it("cảnh báo: toàn shop > 12% doanh thu, kênh TikTok > 25% (tên nguồn khác hoa/thường vẫn khớp); Shopee 13,3% thì không", () => {
+    expect(f.adsAlerts.map((a) => [a.channel, Math.round(a.ratio * 1000) / 1000])).toEqual([
+      [null, 0.14],
+      ["TikTok", 0.3],
+    ]);
+  });
+
+  it("chưa có thẻ quảng cáo: để trống (chưa có số); có thẻ mà tháng này chưa chi: 0", () => {
+    const none = buildMonthFinance({ ...base, expenses: expenseLines(real, names, "2026-11-01", "2026-11-30") });
+    expect(none.profit.ads).toBeNull();
+    expect(buildMonthFinance({ ...base, expenses: [], hasAdsTags: true }).profit.ads).toBe(0);
+  });
+
+  it("đúng ngưỡng thì chưa cảnh báo", () => {
+    expect(adsAlerts([{ category: "Quảng cáo Shopee", total: 25, lines: [] }], 1_000, { Shopee: 100 })).toEqual([]);
   });
 });

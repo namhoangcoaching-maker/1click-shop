@@ -78,6 +78,9 @@ async function Month({ searchParams }: Pick<PageProps<"/dong-tien">, "searchPara
             Chi phí lấy từ <b>phiếu chi có gắn thẻ</b> trên Pancake (Thu chi): thẻ “Sản xuất” = trả xưởng / nhập hàng,
             “Quay chụp”, “Phần mềm”, “Giao hàng”, “Mặt bằng”, “Lương”, “Khác”… Phiếu Pancake tự sinh theo đơn (trả trước,
             hoàn, đổi số tiền) không phải chi phí. Pancake chỉ cho biết mã thẻ, nên Chủ shop đặt tên thẻ một lần ở đây.
+            Thẻ đặt tên bắt đầu bằng <b>“Quảng cáo”</b> + tên kênh (ví dụ <b>Quảng cáo Shopee</b>, <b>Quảng cáo TikTok</b>)
+            được tính là <b>quảng cáo</b>: tách riêng khỏi chi phí và cảnh báo khi vượt 12% tổng doanh thu / 25% doanh thu
+            kênh đó.
           </p>
           {tags.length === 0 ? (
             <p className="text-muted-foreground">Chưa có phiếu chi nào gắn thẻ.</p>

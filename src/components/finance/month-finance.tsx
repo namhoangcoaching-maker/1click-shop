@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { ChevronRightIcon, LandmarkIcon, PiggyBankIcon } from "lucide-react";
+import { ChevronRightIcon, LandmarkIcon, PiggyBankIcon, TriangleAlertIcon } from "lucide-react";
 import { Panel } from "@/components/dashboard/panel";
 import { formatDateVN } from "@/lib/date-range";
-import { formatVND } from "@/lib/format";
-import { UNNAMED_TAG, type ExpenseGroup, type MonthFinance, type MonthString } from "@/lib/finance/month";
+import { formatPercent, formatVND } from "@/lib/format";
+import { UNNAMED_TAG, type AdsAlert, type ExpenseGroup, type MonthFinance, type MonthString } from "@/lib/finance/month";
 import { cn } from "@/lib/utils";
 
 const monthLabel = (m: MonthString) => `${m.slice(5)}/${m.slice(0, 4)}`;
@@ -50,6 +50,25 @@ function ExpenseRow({ group }: { group: ExpenseGroup }) {
   );
 }
 
+/** Cảnh báo quảng cáo cao (> 12% tổng doanh thu, > 25% doanh thu một kênh). */
+function AdsAlerts({ alerts }: { alerts: AdsAlert[] }) {
+  if (alerts.length === 0) return null;
+  return (
+    <ul className="mt-2 space-y-1 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+      {alerts.map((a) => (
+        <li key={a.channel ?? "all"} className="flex gap-2">
+          <TriangleAlertIcon className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+          <span>
+            Quảng cáo {a.channel ?? "toàn shop"} = <b>{formatPercent(a.ratio * 100)}</b> doanh thu
+            {a.channel ? ` ${a.channel}` : ""} ({formatVND(a.amount)} / {formatVND(a.revenue)}), vượt ngưỡng{" "}
+            {formatPercent(a.limit * 100, 0)}.
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function MonthSelector({ months, current }: { months: MonthString[]; current: MonthString }) {
   return (
     <nav aria-label="Chọn tháng" className="flex flex-wrap gap-1.5">
@@ -74,7 +93,14 @@ export function MonthSelector({ months, current }: { months: MonthString[]; curr
 /** Hai khối tách bạch: Lợi nhuận kinh doanh và Dòng tiền thực tế của tháng. */
 export function MonthFinanceView({ f, pancakeError }: { f: MonthFinance; pancakeError: string | null }) {
   const label = monthLabel(f.month);
-  const adsNote = f.profit.ads === null ? "chưa kết nối" : undefined;
+  const adsNote = f.profit.ads === null ? "chưa có: tạo phiếu chi thẻ “Quảng cáo Shopee/TikTok…” trên Pancake" : undefined;
+  // Quảng cáo theo thẻ: mỗi kênh một dòng bấm xem phiếu; chưa có thẻ thì một dòng “chưa có”.
+  const adsRows = (value: number | null) =>
+    f.adsGroups.length > 0 ? (
+      f.adsGroups.map((g) => <ExpenseRow key={g.category} group={g} />)
+    ) : (
+      <Line label="Quảng cáo" value={value} sign="−" note={adsNote} muted={value === null} />
+    );
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Panel title={`Lợi nhuận kinh doanh tháng ${label}`} icon={PiggyBankIcon} tone="violet">
@@ -95,8 +121,9 @@ export function MonthFinanceView({ f, pancakeError }: { f: MonthFinance; pancake
         {f.expenseGroups.map((g) => (
           <ExpenseRow key={g.category} group={g} />
         ))}
-        <Line label="Quảng cáo" value={f.profit.ads} sign="−" note={adsNote} muted={f.profit.ads === null} />
+        {adsRows(f.profit.ads)}
         <Line label="Lợi nhuận kinh doanh" value={f.profit.result} sign="=" strong />
+        <AdsAlerts alerts={f.adsAlerts} />
       </Panel>
 
       <Panel title={`Dòng tiền thực tế tháng ${label}`} icon={LandmarkIcon} tone="green">
@@ -109,7 +136,7 @@ export function MonthFinanceView({ f, pancakeError }: { f: MonthFinance; pancake
           <ExpenseRow key={g.category} group={g} />
         ))}
         <Line label="Phí ship trả riêng" value={f.cash.shippingFeePaid} sign="−" note="phiếu Pancake" />
-        <Line label="Quảng cáo" value={f.cash.ads} sign="−" note={adsNote} muted={f.cash.ads === null} />
+        {adsRows(f.cash.ads)}
         <Line label={f.isCurrentMonth ? "Dòng tiền ròng tới hôm nay" : "Dòng tiền ròng tháng"} value={f.cash.net} sign="=" strong />
         {f.isCurrentMonth && (
           <div className="mt-1 rounded-md bg-muted px-3 py-2 text-sm">

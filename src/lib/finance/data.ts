@@ -3,12 +3,13 @@ import { getCashDays } from "@/lib/cash/data";
 import { getPancakeCredentials } from "@/lib/connections/credentials";
 import { addDays, type DateString } from "@/lib/date-range";
 import { rangeToPancake } from "@/lib/overview/compute";
-import { fetchSaleStats } from "@/lib/pancake/analytics";
+import { fetchOrderSources, fetchSaleStats } from "@/lib/pancake/analytics";
 import { createClient } from "@/lib/supabase/server";
 import type { AnySupabase } from "@/lib/supabase/types";
 import {
   buildMonthFinance,
   expenseLines,
+  isAdsCategory,
   monthRange,
   shippingFeeLines,
   type ExpenseLine,
@@ -82,9 +83,20 @@ export async function getMonthFinance(orgId: string, month: MonthString, today: 
 
   let pancake: { sales: number; revenue: number; fee: number; partnerFee: number } | null = null;
   let pancakeError: string | null = null;
+  const revenueBySource: Record<string, number> = {};
   if (creds && from <= today) {
     try {
-      const [total] = await fetchSaleStats(creds, rangeToPancake({ from, to: statsTo }));
+      const range = rangeToPancake({ from, to: statsTo });
+      const [[total], bySource, sourceNames] = await Promise.all([
+        fetchSaleStats(creds, range),
+        fetchSaleStats(creds, range, "Order.order_sources"),
+        fetchOrderSources(creds),
+      ]);
+      // Doanh thu từng kênh (Shopee, TikTok…) để so với quảng cáo kênh đó.
+      for (const r of bySource) {
+        const name = (r.key && sourceNames.get(r.key)) ?? r.key ?? "Khác";
+        revenueBySource[name] = (revenueBySource[name] ?? 0) + (r.result.revenue ?? 0);
+      }
       pancake = {
         sales: total?.result.sales ?? 0,
         revenue: total?.result.revenue ?? 0,
@@ -112,10 +124,12 @@ export async function getMonthFinance(orgId: string, month: MonthString, today: 
       month,
       today,
       pancake,
+      revenueBySource,
       cashDays,
       expenses: cashOut.expenses,
       shippingFeePaid: cashOut.shippingFees.reduce((s, l) => s + l.amount, 0),
-      ads: null, // Quảng cáo: chưa kết nối (bước 3.2, 3.3)
+      ads: null, // Quảng cáo tự động (API Shopee/TikTok/Meta): chưa kết nối; quảng cáo nhập tay = thẻ "Quảng cáo …"
+      hasAdsTags: [...tagNames.values()].some(isAdsCategory),
     }),
     pancakeError,
     tags: [...tagMap.values()].sort((a, b) => Number(a.name !== null) - Number(b.name !== null) || b.count - a.count),
