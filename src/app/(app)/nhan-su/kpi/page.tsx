@@ -130,7 +130,7 @@ async function Kpi({ searchParams }: Pick<PageProps<"/nhan-su/kpi">, "searchPara
                         </tr>
                       </thead>
                       <tbody>
-                        {items.map(({ assignment: a, template: t, outcome: o, note }) => (
+                        {items.map(({ assignment: a, template: t, outcome: o, note, managerValue, dailySum }) => (
                           <tr key={a.id} className="border-b last:border-0">
                             <td className="py-1.5 pr-2">
                               <div>{t.name}</div>
@@ -142,7 +142,13 @@ async function Kpi({ searchParams }: Pick<PageProps<"/nhan-su/kpi">, "searchPara
                             <td className="px-2 py-1.5 text-right tabular-nums">{a.target === null ? "—" : <KpiValue value={a.target} unit={unitOf(t)} />}</td>
                             <td className="px-2 py-1.5">
                               {t.source === "manual" && editable ? (
-                                <ResultForm assignmentId={a.id} userId={m.userId} month={month} actual={o.actual} note={note} unit={unitOf(t)} />
+                                <div>
+                                  <ResultForm assignmentId={a.id} userId={m.userId} month={month} actual={managerValue} dailySum={dailySum} note={note} unit={unitOf(t)} />
+                                  <div className="mt-0.5 text-xs text-muted-foreground">
+                                    Tổng báo cáo ngày: {(dailySum ?? 0).toLocaleString("vi-VN")} {unitOf(t)}
+                                    {managerValue !== null ? " · đang dùng số Quản lý nhập (xóa ô để dùng tổng báo cáo ngày)" : ""}
+                                  </div>
+                                </div>
                               ) : o.actual === null ? (
                                 <span className="text-xs text-warning">
                                   {t.source === "seller_revenue" ? "Chưa nối nhân viên Pancake" : t.source === "manual" ? "Chưa nhập" : "Chưa lấy được"}

@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { ClipboardCheckIcon, ClockIcon, IdCardIcon, TargetIcon, WalletIcon } from "lucide-react";
+import { ClipboardCheckIcon, ClockIcon, IdCardIcon, ListTodoIcon, TargetIcon, WalletIcon } from "lucide-react";
+import { AddTaskForm, DayTaskList, ReportForm } from "@/components/staff/work-plan-forms";
+import { getWorkDay } from "@/lib/staff/work-plan-data";
 import { MyKpiList } from "@/components/staff/kpi-view";
 import { PayBreakdown } from "@/components/staff/pay-view";
 import { getKpiMonth } from "@/lib/staff/kpi-data";
 import { estimatePay } from "@/lib/staff/payroll";
-import { NoDataPanel } from "@/components/dashboard/no-data-panel";
 import { Panel } from "@/components/dashboard/panel";
 import { Skeleton } from "@/components/dashboard/stat-card";
 import { DayList, SummaryLine } from "@/components/staff/attendance-view";
@@ -33,18 +34,106 @@ export default function MyPage() {
     <main className="mx-auto w-full max-w-[720px] space-y-4 px-4 py-4 md:px-6">
       <h1 className="text-xl font-bold">Của tôi</h1>
       <Suspense fallback={<Skeleton className="h-48 bg-card" />}>
+        <MyDay />
+      </Suspense>
+      <Suspense fallback={<Skeleton className="h-48 bg-card" />}>
         <MyAttendance />
       </Suspense>
       <Suspense fallback={<Skeleton className="h-32 bg-card" />}>
         <MySetup />
       </Suspense>
-      <NoDataPanel
-        title="Kế hoạch hôm nay và báo cáo cuối ngày"
-        icon={ClipboardCheckIcon}
-        stage="Bước 6.5"
-        note="Danh sách việc cần làm trong ngày; cuối ngày điền báo cáo."
-      />
     </main>
+  );
+}
+
+/** Kế hoạch hôm nay (việc giao, việc lặp lại, việc tự thêm) + báo cáo cuối ngày của chính mình. */
+async function MyDay() {
+  await connection();
+  const org = await getCurrentOrg();
+  if (!org) return null;
+  const me = await currentUserId();
+  if (!me) return null;
+  const today = todayInVN();
+  const supabase = await createClient();
+  const [{ data: mine }, s] = await Promise.all([
+    supabase.from("memberships").select("department").eq("org_id", org.id).eq("user_id", me).maybeSingle(),
+    getMySettings(org.id, me),
+  ]);
+  const department = (mine?.department as string | null) ?? null;
+  const [work, kpi] = await Promise.all([
+    getWorkDay(org.id, today, [{ userId: me, department }]),
+    getKpiMonth(org.id, today.slice(0, 7), today, [{ userId: me, department, sellerId: s?.pancakeSellerId ?? null }]),
+  ]);
+  const day = work.byUser.get(me)!;
+  const manualKpis = (kpi.byUser.get(me) ?? []).filter((k) => k.template.source === "manual");
+
+  return (
+    <>
+      <Panel
+        title="Kế hoạch hôm nay"
+        icon={ListTodoIcon}
+        tone="blue"
+        action={
+          day.summary.total > 0 ? (
+            <span className="text-sm tabular-nums text-muted-foreground">
+              Xong {day.summary.done}/{day.summary.total}
+            </span>
+          ) : undefined
+        }
+      >
+        <DayTaskList
+          userId={me}
+          date={today}
+          canTick
+          tasks={day.tasks.map((t) => ({
+            id: t.task.id,
+            title: t.task.title,
+            done: t.done,
+            lateFrom: t.lateFrom,
+            selfAdded: t.selfAdded,
+            removable: t.selfAdded,
+          }))}
+          recurring={day.recurring.map((r) => ({ id: r.id, title: r.title, done: day.recurringDone.has(r.id) }))}
+        />
+        <div className="mt-3 border-t pt-3">
+          <AddTaskForm defaultDate={today} />
+        </div>
+      </Panel>
+      <Panel
+        title="Báo cáo cuối ngày"
+        icon={ClipboardCheckIcon}
+        tone="violet"
+        action={
+          day.report?.submittedAt ? (
+            <span className="text-xs text-success">Đã gửi lúc {vnTimeOf(day.report.submittedAt)}</span>
+          ) : (
+            <span className="text-xs text-warning">Chưa gửi</span>
+          )
+        }
+      >
+        <p className="mb-2 text-sm text-muted-foreground">
+          Hôm nay xong {day.summary.done}/{day.summary.total} việc
+          {day.summary.late > 0 ? `, ${day.summary.late} việc trễ` : ""}. Việc chưa xong tự chuyển sang ngày làm kế tiếp.
+        </p>
+        <ReportForm
+          kpis={manualKpis.map((k) => ({
+            assignmentId: k.assignment.id,
+            name: k.template.name,
+            unit: k.template.unitLabel ?? "lần",
+            value: day.kpiValues.get(k.assignment.id) ?? null,
+          }))}
+          resultText={day.report?.resultText ?? ""}
+          blockers={day.report?.blockers ?? ""}
+          tomorrow={day.report?.tomorrow ?? ""}
+          submitted={!!day.report?.submittedAt}
+        />
+        {day.report?.managerNote && (
+          <p className="mt-3 rounded-md bg-primary/10 px-3 py-2 text-sm">
+            <b>Nhận xét của Quản lý:</b> {day.report.managerNote}
+          </p>
+        )}
+      </Panel>
+    </>
   );
 }
 

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { CalendarCheckIcon, SlidersHorizontalIcon, TargetIcon, UsersIcon } from "lucide-react";
+import { CalendarCheckIcon, ListTodoIcon, SlidersHorizontalIcon, TargetIcon, UsersIcon } from "lucide-react";
+import { reportedUsers } from "@/lib/staff/work-plan-data";
 import { dayLabel } from "@/components/staff/attendance-view";
 import { todayInVN } from "@/lib/date-range";
 import { monthRange } from "@/lib/finance/month";
@@ -32,6 +33,10 @@ export default function StaffPage() {
             <CalendarCheckIcon className="size-4" aria-hidden />
             Bảng chấm công
           </Link>
+          <Link href="/nhan-su/bao-cao-ngay" className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-sm hover:bg-muted">
+            <ListTodoIcon className="size-4" aria-hidden />
+            Báo cáo ngày
+          </Link>
           <Link href="/nhan-su/kpi" className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-sm hover:bg-muted">
             <TargetIcon className="size-4" aria-hidden />
             KPI
@@ -55,7 +60,7 @@ async function Overview() {
   if (!org) return null;
   const today = todayInVN();
   const { from, to } = monthRange(today.slice(0, 7));
-  const [all, rows] = await Promise.all([getMembers(org.id), getAttendance(org.id, from, today)]);
+  const [all, rows, reported] = await Promise.all([getMembers(org.id), getAttendance(org.id, from, today), reportedUsers(org.id, today)]);
   const members = all.filter((m) => !m.disabledAt);
   // Bảng công + KPI + lương dự kiến của người mình được quản lý (đã có cấu hình).
   const managed = members.filter((m) => m.settings && canManage(org.role, m.role));
@@ -149,6 +154,9 @@ async function Overview() {
                           <td className={`px-3 py-2.5 whitespace-nowrap ${l.className}`}>
                             {t.row?.checkInAt ? `${vnTimeOf(t.row.checkInAt)}${t.row.checkOutAt ? `–${vnTimeOf(t.row.checkOutAt)}` : ""} · ` : ""}
                             {l.text}
+                            <div className={`text-xs ${reported.has(m.userId) ? "text-success" : "text-muted-foreground"}`}>
+                              {reported.has(m.userId) ? "Đã gửi báo cáo" : "Chưa gửi báo cáo"}
+                            </div>
                           </td>
                           <td className="px-3 py-2.5 whitespace-nowrap tabular-nums">
                             {formatUnits(pm.summary.units)}

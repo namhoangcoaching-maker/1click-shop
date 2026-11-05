@@ -744,6 +744,89 @@ describe("6.6 KPI", () => {
   });
 });
 
+describe("6.5 Kế hoạch và báo cáo ngày", () => {
+  const vnToday = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
+  const yesterday = new Date(Date.parse(`${vnToday}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+  let bossTask: string;
+
+  it("Quản lý giao việc cho Nhân viên; Nhân viên tự thêm việc cho mình (từ hôm nay), không thêm cho người khác", async () => {
+    const m = await managerA.from("tasks").insert({ org_id: orgA, user_id: staffAId, title: "Chụp ảnh mẫu", due_date: yesterday, created_by: managerAId }).select("id").single();
+    expect(m.error).toBeNull();
+    bossTask = m.data!.id;
+    const self = await staffA.from("tasks").insert({ org_id: orgA, user_id: staffAId, title: "Tự thêm", due_date: vnToday, created_by: staffAId });
+    expect(self.error).toBeNull();
+    const past = await staffA.from("tasks").insert({ org_id: orgA, user_id: staffAId, title: "Ngày cũ", due_date: yesterday, created_by: staffAId });
+    expect(past.error).not.toBeNull();
+    const other = await staffA.from("tasks").insert({ org_id: orgA, user_id: managerAId, title: "X", due_date: vnToday, created_by: staffAId });
+    expect(other.error).not.toBeNull();
+    const toOwner = await managerA.from("tasks").insert({ org_id: orgA, user_id: ownerAId, title: "X", due_date: vnToday, created_by: managerAId });
+    expect(toOwner.error).not.toBeNull();
+    const b = await ownerB.from("tasks").select("id").eq("org_id", orgA);
+    expect(b.data).toEqual([]);
+  });
+
+  it("Nhân viên tích xong việc được giao (giờ do database ghi) nhưng không đổi tên / ngày / xóa được", async () => {
+    const tick = await staffA.from("tasks").update({ done_at: "2000-01-01T00:00:00Z" }).eq("id", bossTask).select("done_at").single();
+    expect(tick.error).toBeNull();
+    expect(Date.parse(tick.data!.done_at)).toBeGreaterThan(Date.now() - 600_000);
+    const rename = await staffA.from("tasks").update({ title: "Đổi tên" }).eq("id", bossTask);
+    expect(rename.error).not.toBeNull();
+    const move = await staffA.from("tasks").update({ due_date: vnToday }).eq("id", bossTask);
+    expect(move.error).not.toBeNull();
+    const del = await staffA.from("tasks").delete({ count: "exact" }).eq("id", bossTask);
+    expect(del.count ?? 0).toBe(0);
+  });
+
+  it("việc lặp lại: Quản lý giao cho Nhân viên; Nhân viên chỉ tích được cho hôm nay", async () => {
+    const r = await managerA.from("recurring_tasks").insert({ org_id: orgA, title: "Trả lời tin nhắn", user_id: staffAId, created_by: managerAId }).select("id").single();
+    expect(r.error).toBeNull();
+    const dept = await managerA.from("recurring_tasks").insert({ org_id: orgA, title: "X", department: "Bán hàng" });
+    expect(dept.error).not.toBeNull();
+    const today = await staffA.from("recurring_done").insert({ org_id: orgA, recurring_id: r.data!.id, user_id: staffAId, work_date: vnToday });
+    expect(today.error).toBeNull();
+    const old = await staffA.from("recurring_done").insert({ org_id: orgA, recurring_id: r.data!.id, user_id: staffAId, work_date: yesterday });
+    expect(old.error).not.toBeNull();
+    const wrong = await ownerA.from("recurring_done").insert({ org_id: orgA, recurring_id: r.data!.id, user_id: managerAId, work_date: vnToday });
+    expect(wrong.error).not.toBeNull();
+  });
+
+  it("báo cáo ngày: chỉ viết cho hôm nay; Nhân viên không sửa nhận xét; Quản lý chỉ sửa nhận xét", async () => {
+    const old = await staffA.from("work_reports").insert({ org_id: orgA, user_id: staffAId, work_date: yesterday, result_text: "x" });
+    expect(old.error).not.toBeNull();
+    const ok = await staffA
+      .from("work_reports")
+      .insert({ org_id: orgA, user_id: staffAId, work_date: vnToday, result_text: "Đóng 45 đơn", manager_note: "tự khen" })
+      .select("manager_note, submitted_at")
+      .single();
+    expect(ok.error).toBeNull();
+    expect(ok.data).toMatchObject({ manager_note: null });
+    expect(ok.data!.submitted_at).not.toBeNull();
+    const note = await managerA
+      .from("work_reports")
+      .update({ manager_note: "Tốt", result_text: "bị sửa" })
+      .eq("user_id", staffAId)
+      .eq("work_date", vnToday)
+      .select("manager_note, result_text, manager_note_by")
+      .single();
+    expect(note.data).toEqual({ manager_note: "Tốt", result_text: "Đóng 45 đơn", manager_note_by: managerAId });
+    const selfNote = await staffA.from("work_reports").update({ manager_note: "Xuất sắc" }).eq("user_id", staffAId).eq("work_date", vnToday).select("manager_note").single();
+    expect(selfNote.data!.manager_note).toBe("Tốt");
+    const seeOwner = await managerA.from("work_reports").select("user_id").eq("user_id", ownerAId);
+    expect(seeOwner.data).toEqual([]);
+  });
+
+  it("số KPI theo ngày: chỉ KPI nhập tay gắn cho mình, chỉ hôm nay", async () => {
+    const asg = await admin.from("kpi_assignments").select("id").eq("org_id", orgA).eq("user_id", staffAId).limit(1).single();
+    const ok = await staffA.from("kpi_daily").insert({ org_id: orgA, assignment_id: asg.data!.id, user_id: staffAId, work_date: vnToday, value: 45 });
+    expect(ok.error).toBeNull();
+    const old = await staffA.from("kpi_daily").insert({ org_id: orgA, assignment_id: asg.data!.id, user_id: staffAId, work_date: yesterday, value: 1 });
+    expect(old.error).not.toBeNull();
+    const own = await admin.from("kpi_assignments").select("id").eq("org_id", orgA).eq("user_id", ownerAId).limit(1).single();
+    const notMine = await staffA.from("kpi_daily").insert({ org_id: orgA, assignment_id: own.data!.id, user_id: staffAId, work_date: vnToday, value: 1 });
+    expect(notMine.error).not.toBeNull();
+  });
+});
+
 describe("Người chưa đăng nhập", () => {
   it("không đọc được gì", async () => {
     const anon = createClient(URL, PUBLISHABLE, noSession);
@@ -755,7 +838,7 @@ describe("Người chưa đăng nhập", () => {
     expect(conns.data ?? []).toEqual([]);
     const settings = await anon.from("inventory_settings").select("org_id");
     expect(settings.data ?? []).toEqual([]);
-    for (const table of ["products", "orders", "order_items", "sync_state", "incoming_stock", "cash_transactions", "daily_reports", "attendance", "attendance_unlocks", "kpi_templates", "kpi_assignments", "kpi_results"]) {
+    for (const table of ["products", "orders", "order_items", "sync_state", "incoming_stock", "cash_transactions", "daily_reports", "attendance", "attendance_unlocks", "kpi_templates", "kpi_assignments", "kpi_results", "tasks", "recurring_tasks", "recurring_done", "work_reports", "kpi_daily"]) {
       const r = await anon.from(table).select("org_id");
       expect(r.data ?? []).toEqual([]);
     }

@@ -249,6 +249,20 @@ Database của web này là project Supabase **"Doanh nghiệp 1 người"** (m�
 - Xem ở: **Của tôi** (khối Lương dự kiến, có từng dòng tính), **Nhân sự** (cột Lương dự kiến + **Quỹ lương dự kiến** cả shop), **Bảng chấm công** (cột Lương dự kiến). Quản lý không xem được lương của Chủ / Quản lý khác.
 - **Chỉ để xem:** Lợi nhuận kinh doanh và Dòng tiền vẫn trừ theo **phiếu chi thẻ Lương** trên Pancake (tiền thật đã trả), không trừ trùng. Thưởng / phạt KPI (6.6) đã cộng vào.
 
+### Kế hoạch hôm nay và báo cáo cuối ngày (Giai đoạn 6.5)
+
+- **Nhân viên – trang Của tôi** (khối đầu tiên):
+  - **Kế hoạch hôm nay**: việc Quản lý giao, **việc lặp lại** (biểu tượng ↻) và việc tự thêm. Tích ô để đánh dấu xong (giờ xong do hệ thống ghi). Tự thêm việc ở ô cuối khung; việc tự thêm thì tự xóa được, việc Quản lý giao thì không.
+  - **Việc chưa xong tự chuyển sang ngày sau**, có nhãn vàng "trễ từ dd/mm". Việc lặp lại không dồn.
+  - **Báo cáo cuối ngày**: ô số cho từng **KPI nhập tay** của mình (ví dụ "Đóng gói hôm nay: 45 đơn"), "Kết quả hôm nay", "Vướng mắc / cần hỗ trợ", "Kế hoạch ngày mai" → **Gửi báo cáo**. Sửa được tới hết ngày; qua ngày thì khóa. Nhận xét của Quản lý hiện ngay dưới báo cáo.
+- **Chủ / Quản lý – Nhân sự → Báo cáo ngày** (`/nhan-su/bao-cao-ngay`, mũi tên đổi ngày):
+  - Đầu trang: bao nhiêu người đã gửi báo cáo. **Giao việc** (chọn người, tên việc, ngày; giao trước được).
+  - Mỗi người một khung: việc trong ngày (xong / trễ), số KPI, nội dung báo cáo, ô **nhận xét**.
+  - **Việc lặp lại**: tên việc, người hoặc cả bộ phận (bộ phận: chỉ Chủ), các thứ trong tuần.
+  - Trang Nhân sự, cột **Hôm nay** hiện thêm "Đã gửi / Chưa gửi báo cáo".
+- **KPI nhập tay = tổng số các ngày trong báo cáo** (chủ dự án chốt 05/11/2026). Ở trang KPI, Quản lý vẫn nhập được số cả tháng; **số Quản lý nhập thắng** (xóa ô để quay về tổng báo cáo ngày). Dưới ô có dòng "Tổng báo cáo ngày: …".
+- Quyền: Nhân viên chỉ thấy việc / báo cáo của mình và chỉ ghi được cho hôm nay; Quản lý giao việc, xem báo cáo, nhận xét cho Nhân viên; Chủ cho mọi người. Database chặn (migration 0017).
+
 ### KPI (Giai đoạn 6.6)
 
 - Trang **Nhân sự → KPI** (`/nhan-su/kpi`, chọn tháng). Bốn khung:

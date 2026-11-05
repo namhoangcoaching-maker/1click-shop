@@ -222,13 +222,16 @@ export function ResultForm({
   userId,
   month,
   actual,
+  dailySum,
   note,
   unit,
 }: {
   assignmentId: string;
   userId: string;
   month: string;
+  /** Số Quản lý nhập cho tháng (null = dùng tổng báo cáo ngày). */
   actual: number | null;
+  dailySum?: number | null;
   note: string | null;
   unit: string;
 }) {
@@ -242,7 +245,7 @@ export function ResultForm({
         name="actual"
         inputMode="decimal"
         defaultValue={actual === null ? "" : String(actual).replace(".", ",")}
-        placeholder="0"
+        placeholder={dailySum ? String(dailySum).replace(".", ",") : "0"}
         aria-label={`Kết quả (${unit})`}
         className="h-8 w-20 rounded-md border border-input bg-card px-2 text-right text-xs tabular-nums"
       />

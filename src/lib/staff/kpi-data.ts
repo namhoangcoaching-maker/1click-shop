@@ -15,6 +15,7 @@ import {
   type KpiTemplate,
   type RevenueContext,
 } from "./kpi";
+import { manualKpiActual } from "./work-plan";
 
 export interface PersonKpi {
   assignment: KpiAssignment;
@@ -22,6 +23,10 @@ export interface PersonKpi {
   outcome: KpiOutcome;
   /** Ghi chú kết quả nhập tay. */
   note: string | null;
+  /** Số Quản lý nhập cho cả tháng (thắng tổng báo cáo ngày). */
+  managerValue: number | null;
+  /** Tổng số trong các báo cáo ngày của tháng. */
+  dailySum: number | null;
 }
 
 export interface KpiPerson {
@@ -47,11 +52,19 @@ export interface KpiMonth {
  */
 export async function getKpiMonth(orgId: string, month: string, today: DateString, people: KpiPerson[]): Promise<KpiMonth> {
   const supabase = await createClient();
-  const [tRes, aRes, rRes] = await Promise.all([
+  const { from: mFrom, to: mTo } = monthRange(month);
+  const [tRes, aRes, rRes, dRes] = await Promise.all([
     supabase.from("kpi_templates").select("*").eq("org_id", orgId).order("created_at"),
     supabase.from("kpi_assignments").select("id, template_id, user_id, department, target").eq("org_id", orgId).order("created_at"),
     supabase.from("kpi_results").select("assignment_id, user_id, actual, note").eq("org_id", orgId).eq("month", `${month}-01`),
+    // Số KPI nhập tay theo ngày (báo cáo cuối ngày, 6.5) – cộng dồn thành kết quả tháng.
+    supabase.from("kpi_daily").select("assignment_id, user_id, value").eq("org_id", orgId).gte("work_date", mFrom).lte("work_date", mTo),
   ]);
+  const dailySum = new Map<string, number>();
+  for (const r of dRes.data ?? []) {
+    const k = `${r.assignment_id}|${r.user_id}`;
+    dailySum.set(k, (dailySum.get(k) ?? 0) + Number(r.value));
+  }
   if (tRes.error || aRes.error) throw new Error(`Không đọc được KPI: ${(tRes.error ?? aRes.error)!.message}`);
   const templates = (tRes.data ?? []).map(templateFromDb);
   const byId = new Map(templates.map((t) => [t.id, t]));
@@ -90,9 +103,18 @@ export async function getKpiMonth(orgId: string, month: string, today: DateStrin
   for (const { p, list } of perPerson) {
     const items = list.map((a) => {
       const template = byId.get(a.templateId)!;
-      const m = manual.get(`${a.id}|${p.userId}`);
-      const actual = kpiActual(template, ctx, { sellerId: p.sellerId, manual: m?.actual ?? null });
-      return { assignment: a, template, outcome: kpiOutcome(template, a.target, actual), note: m?.note ?? null };
+      const key = `${a.id}|${p.userId}`;
+      const m = manual.get(key);
+      const daily = dailySum.get(key) ?? null;
+      const actual = kpiActual(template, ctx, { sellerId: p.sellerId, manual: manualKpiActual(m?.actual, daily) });
+      return {
+        assignment: a,
+        template,
+        outcome: kpiOutcome(template, a.target, actual),
+        note: m?.note ?? null,
+        managerValue: m?.actual ?? null,
+        dailySum: daily,
+      };
     });
     byUser.set(p.userId, items);
     totalByUser.set(p.userId, items.reduce((s, k) => s + k.outcome.amount, 0));
