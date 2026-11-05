@@ -453,7 +453,7 @@ describe("6.1 Thành viên: danh sách, khóa tài khoản", () => {
     expect(m.data).toHaveLength(3);
   });
 
-  it("Chủ đặt họ tên, bộ phận cho nhân viên; Quản lý không sửa được", async () => {
+  it("Chủ đặt họ tên, bộ phận cho nhân viên; Quản lý không sửa được Chủ", async () => {
     const ok = await ownerA
       .from("memberships")
       .update({ display_name: "Lan", department: "Đóng gói" })
@@ -461,7 +461,7 @@ describe("6.1 Thành viên: danh sách, khóa tài khoản", () => {
       .eq("user_id", staffAId)
       .select("display_name, department");
     expect(ok.data).toEqual([{ display_name: "Lan", department: "Đóng gói" }]);
-    const bad = await managerA.from("memberships").update({ department: "X" }).eq("user_id", staffAId).select("department");
+    const bad = await managerA.from("memberships").update({ department: "X" }).eq("user_id", ownerAId).select("department");
     expect(bad.data ?? []).toEqual([]);
   });
 
@@ -498,6 +498,79 @@ describe("6.1 Thành viên: danh sách, khóa tài khoản", () => {
     expect(r.error).not.toBeNull();
     const check = await admin.from("memberships").select("disabled_at").eq("user_id", ownerAId).single();
     expect(check.data!.disabled_at).toBeNull();
+  });
+});
+
+describe("6.2 Quản lý thêm/sửa nhân viên", () => {
+  it("Quản lý thêm được người vai trò Nhân viên, KHÔNG thêm được Quản lý/Chủ", async () => {
+    const u1 = await makeUser("staff-new");
+    const ok = await managerA.from("memberships").insert({ org_id: orgA, user_id: u1.id, role: "staff", display_name: "Mới" });
+    expect(ok.error).toBeNull();
+    const u2 = await makeUser("mgr-new");
+    const bad = await managerA.from("memberships").insert({ org_id: orgA, user_id: u2.id, role: "manager" });
+    expect(bad.error).not.toBeNull();
+    await admin.from("memberships").delete().eq("user_id", u1.id);
+  });
+
+  it("Quản lý sửa, khóa được Nhân viên; không nâng Nhân viên lên Quản lý; không sửa được Chủ", async () => {
+    const ok = await managerA.from("memberships").update({ department: "Kho" }).eq("user_id", staffAId).select("department");
+    expect(ok.data).toEqual([{ department: "Kho" }]);
+    const up = await managerA.from("memberships").update({ role: "manager" }).eq("user_id", staffAId).select("role");
+    expect(up.error ?? up.data?.length === 0).toBeTruthy();
+    const owner = await managerA.from("memberships").update({ department: "X" }).eq("user_id", ownerAId).select("user_id");
+    expect(owner.data ?? []).toEqual([]);
+    const check = await admin.from("memberships").select("role").eq("user_id", staffAId).single();
+    expect(check.data!.role).toBe("staff");
+  });
+});
+
+describe("6.2 Cấu hình nhân sự và địa điểm chấm công", () => {
+  let locA: string;
+  beforeAll(async () => {
+    const l = await ownerA.from("work_locations").insert({ org_id: orgA, name: "Shop", lat: 21.03, lng: 105.85 }).select("id").single();
+    if (l.error) throw l.error;
+    locA = l.data.id;
+  });
+
+  it("địa điểm: Quản lý thêm được, Nhân viên xem được nhưng không thêm được, shop B không thấy", async () => {
+    const m = await managerA.from("work_locations").insert({ org_id: orgA, name: "Kho", lat: 21, lng: 105.8, radius_m: 200 });
+    expect(m.error).toBeNull();
+    const s = await staffA.from("work_locations").select("name").eq("org_id", orgA);
+    expect(s.data!.map((r) => r.name).sort()).toEqual(["Kho", "Shop"]);
+    const bad = await staffA.from("work_locations").insert({ org_id: orgA, name: "Nhà", lat: 1, lng: 1 });
+    expect(bad.error).not.toBeNull();
+    const b = await ownerB.from("work_locations").select("id").eq("org_id", orgA);
+    expect(b.data).toEqual([]);
+  });
+
+  it("Chủ cấu hình được mọi người; Quản lý cấu hình được Nhân viên, KHÔNG cấu hình/xem lương của Chủ", async () => {
+    const o = await ownerA.from("staff_settings").insert({ org_id: orgA, user_id: ownerAId, base_salary: 30_000_000 });
+    expect(o.error).toBeNull();
+    const m = await managerA
+      .from("staff_settings")
+      .insert({ org_id: orgA, user_id: staffAId, attendance_mode: "gps", location_id: locA, base_salary: 7_000_000 });
+    expect(m.error).toBeNull();
+    const seeOwner = await managerA.from("staff_settings").select("base_salary").eq("user_id", ownerAId);
+    expect(seeOwner.data).toEqual([]);
+    const editOwner = await managerA.from("staff_settings").update({ base_salary: 1 }).eq("user_id", ownerAId).select("user_id");
+    expect(editOwner.data ?? []).toEqual([]);
+  });
+
+  it("Nhân viên chỉ xem cấu hình của mình, không sửa được (kể cả lương mình)", async () => {
+    const own = await staffA.from("staff_settings").select("base_salary");
+    expect(own.data).toEqual([{ base_salary: 7_000_000 }]);
+    const up = await staffA.from("staff_settings").update({ base_salary: 99_000_000 }).eq("user_id", staffAId).select("user_id");
+    expect(up.data ?? []).toEqual([]);
+  });
+
+  it("database chặn giờ ca sai, ngày làm sai, địa điểm của shop khác", async () => {
+    const t = await ownerA.from("staff_settings").update({ shift_start: "18:00", shift_end: "08:00" }).eq("user_id", staffAId);
+    expect(t.error).not.toBeNull();
+    const d = await ownerA.from("staff_settings").update({ work_days: [0, 8] }).eq("user_id", staffAId);
+    expect(d.error).not.toBeNull();
+    const lb = await admin.from("work_locations").insert({ org_id: orgB, name: "B", lat: 10, lng: 106 }).select("id").single();
+    const x = await ownerA.from("staff_settings").update({ location_id: lb.data!.id }).eq("user_id", staffAId);
+    expect(x.error).not.toBeNull();
   });
 });
 

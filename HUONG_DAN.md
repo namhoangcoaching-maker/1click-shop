@@ -214,14 +214,14 @@ Database của web này là project Supabase **"Doanh nghiệp 1 người"** (m�
 
 **⚠️ `ENCRYPTION_KEY` trong `.env.local` là chìa khóa mở mọi khóa Pancake đã lưu.** Mất hoặc đổi nó thì mọi shop phải dán lại khóa Pancake. Hãy chép giá trị này lưu vào nơi an toàn (trình quản lý mật khẩu); khi đưa web lên Vercel (Bước 0.7) phải điền đúng giá trị này.
 
-### Nhân viên và phân quyền (Giai đoạn 6.1)
+### Nhân sự: phân quyền và cấu hình (Giai đoạn 6.1 – 6.2)
 
-- **Thêm nhân viên:** Chủ shop vào **Nhân sự** → "Thêm nhân viên": họ tên, email, mật khẩu tạm (≥ 8 ký tự), bộ phận, vai trò → gửi cho nhân viên địa chỉ web + email + mật khẩu tạm; họ đăng nhập rồi vào **Của tôi** để đổi mật khẩu. Không cần vào Supabase nữa (đăng ký công khai vẫn tắt).
-- **Vai trò:** **Chủ shop** = mọi trang, sửa mọi cấu hình, quản lý nhân viên. **Quản lý** = xem mọi trang (số tiền, tồn kho, báo cáo), nhập hàng sắp về; không sửa kết nối/cấu hình, không quản lý nhân viên. **Nhân viên** = CHỈ trang **Của tôi** (sau này: chấm công, công việc, lương của mình); mở thẳng đường dẫn trang khác sẽ bị chuyển về Của tôi.
-- Database cũng chặn (migration 0013): Nhân viên không đọc được đơn hàng, sản phẩm, thu chi, báo cáo, kết nối, cấu hình tồn kho, hàng sắp về, thẻ chi phí; chỉ thấy dòng thành viên của chính mình.
-- **Nghỉ việc:** bấm **"Khóa (nghỉ việc)"** → người đó mất quyền vào shop ngay (dữ liệu cũ vẫn giữ); "Mở khóa" để cho vào lại. Không khóa được Chủ cuối cùng, không tự khóa/đổi vai trò của mình.
-- **Quên mật khẩu:** Chủ shop bấm "Đặt lại mật khẩu" ở dòng nhân viên (không làm được với Chủ shop khác, hoặc tài khoản còn thuộc shop khác – để chống chiếm tài khoản).
-- **Của tôi** (mọi vai trò): thông tin tài khoản, **đổi mật khẩu** (phải nhập đúng mật khẩu hiện tại).
+- **Menu theo vai trò:** **Chủ shop / Quản lý** thấy đủ menu + **Nhân sự** (tổng quát) + **Cấu hình nhân sự** + Kết nối + **Tài khoản**. **Nhân viên** chỉ thấy **Của tôi** (trang chính: chấm công, ngày công, KPI, lương dự kiến, kế hoạch – các bước 6.3–6.6) và **Tài khoản** (thông tin, đổi mật khẩu); mở thẳng đường dẫn trang khác sẽ bị chuyển về Của tôi.
+- **Cấu hình nhân sự** (`/nhan-su/cau-hinh`): thêm nhân sự (họ tên, email, mật khẩu tạm, bộ phận, vai trò); danh sách – bấm vào một người để cấu hình; **Địa điểm chấm công GPS** (bấm "Lấy vị trí hiện tại" khi đứng tại shop, hoặc dán tọa độ Google Maps; bán kính mặc định 100 m).
+- **Cấu hình từng người** (`/nhan-su/cau-hinh/<mã>`): Thông tin (họ tên, bộ phận, vai trò, Khóa (nghỉ việc), Đặt lại mật khẩu); **Chấm công**: *Online tại nhà* (không kiểm tra vị trí) hoặc *GPS tại shop* (chọn địa điểm); **Ca làm** cố định trong tuần (ngày làm, giờ vào/ra, phút cho phép trễ); **Lương cứng**: lương tháng theo ngày công (lương ÷ ngày công chuẩn × ngày công), theo ngày, hoặc theo giờ; phụ cấp/tháng; phạt mỗi lần đi muộn. Nút "Sao chép cấu hình từ…" để người cùng bộ phận khỏi điền lại. KPI: bước 6.6.
+- **Ai làm được gì:** **Chủ shop** thêm/cấu hình/khóa mọi người. **Quản lý** thêm, cấu hình, khóa, đặt lại mật khẩu cho người vai trò **Nhân viên**; không đụng tới Chủ/Quản lý khác, không xem lương của họ. **Nhân viên** chỉ xem cấu hình (lương cứng, ca) của chính mình, không sửa được. Database chặn đúng như vậy (migration 0013, 0014).
+- Không khóa được Chủ cuối cùng, không tự khóa/đổi vai trò của mình. Đặt lại mật khẩu không làm được với tài khoản còn thuộc shop khác (chống chiếm tài khoản).
+- Đã chốt cho 6.3: bảng chấm công tháng N chỉ được sửa từ mùng 1 tới hết mùng 5 tháng N+1 (Quản lý, Chủ); Chủ có nút mở khóa sổ khi cần sửa muộn.
 
 ## 4. Nhờ Claude Code sửa hoặc thêm tính năng
 

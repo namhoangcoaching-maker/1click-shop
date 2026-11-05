@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext } from "react";
 import { cn } from "@/lib/utils";
-import { NAV_BY_HREF, isActive, type NavItem } from "./nav-items";
+import { NAV_BY_HREF, activeHref, type NavItem } from "./nav-items";
 
 /** AppShell cung cấp hàm đóng menu điện thoại; bấm một mục thì menu tự đóng. */
 export const MenuCloseContext = createContext<(() => void) | undefined>(undefined);
@@ -28,7 +28,7 @@ export function NavList({ hrefs, className }: { hrefs: string[]; className?: str
 
 function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
   const onNavigate = useContext(MenuCloseContext);
-  const active = isActive(item.href, pathname);
+  const active = activeHref(pathname) === item.href;
   const Icon = item.icon;
   return (
     <li>
