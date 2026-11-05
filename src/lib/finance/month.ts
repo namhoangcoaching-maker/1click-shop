@@ -185,9 +185,26 @@ export const isAdsCategory = (category: string) => fold(category).startsWith(fol
 export const adsChannel = (category: string): string | null =>
   category.normalize("NFC").trim().slice(ADS_PREFIX.length).replace(/^[\s:–-]+/, "").trim() || null;
 
+/**
+ * Kênh quảng cáo → các nguồn đơn Pancake dùng để so doanh thu (chủ dự án chốt 05/11/2026:
+ * quảng cáo Facebook (Meta) ra đơn cả ở nguồn Facebook lẫn Instagram → gộp làm một).
+ * Khóa so không phân biệt hoa/thường; kênh không có ở đây thì so với nguồn cùng tên.
+ */
+export const ADS_CHANNEL_SOURCES: Record<string, string[]> = {
+  facebook: ["Facebook", "Instagram"],
+  fb: ["Facebook", "Instagram"],
+  meta: ["Facebook", "Instagram"],
+  instagram: ["Facebook", "Instagram"],
+};
+
+/** Các nguồn đơn để so với quảng cáo của một kênh. */
+export const sourcesForAdsChannel = (channel: string): string[] => ADS_CHANNEL_SOURCES[fold(channel)] ?? [channel];
+
 export interface AdsAlert {
   /** null = toàn shop. */
   channel: string | null;
+  /** Nguồn đơn đã cộng doanh thu để so (ví dụ ["Facebook", "Instagram"]); [] = toàn shop. */
+  sources: string[];
   amount: number;
   revenue: number;
   /** Tỷ lệ quảng cáo / doanh thu (0–1). */
@@ -195,7 +212,7 @@ export interface AdsAlert {
   limit: number;
 }
 
-/** Cảnh báo quảng cáo cao: toàn shop so với tổng Doanh thu, từng kênh so với Doanh thu kênh đó (tên nguồn Pancake). */
+/** Cảnh báo quảng cáo cao: toàn shop so với tổng Doanh thu, từng kênh so với Doanh thu các nguồn của kênh đó. */
 export function adsAlerts(
   adsGroups: ExpenseGroup[],
   revenue: number | null,
@@ -204,7 +221,7 @@ export function adsAlerts(
   const alerts: AdsAlert[] = [];
   const total = adsGroups.reduce((s, g) => s + g.total, 0);
   if (revenue && revenue > 0 && total / revenue > ADS_LIMITS.total) {
-    alerts.push({ channel: null, amount: total, revenue, ratio: total / revenue, limit: ADS_LIMITS.total });
+    alerts.push({ channel: null, sources: [], amount: total, revenue, ratio: total / revenue, limit: ADS_LIMITS.total });
   }
   const bySource = new Map(Object.entries(revenueBySource).map(([k, v]) => [fold(k), v]));
   const byChannel = new Map<string, number>();
@@ -213,9 +230,10 @@ export function adsAlerts(
     if (ch) byChannel.set(ch, (byChannel.get(ch) ?? 0) + g.total);
   }
   for (const [channel, amount] of byChannel) {
-    const rev = bySource.get(fold(channel)) ?? 0;
+    const sources = sourcesForAdsChannel(channel);
+    const rev = sources.reduce((s, src) => s + (bySource.get(fold(src)) ?? 0), 0);
     if (rev > 0 && amount / rev > ADS_LIMITS.channel) {
-      alerts.push({ channel, amount, revenue: rev, ratio: amount / rev, limit: ADS_LIMITS.channel });
+      alerts.push({ channel, sources, amount, revenue: rev, ratio: amount / rev, limit: ADS_LIMITS.channel });
     }
   }
   return alerts;

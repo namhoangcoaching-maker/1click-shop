@@ -5,6 +5,7 @@ import {
   adsAlerts,
   cashOutByDay,
   isAdsCategory,
+  sourcesForAdsChannel,
   expenseLines,
   groupExpenses,
   monthRange,
@@ -238,5 +239,25 @@ describe("quảng cáo nhập tay qua thẻ “Quảng cáo …” (cách b)", (
 
   it("đúng ngưỡng thì chưa cảnh báo", () => {
     expect(adsAlerts([{ category: "Quảng cáo Shopee", total: 25, lines: [] }], 1_000, { Shopee: 100 })).toEqual([]);
+  });
+});
+
+describe("Quảng cáo Facebook so với doanh thu Facebook + Instagram (chủ dự án chốt)", () => {
+  const fb = [{ category: "Quảng cáo Facebook", total: 5_000_000, lines: [] }];
+
+  it("gộp hai nguồn Facebook và Instagram; kênh khác giữ nguyên tên", () => {
+    expect(sourcesForAdsChannel("Facebook")).toEqual(["Facebook", "Instagram"]);
+    expect(sourcesForAdsChannel("fb")).toEqual(["Facebook", "Instagram"]);
+    expect(sourcesForAdsChannel("Shopee")).toEqual(["Shopee"]);
+  });
+
+  it("FB 5tr, doanh thu Facebook 4tr + Instagram 16tr = 20tr → 25%: đúng ngưỡng, chưa cảnh báo", () => {
+    expect(adsAlerts(fb, 1_000_000_000, { Facebook: 4_000_000, Instagram: 16_000_000 })).toEqual([]);
+  });
+
+  it("chỉ tính nguồn Facebook thì sẽ báo oan; gộp rồi mới báo khi thật sự vượt", () => {
+    const a = adsAlerts(fb, 1_000_000_000, { Facebook: 4_000_000, Instagram: 10_000_000 });
+    expect(a).toHaveLength(1);
+    expect(a[0]).toMatchObject({ channel: "Facebook", sources: ["Facebook", "Instagram"], revenue: 14_000_000 });
   });
 });

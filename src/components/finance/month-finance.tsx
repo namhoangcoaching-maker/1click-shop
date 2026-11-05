@@ -60,7 +60,8 @@ function AdsAlerts({ alerts }: { alerts: AdsAlert[] }) {
           <TriangleAlertIcon className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
           <span>
             Quảng cáo {a.channel ?? "toàn shop"} = <b>{formatPercent(a.ratio * 100)}</b> doanh thu
-            {a.channel ? ` ${a.channel}` : ""} ({formatVND(a.amount)} / {formatVND(a.revenue)}), vượt ngưỡng{" "}
+            {a.sources.length > 0 ? ` ${a.sources.join(" + ")}` : ""} ({formatVND(a.amount)} / {formatVND(a.revenue)}), vượt
+            ngưỡng{" "}
             {formatPercent(a.limit * 100, 0)}.
           </span>
         </li>
