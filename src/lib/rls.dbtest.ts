@@ -7,6 +7,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { saveExpenseTagName } from "./finance/tags-db";
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const PUBLISHABLE = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
@@ -397,6 +398,28 @@ describe("Hàng sắp về (Chủ/Quản lý nhập)", () => {
     expect(ok.data).toEqual([{ moq_per_size: 25 }]);
     const bad = await ownerA.from("inventory_settings").update({ tier1_qty: 200, tier2_qty: 150 }).eq("org_id", orgA);
     expect(bad.error).not.toBeNull();
+  });
+});
+
+describe("Tên thẻ chi phí (chỉ Chủ shop đặt)", () => {
+  it("Chủ shop A đặt tên thẻ mới rồi đổi tên được (đúng hàm nút Lưu dùng)", async () => {
+    expect(await saveExpenseTagName(ownerA, orgA, "tag-1", "Quảng cáo Shopee")).toEqual({ error: null });
+    expect(await saveExpenseTagName(ownerA, orgA, "tag-1", "Quảng cáo TikTok")).toEqual({ error: null });
+    const read = await ownerA.from("expense_tags").select("tag_id, name").eq("org_id", orgA);
+    expect(read.data).toEqual([{ tag_id: "tag-1", name: "Quảng cáo TikTok" }]);
+  });
+
+  it("Nhân viên xem được nhưng không đặt, không đổi tên được", async () => {
+    const read = await staffA.from("expense_tags").select("name").eq("tag_id", "tag-1");
+    expect(read.data).toEqual([{ name: "Quảng cáo TikTok" }]);
+    expect((await saveExpenseTagName(staffA, orgA, "tag-1", "Đổi bậy")).error).not.toBeNull();
+    expect((await saveExpenseTagName(staffA, orgA, "tag-2", "Thẻ lạ")).error).not.toBeNull();
+  });
+
+  it("shop B không thấy, không đặt tên thẻ cho shop A", async () => {
+    const read = await ownerB.from("expense_tags").select("tag_id").eq("org_id", orgA);
+    expect(read.data).toEqual([]);
+    expect((await saveExpenseTagName(ownerB, orgA, "tag-3", "Chen")).error).not.toBeNull();
   });
 });
 
