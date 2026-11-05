@@ -247,7 +247,19 @@ Database của web này là project Supabase **"Doanh nghiệp 1 người"** (m�
   - Trừ **phạt đi muộn** = số lần muộn × tiền phạt mỗi lần. Tổng không âm.
 - **"Tới hôm nay"** = theo công đã chấm. **"Ước cả tháng"** = cộng thêm các ngày làm còn lại (kể cả hôm nay) như đi làm đủ ca, phạt muộn giữ như hiện tại.
 - Xem ở: **Của tôi** (khối Lương dự kiến, có từng dòng tính), **Nhân sự** (cột Lương dự kiến + **Quỹ lương dự kiến** cả shop), **Bảng chấm công** (cột Lương dự kiến). Quản lý không xem được lương của Chủ / Quản lý khác.
-- **Chỉ để xem:** Lợi nhuận kinh doanh và Dòng tiền vẫn trừ theo **phiếu chi thẻ Lương** trên Pancake (tiền thật đã trả), không trừ trùng. Chưa gồm KPI / thưởng (bước 6.6).
+- **Chỉ để xem:** Lợi nhuận kinh doanh và Dòng tiền vẫn trừ theo **phiếu chi thẻ Lương** trên Pancake (tiền thật đã trả), không trừ trùng. Thưởng / phạt KPI (6.6) đã cộng vào.
+
+### KPI (Giai đoạn 6.6)
+
+- Trang **Nhân sự → KPI** (`/nhan-su/kpi`, chọn tháng). Bốn khung:
+  1. **Kết quả KPI tháng**: từng người, từng KPI: chỉ tiêu, thực tế, % hoàn thành, thưởng / phạt. KPI nhập tay thì nhập ngay trong bảng (kèm ghi chú).
+  2. **KPI đang gắn**: chọn mẫu → gắn cho một người hoặc **cả bộ phận** (bộ phận đặt ở Cấu hình nhân sự) → chỉ tiêu tháng. Gắn đích danh thắng khi trùng mẫu với bộ phận.
+  3. **Mẫu KPI** (chỉ Chủ shop tạo / sửa / ngừng dùng).
+  4. **Nối nhân viên Pancake**: chọn tài khoản nhân viên trên Pancake cho từng người (dùng cho KPI doanh thu đơn gán).
+- **5 kiểu mẫu:** % doanh thu · theo số lượng (đ/đơn vị) · bậc thang theo % chỉ tiêu (ví dụ `80:500.000, 100:1.000.000`) · theo tỷ lệ hoàn thành (mức thưởng × %, tối đa 100%) · trừ phạt (đ/lần). Có thể đặt **trần thưởng / tháng**.
+- **Kết quả lấy từ (chủ dự án chốt 05/11/2026):** nhập tay · **Doanh thu Pancake** cả shop · Doanh thu Pancake theo kênh (chọn nguồn đơn, ví dụ Facebook + Instagram) · Doanh thu Pancake của **đơn gán cho đúng nhân viên** trên Pancake. Doanh thu = Doanh thu Pancake (đã trừ chiết khấu, hàng hoàn, phí sàn), tính từ đầu tháng tới hôm nay. Cộng doanh thu theo nhân viên Pancake khớp tổng shop (đã đối chiếu). Lưu ý: đơn sàn thường không gán nhân viên (~12% đơn có gán).
+- **Quyền:** Chủ tạo mẫu; Quản lý gắn KPI và nhập kết quả cho **Nhân viên**; gắn cho cả bộ phận chỉ Chủ. Nhân viên chỉ thấy KPI của mình ở **Của tôi** (khối KPI tháng, có thanh % hoàn thành) – nếu KPI tính theo doanh thu shop/kênh thì nhân viên đó sẽ thấy con số doanh thu này. Kết quả nhập tay khóa sổ cùng chấm công (hết mùng 5 tháng sau).
+- **Thưởng / phạt KPI cộng vào Lương dự kiến** (Của tôi, cột Lương dự kiến ở Nhân sự và Bảng chấm công). "Ước cả tháng" giữ nguyên KPI hiện tại (không tự đoán doanh thu những ngày còn lại).
 
 ## 4. Nhờ Claude Code sửa hoặc thêm tính năng
 

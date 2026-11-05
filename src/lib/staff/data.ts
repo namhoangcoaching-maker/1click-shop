@@ -28,7 +28,7 @@ export interface WorkLocation {
 
 const ROLE_ORDER: Record<OrgRole, number> = { owner: 0, manager: 1, staff: 2 };
 const SETTINGS_COLUMNS =
-  "user_id, attendance_mode, location_id, work_days, shift_start, shift_end, late_grace_min, pay_type, base_salary, standard_days, allowance, late_penalty";
+  "user_id, attendance_mode, location_id, work_days, shift_start, shift_end, late_grace_min, pay_type, base_salary, standard_days, allowance, late_penalty, pancake_seller_id";
 
 /**
  * Thành viên của shop kèm cấu hình. Danh sách và cấu hình đọc qua RLS (Chủ/Quản lý thấy cả shop;

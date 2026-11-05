@@ -39,8 +39,10 @@ export function PayBreakdown({ s, e }: { s: StaffSettings; e: PayEstimate }) {
       <Row label={`Lương cứng (${basis})`} value={p.base} />
       {s.allowance > 0 && <Row label={`Phụ cấp (${formatVND(s.allowance)} theo tỷ lệ công)`} value={p.allowance} sign="+" />}
       {p.latePenalty > 0 && <Row label={`Phạt đi muộn (${p.lateCount} lần × ${formatVND(s.latePenalty)})`} value={p.latePenalty} sign="−" />}
+      {p.kpi !== 0 && <Row label={p.kpi > 0 ? "Thưởng KPI (tới hôm nay)" : "Phạt KPI"} value={Math.abs(p.kpi)} sign={p.kpi > 0 ? "+" : "−"} />}
       <p className="mt-2 text-xs text-muted-foreground">
-        {PAY_LABELS[s.payType]}. Số dự kiến theo bảng chấm công, chưa gồm KPI / thưởng; lương chốt khi Chủ shop trả.
+        {PAY_LABELS[s.payType]}. Số dự kiến theo bảng chấm công và KPI tới hôm nay (ước cả tháng giữ nguyên KPI hiện tại);
+        lương chốt khi Chủ shop trả.
       </p>
     </div>
   );

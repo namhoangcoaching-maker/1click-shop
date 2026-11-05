@@ -660,6 +660,90 @@ describe("6.3 Chấm công", () => {
   });
 });
 
+describe("6.6 KPI", () => {
+  const month = `${new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 7)}-01`;
+  let tpl: string, tplB: string, asgStaff: string, asgOwner: string;
+
+  beforeAll(async () => {
+    await admin.from("memberships").update({ department: "Bán hàng" }).eq("org_id", orgA).eq("user_id", staffAId);
+    const b = await admin.from("kpi_templates").insert({ org_id: orgB, name: "B", kind: "per_unit", source: "manual", rate: 1 }).select("id").single();
+    tplB = b.data!.id;
+  });
+
+  it("chỉ Chủ tạo / sửa mẫu KPI; Quản lý, Nhân viên xem được nhưng không tạo được", async () => {
+    const o = await ownerA.from("kpi_templates").insert({ org_id: orgA, name: "Video", kind: "per_unit", source: "manual", rate: 20000, unit_label: "video" }).select("id").single();
+    expect(o.error).toBeNull();
+    tpl = o.data!.id;
+    const m = await managerA.from("kpi_templates").insert({ org_id: orgA, name: "X", kind: "per_unit", source: "manual", rate: 1 });
+    expect(m.error).not.toBeNull();
+    const mUp = await managerA.from("kpi_templates").update({ rate: 999999 }).eq("id", tpl).select("id");
+    expect(mUp.data ?? []).toEqual([]);
+    const s = await staffA.from("kpi_templates").select("name").eq("org_id", orgA);
+    expect(s.data).toEqual([{ name: "Video" }]);
+    const b = await ownerB.from("kpi_templates").select("id").eq("org_id", orgA);
+    expect(b.data).toEqual([]);
+  });
+
+  it("database chặn mẫu vô lý (theo số lượng mà lấy doanh thu; theo kênh mà không chọn kênh)", async () => {
+    const x = await ownerA.from("kpi_templates").insert({ org_id: orgA, name: "X", kind: "per_unit", source: "shop_revenue", rate: 1 });
+    expect(x.error).not.toBeNull();
+    const y = await ownerA.from("kpi_templates").insert({ org_id: orgA, name: "Y", kind: "percent", source: "channel_revenue", rate: 1 });
+    expect(y.error).not.toBeNull();
+  });
+
+  it("Quản lý gắn KPI cho Nhân viên; KHÔNG gắn cho Chủ, KHÔNG gắn cho bộ phận; Chủ gắn cho bộ phận được", async () => {
+    const s = await managerA.from("kpi_assignments").insert({ org_id: orgA, template_id: tpl, user_id: staffAId, target: 30 }).select("id").single();
+    expect(s.error).toBeNull();
+    asgStaff = s.data!.id;
+    const o = await managerA.from("kpi_assignments").insert({ org_id: orgA, template_id: tpl, user_id: ownerAId });
+    expect(o.error).not.toBeNull();
+    const d = await managerA.from("kpi_assignments").insert({ org_id: orgA, template_id: tpl, department: "Bán hàng" });
+    expect(d.error).not.toBeNull();
+    const od = await ownerA.from("kpi_assignments").insert({ org_id: orgA, template_id: tpl, department: "Kho" });
+    expect(od.error).toBeNull();
+    const oo = await ownerA.from("kpi_assignments").insert({ org_id: orgA, template_id: tpl, user_id: ownerAId }).select("id").single();
+    asgOwner = oo.data!.id;
+    // Không gắn được mẫu của shop B vào shop A.
+    const cross = await ownerA.from("kpi_assignments").insert({ org_id: orgA, template_id: tplB, user_id: staffAId });
+    expect(cross.error).not.toBeNull();
+  });
+
+  it("Nhân viên chỉ thấy KPI gắn cho mình / bộ phận mình", async () => {
+    const own = await staffA.from("kpi_assignments").select("id").eq("org_id", orgA);
+    expect(own.data!.map((r) => r.id)).toEqual([asgStaff]);
+    await ownerA.from("kpi_assignments").insert({ org_id: orgA, template_id: tpl, department: "Bán hàng" });
+    const withDept = await staffA.from("kpi_assignments").select("department").eq("org_id", orgA);
+    expect(withDept.data!.length).toBe(2);
+  });
+
+  it("kết quả nhập tay: Quản lý nhập cho Nhân viên; Nhân viên không tự nhập; Quản lý không nhập cho Chủ", async () => {
+    const m = await managerA.from("kpi_results").insert({ org_id: orgA, assignment_id: asgStaff, user_id: staffAId, month, actual: 12 }).select("updated_by").single();
+    expect(m.error).toBeNull();
+    expect(m.data!.updated_by).toBe(managerAId);
+    const self = await staffA.from("kpi_results").update({ actual: 999 }).eq("assignment_id", asgStaff).select("actual");
+    expect(self.data ?? []).toEqual([]);
+    const seen = await staffA.from("kpi_results").select("actual");
+    expect(seen.data).toEqual([{ actual: 12 }]);
+    const o = await managerA.from("kpi_results").insert({ org_id: orgA, assignment_id: asgOwner, user_id: ownerAId, month, actual: 50 });
+    expect(o.error).not.toBeNull();
+  });
+
+  it("kết quả phải đúng người được gắn; tháng đã khóa sổ không nhập được", async () => {
+    const wrong = await ownerA.from("kpi_results").insert({ org_id: orgA, assignment_id: asgOwner, user_id: staffAId, month, actual: 1 });
+    expect(wrong.error).not.toBeNull();
+    const old = new Date(Date.now() - 80 * 86_400_000).toISOString().slice(0, 7);
+    const locked = await managerA.from("kpi_results").insert({ org_id: orgA, assignment_id: asgStaff, user_id: staffAId, month: `${old}-01`, actual: 1 });
+    expect(locked.error).not.toBeNull();
+  });
+
+  it("Nhân viên không tự nối mình với nhân viên Pancake khác; Quản lý nối được cho Nhân viên", async () => {
+    const self = await staffA.from("staff_settings").update({ pancake_seller_id: "x" }).eq("user_id", staffAId).select("user_id");
+    expect(self.data ?? []).toEqual([]);
+    const m = await managerA.from("staff_settings").update({ pancake_seller_id: "seller-1" }).eq("user_id", staffAId).select("pancake_seller_id");
+    expect(m.data).toEqual([{ pancake_seller_id: "seller-1" }]);
+  });
+});
+
 describe("Người chưa đăng nhập", () => {
   it("không đọc được gì", async () => {
     const anon = createClient(URL, PUBLISHABLE, noSession);
@@ -671,7 +755,7 @@ describe("Người chưa đăng nhập", () => {
     expect(conns.data ?? []).toEqual([]);
     const settings = await anon.from("inventory_settings").select("org_id");
     expect(settings.data ?? []).toEqual([]);
-    for (const table of ["products", "orders", "order_items", "sync_state", "incoming_stock", "cash_transactions", "daily_reports", "attendance", "attendance_unlocks"]) {
+    for (const table of ["products", "orders", "order_items", "sync_state", "incoming_stock", "cash_transactions", "daily_reports", "attendance", "attendance_unlocks", "kpi_templates", "kpi_assignments", "kpi_results"]) {
       const r = await anon.from(table).select("org_id");
       expect(r.data ?? []).toEqual([]);
     }

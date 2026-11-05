@@ -1,7 +1,7 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 import { getPancakeCredentials } from "@/lib/connections/credentials";
-import { fetchOrderSources, fetchSaleStats, type SaleRow, type SplitBy } from "./analytics";
+import { fetchOrderSources, fetchPancakeUsers, fetchSaleStats, type SaleRow, type SplitBy } from "./analytics";
 import { PancakeError } from "./client";
 
 /**
@@ -40,6 +40,16 @@ export async function cachedOrderSourceEntries(orgId: string): Promise<[string, 
   const creds = await getPancakeCredentials(orgId);
   if (!creds) throw new PancakeError("Shop chưa kết nối Pancake POS.", 0);
   return [...(await fetchOrderSources(creds)).entries()];
+}
+
+/** Nhân viên trên Pancake [mã, tên] (để nối với nhân sự 1Click – KPI doanh thu đơn gán). */
+export async function cachedPancakeUsers(orgId: string): Promise<[string, string][]> {
+  "use cache: remote";
+  cacheLife("hours");
+  cacheTag(pancakeStatsTag(orgId));
+  const creds = await getPancakeCredentials(orgId);
+  if (!creds) return [];
+  return fetchPancakeUsers(creds);
 }
 
 export async function cachedOrderSources(orgId: string): Promise<Map<string, string>> {

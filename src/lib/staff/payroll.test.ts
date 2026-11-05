@@ -30,6 +30,11 @@ describe("lương cho số công cho trước", () => {
   it("phạt nhiều hơn lương thì tổng = 0, không âm", () => {
     expect(payFor(monthly, 0, 0, 3).total).toBe(0);
   });
+
+  it("cộng thưởng KPI, trừ phạt KPI", () => {
+    expect(payFor(monthly, 20, 20 * 540, 2, 600_000).total).toBe(6_900_000);
+    expect(payFor(monthly, 20, 20 * 540, 2, -90_000).total).toBe(6_210_000);
+  });
 });
 
 describe("lương dự kiến từ bảng công tháng", () => {

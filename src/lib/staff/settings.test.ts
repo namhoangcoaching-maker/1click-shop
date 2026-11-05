@@ -76,6 +76,8 @@ describe("fromRow / toRow", () => {
   it("chưa cấu hình → mặc định; đổi qua lại không mất gì", () => {
     expect(fromRow(null)).toEqual(DEFAULT_SETTINGS);
     const s = { ...DEFAULT_SETTINGS, baseSalary: 123, locationId: "x" };
-    expect(fromRow({ ...toRow(s), standard_days: "26.0", base_salary: "123" })).toEqual(s);
+    expect(fromRow({ ...toRow(s), standard_days: "26.0", base_salary: "123" })).toEqual({ ...s, pancakeSellerId: null });
+    // Form cấu hình không ghi đè mã nhân viên Pancake (lưu riêng ở trang KPI).
+    expect(toRow({ ...s, pancakeSellerId: "p1" })).not.toHaveProperty("pancake_seller_id");
   });
 });

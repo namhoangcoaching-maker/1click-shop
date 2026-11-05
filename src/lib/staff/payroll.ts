@@ -14,7 +14,9 @@ export interface Pay {
   base: number;
   allowance: number;
   latePenalty: number;
-  /** = base + allowance − latePenalty (không âm). */
+  /** Thưởng (+) / phạt (−) KPI của tháng (6.6). */
+  kpi: number;
+  /** = base + allowance − latePenalty + kpi (không âm). */
   total: number;
   units: number;
   hours: number;
@@ -24,14 +26,14 @@ export interface Pay {
 type PaySettings = Pick<StaffSettings, "payType" | "baseSalary" | "standardDays" | "allowance" | "latePenalty">;
 
 /** Lương cho một số công / giờ / lần muộn cho trước. */
-export function payFor(s: PaySettings, units: number, workedMin: number, lateCount: number): Pay {
+export function payFor(s: PaySettings, units: number, workedMin: number, lateCount: number, kpi = 0): Pay {
   const hours = workedMin / 60;
   const base = Math.round(
     s.payType === "monthly" ? (s.baseSalary / s.standardDays) * units : s.payType === "daily" ? s.baseSalary * units : s.baseSalary * hours,
   );
   const allowance = Math.round(s.allowance * Math.min(1, units / s.standardDays));
   const latePenalty = lateCount * s.latePenalty;
-  return { base, allowance, latePenalty, total: Math.max(0, base + allowance - latePenalty), units, hours, lateCount };
+  return { base, allowance, latePenalty, kpi, total: Math.max(0, base + allowance - latePenalty + kpi), units, hours, lateCount };
 }
 
 export interface PayEstimate {
@@ -41,13 +43,13 @@ export interface PayEstimate {
   month: Pay;
 }
 
-/** Lương dự kiến từ bảng công tháng của một người. */
-export function estimatePay(s: StaffSettings, pm: PersonMonth): PayEstimate {
-  const sofar = payFor(s, pm.summary.units, pm.summary.workedMin, pm.summary.lateCount);
+/** Lương dự kiến từ bảng công tháng của một người, cộng thưởng/phạt KPI tới hiện tại (ước cả tháng giữ nguyên KPI). */
+export function estimatePay(s: StaffSettings, pm: PersonMonth, kpi = 0): PayEstimate {
+  const sofar = payFor(s, pm.summary.units, pm.summary.workedMin, pm.summary.lateCount, kpi);
   // Ngày còn lại sẽ làm: ngày làm chưa tới + hôm nay chưa vào / đang làm → tính đủ 1 công, đủ giờ ca.
   const remaining = pm.days.filter((d) => d.status === "pending" || d.status === "working" || (d.status === "future" && isWorkDay(s, d.date))).length;
   const fullShiftMin = Math.round(shiftHours(s) * 60);
-  const month = payFor(s, pm.summary.units + remaining, pm.summary.workedMin + remaining * fullShiftMin, pm.summary.lateCount);
+  const month = payFor(s, pm.summary.units + remaining, pm.summary.workedMin + remaining * fullShiftMin, pm.summary.lateCount, kpi);
   return { sofar, month };
 }
 

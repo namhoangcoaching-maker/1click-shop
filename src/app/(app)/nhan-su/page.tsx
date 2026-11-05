@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { CalendarCheckIcon, SlidersHorizontalIcon, UsersIcon } from "lucide-react";
+import { CalendarCheckIcon, SlidersHorizontalIcon, TargetIcon, UsersIcon } from "lucide-react";
 import { dayLabel } from "@/components/staff/attendance-view";
 import { todayInVN } from "@/lib/date-range";
 import { monthRange } from "@/lib/finance/month";
 import { formatUnits, personMonth, vnTimeOf } from "@/lib/staff/attendance";
 import { getAttendance } from "@/lib/staff/attendance-data";
 import { estimatePay } from "@/lib/staff/payroll";
+import { getKpiMonth } from "@/lib/staff/kpi-data";
 import { Panel } from "@/components/dashboard/panel";
 import { Skeleton } from "@/components/dashboard/stat-card";
 import { formatVND } from "@/lib/format";
@@ -31,6 +32,10 @@ export default function StaffPage() {
             <CalendarCheckIcon className="size-4" aria-hidden />
             Bảng chấm công
           </Link>
+          <Link href="/nhan-su/kpi" className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-sm hover:bg-muted">
+            <TargetIcon className="size-4" aria-hidden />
+            KPI
+          </Link>
           <Link href="/nhan-su/cau-hinh" className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-sm hover:bg-muted">
             <SlidersHorizontalIcon className="size-4" aria-hidden />
             Cấu hình nhân sự
@@ -52,14 +57,20 @@ async function Overview() {
   const { from, to } = monthRange(today.slice(0, 7));
   const [all, rows] = await Promise.all([getMembers(org.id), getAttendance(org.id, from, today)]);
   const members = all.filter((m) => !m.disabledAt);
-  // Bảng công + lương dự kiến của người mình được quản lý (đã có cấu hình).
+  // Bảng công + KPI + lương dự kiến của người mình được quản lý (đã có cấu hình).
+  const managed = members.filter((m) => m.settings && canManage(org.role, m.role));
+  const kpi = await getKpiMonth(
+    org.id,
+    today.slice(0, 7),
+    today,
+    managed.map((m) => ({ userId: m.userId, department: m.department, sellerId: m.settings!.pancakeSellerId ?? null })),
+  );
   const calc = new Map(
-    members
-      .filter((m) => m.settings && canManage(org.role, m.role))
-      .map((m) => {
-        const pm = personMonth(rows.filter((r) => r.userId === m.userId), m.settings!.workDays, from, to, today);
-        return [m.userId, { pm, pay: m.settings!.baseSalary > 0 ? estimatePay(m.settings!, pm) : null }] as const;
-      }),
+    managed.map((m) => {
+      const pm = personMonth(rows.filter((r) => r.userId === m.userId), m.settings!.workDays, from, to, today);
+      const k = kpi.totalByUser.get(m.userId) ?? 0;
+      return [m.userId, { pm, kpi: k, pay: m.settings!.baseSalary > 0 ? estimatePay(m.settings!, pm, k) : null }] as const;
+    }),
   );
   const totalSofar = [...calc.values()].reduce((s, c) => s + (c.pay?.sofar.total ?? 0), 0);
   const totalMonth = [...calc.values()].reduce((s, c) => s + (c.pay?.month.total ?? 0), 0);
@@ -163,6 +174,12 @@ async function Overview() {
                       <>
                         <div className="font-medium tabular-nums">{formatVND(calc.get(m.userId)!.pay!.sofar.total)}</div>
                         <div className="text-xs text-muted-foreground tabular-nums">ước {formatVND(calc.get(m.userId)!.pay!.month.total)}</div>
+                        {calc.get(m.userId)!.kpi !== 0 && (
+                          <div className={`text-xs tabular-nums ${calc.get(m.userId)!.kpi < 0 ? "text-destructive" : "text-success"}`}>
+                            gồm KPI {calc.get(m.userId)!.kpi > 0 ? "+" : "−"}
+                            {formatVND(Math.abs(calc.get(m.userId)!.kpi))}
+                          </div>
+                        )}
                       </>
                     ) : (
                       <span className="text-muted-foreground">—</span>

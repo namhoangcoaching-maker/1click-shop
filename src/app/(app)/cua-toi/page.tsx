@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { ClipboardCheckIcon, ClockIcon, IdCardIcon, TargetIcon, WalletIcon } from "lucide-react";
+import { MyKpiList } from "@/components/staff/kpi-view";
 import { PayBreakdown } from "@/components/staff/pay-view";
+import { getKpiMonth } from "@/lib/staff/kpi-data";
 import { estimatePay } from "@/lib/staff/payroll";
 import { NoDataPanel } from "@/components/dashboard/no-data-panel";
 import { Panel } from "@/components/dashboard/panel";
@@ -37,12 +39,6 @@ export default function MyPage() {
         <MySetup />
       </Suspense>
       <NoDataPanel
-        title="KPI, hiệu suất"
-        icon={TargetIcon}
-        stage="Bước 6.6"
-        note="KPI, hiệu suất và thưởng theo KPI của bạn."
-      />
-      <NoDataPanel
         title="Kế hoạch hôm nay và báo cáo cuối ngày"
         icon={ClipboardCheckIcon}
         stage="Bước 6.5"
@@ -61,7 +57,13 @@ async function MyAttendance() {
   if (!me) return null;
   const today = todayInVN();
   const { from, to } = monthRange(today.slice(0, 7));
-  const [s, locations, rows] = await Promise.all([getMySettings(org.id, me), getLocations(org.id), getAttendance(org.id, from, to, me)]);
+  const supabase = await createClient();
+  const [s, locations, rows, mine] = await Promise.all([
+    getMySettings(org.id, me),
+    getLocations(org.id),
+    getAttendance(org.id, from, to, me),
+    supabase.from("memberships").select("department").eq("org_id", org.id).eq("user_id", me).maybeSingle(),
+  ]);
   if (!s) {
     return (
       <Panel title="Chấm công" icon={ClockIcon} tone="green">
@@ -71,6 +73,11 @@ async function MyAttendance() {
   }
   const todayRow = rows.find((r) => r.workDate === today);
   const month = personMonth(rows, s.workDays, from, to, today);
+  const kpi = await getKpiMonth(org.id, today.slice(0, 7), today, [
+    { userId: me, department: (mine.data?.department as string | null) ?? null, sellerId: s.pancakeSellerId ?? null },
+  ]);
+  const myKpi = kpi.byUser.get(me) ?? [];
+  const kpiTotal = kpi.totalByUser.get(me) ?? 0;
 
   return (
     <>
@@ -98,9 +105,16 @@ async function MyAttendance() {
     </Panel>
     {s.baseSalary > 0 && (
       <Panel title={`Lương dự kiến tháng ${today.slice(5, 7)}/${today.slice(0, 4)}`} icon={WalletIcon} tone="violet">
-        <PayBreakdown s={s} e={estimatePay(s, month)} />
+        <PayBreakdown s={s} e={estimatePay(s, month, kpiTotal)} />
       </Panel>
     )}
+    <Panel title={`KPI tháng ${today.slice(5, 7)}/${today.slice(0, 4)}`} icon={TargetIcon} tone="orange">
+      {kpi.pancakeError && <p className="mb-2 text-sm text-destructive">{kpi.pancakeError}</p>}
+      <MyKpiList items={myKpi} />
+      {myKpi.length > 0 && (
+        <p className="mt-2 text-xs text-muted-foreground">Tính tới hôm nay; thưởng / phạt KPI đã cộng vào Lương dự kiến.</p>
+      )}
+    </Panel>
     </>
   );
 }

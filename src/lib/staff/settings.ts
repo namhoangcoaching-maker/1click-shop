@@ -25,6 +25,8 @@ export interface StaffSettings {
   allowance: number;
   /** Phạt mỗi lần đi muộn quá số phút cho phép (đồng). */
   latePenalty: number;
+  /** Mã nhân viên trên Pancake (KPI doanh thu đơn gán, 6.6). Lưu riêng ở trang KPI, form cấu hình không ghi đè. */
+  pancakeSellerId?: string | null;
 }
 
 export const DEFAULT_SETTINGS: StaffSettings = {
@@ -149,6 +151,7 @@ export function fromRow(r: Record<string, unknown> | null | undefined): StaffSet
     standardDays: Number(r.standard_days),
     allowance: Number(r.allowance),
     latePenalty: Number(r.late_penalty),
+    pancakeSellerId: (r.pancake_seller_id as string | null | undefined) ?? null,
   };
 }
 

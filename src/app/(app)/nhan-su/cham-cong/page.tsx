@@ -14,6 +14,7 @@ import { getAttendance, isMonthUnlocked } from "@/lib/staff/attendance-data";
 import { getMembers } from "@/lib/staff/data";
 import { formatVND } from "@/lib/format";
 import { estimatePay } from "@/lib/staff/payroll";
+import { getKpiMonth } from "@/lib/staff/kpi-data";
 import { canManage } from "@/lib/staff/permissions";
 import { DAY_LABELS } from "@/lib/staff/settings";
 import { cn } from "@/lib/utils";
@@ -72,7 +73,17 @@ async function Sheet({ searchParams }: Pick<PageProps<"/nhan-su/cham-cong">, "se
   const { from, to } = monthRange(month);
   const [members, rows, unlocked] = await Promise.all([getMembers(org.id), getAttendance(org.id, from, to), isMonthUnlocked(org.id, month)]);
   const people = members.filter((m) => canManage(org.role, m.role) && m.settings && !m.disabledAt);
-  const sheet = people.map((m) => ({ m, pm: personMonth(rows.filter((r) => r.userId === m.userId), m.settings!.workDays, from, to, today) }));
+  const kpi = await getKpiMonth(
+    org.id,
+    month,
+    today,
+    people.map((m) => ({ userId: m.userId, department: m.department, sellerId: m.settings!.pancakeSellerId ?? null })),
+  );
+  const sheet = people.map((m) => ({
+    m,
+    pm: personMonth(rows.filter((r) => r.userId === m.userId), m.settings!.workDays, from, to, today),
+    kpi: kpi.totalByUser.get(m.userId) ?? 0,
+  }));
   const editable = monthEditable(from, today, unlocked);
   const label = `${month.slice(5)}/${month.slice(0, 4)}`;
   const href = (extra = "") => `/nhan-su/cham-cong?thang=${month}${extra}`;
@@ -153,7 +164,7 @@ async function Sheet({ searchParams }: Pick<PageProps<"/nhan-su/cham-cong">, "se
                 </tr>
               </thead>
               <tbody>
-                {sheet.map(({ m, pm }) => (
+                {sheet.map(({ m, pm, kpi: k }) => (
                   <tr key={m.userId} className="border-b last:border-0">
                     <td className="sticky left-0 z-10 bg-card py-2 pr-3">
                       <div className="font-medium">{m.displayName ?? m.email}</div>
@@ -162,7 +173,13 @@ async function Sheet({ searchParams }: Pick<PageProps<"/nhan-su/cham-cong">, "se
                     <td className="px-2 py-2 text-right font-semibold tabular-nums">{formatUnits(pm.summary.units)}</td>
                     <td className={cn("px-2 py-2 text-right tabular-nums", pm.summary.lateCount > 0 && "text-warning")}>{pm.summary.lateCount}</td>
                     <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">
-                      {m.settings!.baseSalary > 0 ? formatVND(estimatePay(m.settings!, pm).sofar.total) : "—"}
+                      {m.settings!.baseSalary > 0 ? formatVND(estimatePay(m.settings!, pm, k).sofar.total) : "—"}
+                      {k !== 0 && (
+                        <div className={cn("text-[11px]", k < 0 ? "text-destructive" : "text-success")}>
+                          KPI {k > 0 ? "+" : "−"}
+                          {formatVND(Math.abs(k))}
+                        </div>
+                      )}
                     </td>
                     {pm.days.map((d) => {
                       const c = cell(d);

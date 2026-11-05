@@ -39,7 +39,8 @@ export interface SaleRow {
   productImage?: string;
 }
 
-export type SplitBy = "Time.hour" | "Time.day" | "Order.order_sources" | "Variation.product_id";
+/** Order.assigning_seller_id: doanh thu theo nhân viên bán (null = đơn không gán; cộng lại = cả shop, đã đối chiếu 05/11/2026). */
+export type SplitBy = "Time.hour" | "Time.day" | "Order.order_sources" | "Variation.product_id" | "Order.assigning_seller_id";
 
 const num = (o: Record<string, unknown> | null | undefined): SaleNumbers =>
   Object.fromEntries(
@@ -102,4 +103,18 @@ export function parseOrderSources(body: unknown): Map<string, string> {
 
 export async function fetchOrderSources(creds: PancakeCredentials): Promise<Map<string, string>> {
   return parseOrderSources(await pancakeGet(creds, "/order_source"));
+}
+
+/** Nhân viên trên Pancake: GET /shops/{id}/users → [mã, tên] (mã = assigning_seller_id của đơn). Bỏ tài khoản API. */
+export function parsePancakeUsers(body: unknown): [string, string][] {
+  const list = (body as { data?: { user?: { id?: unknown; name?: unknown } }[] })?.data ?? [];
+  return list
+    .map((x) => x.user)
+    .filter((u): u is { id: string; name: string } => typeof u?.id === "string" && typeof u.name === "string")
+    .map((u) => [u.id, u.name] as [string, string])
+    .sort((a, b) => a[1].localeCompare(b[1], "vi"));
+}
+
+export async function fetchPancakeUsers(creds: PancakeCredentials): Promise<[string, string][]> {
+  return parsePancakeUsers(await pancakeGet(creds, "/users"));
 }
