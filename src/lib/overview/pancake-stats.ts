@@ -103,6 +103,7 @@ export function buildPancakeOverview(i: PancakeStatsInput): PancakeOverview {
         // GTTB của bảng = gross ÷ đơn chốt; Pancake: Doanh thu không trừ hoàn ÷ Đơn chốt.
         gross: v(r?.result.net_revenue),
         revenue: { value: v(r?.result.revenue), previous: i.previousRange ? v(p?.result.revenue) : null },
+        fee: { value: v(r?.result.fee_marketplace), previous: i.previousRange ? v(p?.result.fee_marketplace) : null },
         profit: v(r?.result.profit),
         orders: v(r?.result.success_order_count),
       };

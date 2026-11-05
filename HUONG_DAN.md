@@ -186,6 +186,12 @@ Database của web này là project Supabase **"Doanh nghiệp 1 người"** (m�
 - Kết nối tự động Shopee/TikTok: chủ shop đang đăng ký ứng dụng theo [DANG_KY_QUANG_CAO.md](DANG_KY_QUANG_CAO.md).
 - Quảng cáo Facebook/Instagram: chưa kết nối (bước 3.2). Lương từ chấm công: Giai đoạn 6; hiện phiếu chi thẻ Lương vẫn được tính.
 
+### Hiệu quả kinh doanh và Nguồn đơn (trang Tổng quan)
+
+- Khối **Hiệu quả kinh doanh** tính theo **tháng** (không theo ô chọn ngày), nút T11, T10… xem lại 6 tháng. **Doanh thu** = Doanh thu Pancake **+ phí sàn** (đơn chốt, đã trừ chiết khấu và hàng hoàn, CHƯA trừ phí sàn). Trừ: Phí sàn, Phí vận chuyển (ngoại sàn), Sản xuất, Lương nhân sự, Quay chụp, Quảng cáo (gộp mọi thẻ "Quảng cáo …"), Chi phí khác (mọi thẻ còn lại) → **Lợi nhuận**, mỗi dòng có % doanh thu. Lợi nhuận này bằng đúng "Lợi nhuận kinh doanh" ở trang Dòng tiền.
+- Bảng **Nguồn đơn** (theo ô chọn ngày): Doanh thu chưa trừ phí sàn, Phí sàn, Chi phí ads (phiếu chi thẻ "Quảng cáo …" theo ngày phát sinh), **ME/RE** = ads ÷ doanh thu, **Phí sàn + ads** (% doanh thu) để so kênh. Facebook và Instagram: doanh thu hai dòng riêng, ô ads/ME/RE chung tính trên doanh thu gộp. Đã bỏ cột Đơn chốt. Xem theo ngày mà phiếu ads ghi gộp nhiều ngày thì ME/RE ngày đó sẽ cao bất thường.
+
+
 ### Cách tính số trên trang Tổng quan
 
 - **Mọi số tiền** (Doanh số, Doanh thu, Lợi nhuận, Đơn chốt, GTTB, Phí sàn, Tổng hàng chốt, Tổng hàng hoàn, Nguồn đơn, Top 5 sản phẩm) **lấy thẳng từ Thống kê của Pancake** mỗi lần mở trang, nên luôn khớp màn hình Thống kê của Pancake (đã đối chiếu ngày 04/11/2026: khớp từng đồng, kể cả % so sánh). Phí sàn, đơn hoàn, đơn đổi hàng… do Pancake tự tính.

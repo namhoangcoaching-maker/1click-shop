@@ -50,6 +50,8 @@ export interface OrderSourceRow {
   /** Doanh số (để tính GTTB giống chỉ số GTTB ở dải Kinh doanh). */
   gross: number;
   revenue: Compared;
+  /** Phí sàn (Shopee, TikTok…); Doanh thu Pancake đã trừ khoản này. */
+  fee: Compared;
   profit: number;
   orders: number;
 }

@@ -18,6 +18,7 @@ import {
   type MonthString,
   type ShippingFeeLine,
 } from "./month";
+import { adsByChannel, buildEfficiency, type Efficiency } from "./efficiency";
 
 export interface TagInfo {
   tagId: string;
@@ -134,4 +135,39 @@ export async function getMonthFinance(orgId: string, month: MonthString, today: 
     pancakeError,
     tags: [...tagMap.values()].sort((a, b) => Number(a.name !== null) - Number(b.name !== null) || b.count - a.count),
   };
+}
+
+export interface MonthEfficiencyData {
+  efficiency: Efficiency | null;
+  error: string | null;
+}
+
+/**
+ * "Hiệu quả kinh doanh" của một tháng (khối Tổng quan): số Pancake của tháng (tới hôm nay nếu đang chạy)
+ * + phiếu chi có thẻ. `orgId` lấy từ getCurrentOrg().
+ */
+export async function getMonthEfficiency(orgId: string, month: MonthString, today: DateString): Promise<MonthEfficiencyData> {
+  const { from, to } = monthRange(month);
+  const [creds, cashOut] = await Promise.all([getPancakeCredentials(orgId), getCashOut(orgId, from, to)]);
+  if (!creds) return { efficiency: null, error: "Shop chưa kết nối Pancake POS." };
+  try {
+    const [total] = await fetchSaleStats(creds, rangeToPancake({ from, to: to < today ? to : today }));
+    return {
+      efficiency: buildEfficiency({
+        pancakeRevenue: total?.result.revenue ?? 0,
+        fee: total?.result.fee_marketplace ?? 0,
+        partnerFee: total?.result.partner_fee ?? 0,
+        expenses: cashOut.expenses,
+      }),
+      error: null,
+    };
+  } catch {
+    return { efficiency: null, error: "Không lấy được số liệu từ Pancake, thử Tải lại sau." };
+  }
+}
+
+/** Chi phí quảng cáo theo kênh (thẻ "Quảng cáo …") trong khoảng ngày, cho bảng Nguồn đơn. */
+export async function getAdsByChannel(orgId: string, from: DateString, to: DateString): Promise<Map<string, number>> {
+  const { expenses } = await getCashOut(orgId, from, to);
+  return adsByChannel(expenses, from, to);
 }

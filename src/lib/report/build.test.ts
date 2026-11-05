@@ -13,10 +13,10 @@ const stats: PancakeOverview = {
   closedOrders: { amount: { value: 66_552_200, previous: 0 }, count: { value: 129, previous: 0 } },
   returnedOrders: { amount: { value: 3_344_000, previous: 10_000_000 }, count: { value: 7, previous: 20 } },
   sources: [
-    { source: "Shopee", gross: 1, revenue: { value: 32_219_695, previous: 1 }, profit: 1, orders: 81 },
-    { source: "Shopify", gross: 1, revenue: { value: 7_332_000, previous: 1 }, profit: 1, orders: 2 },
-    { source: "Instagram", gross: 1, revenue: { value: 4_629_000, previous: 1 }, profit: 1, orders: 5 },
-    { source: "Sỉ", gross: 0, revenue: { value: 0, previous: 5 }, profit: 0, orders: 0 },
+    { source: "Shopee", gross: 1, revenue: { value: 32_219_695, previous: 1 }, fee: { value: 0, previous: 0 }, profit: 1, orders: 81 },
+    { source: "Shopify", gross: 1, revenue: { value: 7_332_000, previous: 1 }, fee: { value: 0, previous: 0 }, profit: 1, orders: 2 },
+    { source: "Instagram", gross: 1, revenue: { value: 4_629_000, previous: 1 }, fee: { value: 0, previous: 0 }, profit: 1, orders: 5 },
+    { source: "Sỉ", gross: 0, revenue: { value: 0, previous: 5 }, fee: { value: 0, previous: 0 }, profit: 0, orders: 0 },
   ],
   topProducts: [
     { productId: "a", name: "Hannie Top", sku: "SC129", imageUrl: "https://content.pancake.vn/a.jpg", quantity: 10, revenue: 5_000_000, linked: true },

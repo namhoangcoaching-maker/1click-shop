@@ -8,7 +8,6 @@ import {
   FileTextIcon,
   MegaphoneIcon,
   PlugIcon,
-  ScaleIcon,
   UsersIcon,
   VideoIcon,
 } from "lucide-react";
@@ -21,6 +20,7 @@ import { NoDataPanel } from "@/components/dashboard/no-data-panel";
 import { Panel } from "@/components/dashboard/panel";
 import { RefreshButton } from "@/components/dashboard/refresh-button";
 import { Skeleton } from "@/components/dashboard/stat-card";
+import { BusinessEfficiency } from "@/components/overview/business-efficiency";
 import { OrderSources } from "@/components/overview/order-sources";
 import { Recommendations } from "@/components/overview/recommendations";
 import { SummaryCards } from "@/components/overview/summary-cards";
@@ -37,6 +37,9 @@ import { getCurrentOrg } from "@/lib/org/current";
 import { getRealOverview, type RealOverview } from "@/lib/overview/real-data";
 import { buildRecommendations } from "@/lib/overview/recommendations";
 import { getReportToShow } from "@/lib/report/generate";
+import { buildSourceGroups } from "@/lib/finance/efficiency";
+import { getAdsByChannel, getMonthEfficiency } from "@/lib/finance/data";
+import { recentMonths, resolveMonth } from "@/lib/finance/month";
 
 export const metadata: Metadata = { title: "Tổng quan" };
 
@@ -92,7 +95,10 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
 
   const now = new Date();
   const today = todayInVN(now);
-  const filter = resolveFilter(await searchParams, today);
+  const params = await searchParams;
+  const filter = resolveFilter(params, today);
+  // Chi phí ads theo kênh trong khoảng đang xem (cho bảng Nguồn đơn): hỏi song song với phần còn lại.
+  const adsPromise = getAdsByChannel(org.id, filter.range.from, filter.range.to).catch(() => new Map<string, number>());
   const { rules } = await getShopStockRules();
   const data = await getRealOverview(org.id, filter.range, filter.previousRange, rules.velocityWindowDays, now);
 
@@ -113,7 +119,15 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
   const active = data.stock.filter((i) => !i.inactive);
   const stock = analyzeInventory(active, today, rules);
   const inventory = summarizeInventory(active);
-  const [incoming, cashDays] = await Promise.all([getIncoming(org.id), getCashDays(org.id, today, addDays(today, 7))]);
+  const [incoming, cashDays, adsByChannel] = await Promise.all([
+    getIncoming(org.id),
+    getCashDays(org.id, today, addDays(today, 7)),
+    adsPromise,
+  ]);
+  // Giữ bộ lọc ngày khi bấm đổi tháng ở khối Hiệu quả kinh doanh.
+  const keep = Object.fromEntries(
+    Object.entries(params).filter((e): e is [string, string] => typeof e[1] === "string" && e[0] !== "hq"),
+  );
   const plan = buildOrderPlan(toPlanItems(active, incoming, rules.velocityWindowDays, today), today, rules);
   const urgentPlan = plan.urgent.filter((p) => !p.slow);
   const nextDay = plan.days[0]; // chỉ nhắc ngày đặt gần nhất
@@ -184,7 +198,7 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
               <Panel title="Kinh doanh" icon={ChartLineIcon}>
                 <MetricStrip metrics={stats.metrics} />
               </Panel>
-              <OrderSources rows={stats.sources} />
+              <OrderSources groups={buildSourceGroups(stats.sources, adsByChannel)} />
             </>
           )}
 
@@ -200,7 +214,9 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <CashInPanel days={cashDays} today={today} />
-            <NoDataPanel title="Dòng tiền (thu – chi)" icon={ScaleIcon} stage="Giai đoạn 3" note="Chi phí, công nợ, kết quả thu trừ chi theo ngày/tháng." />
+            <Suspense fallback={<Skeleton className="h-80 bg-card" />}>
+              <MonthEfficiency orgId={org.id} today={today} hq={params.hq} params={keep} />
+            </Suspense>
             <NoDataPanel title="Thuế" icon={FileTextIcon} stage="Giai đoạn 7" note="Hóa đơn đã xuất, cần điều chỉnh, lịch nộp thuế." />
           </div>
 
@@ -225,6 +241,25 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
         </aside>
       </div>
     </>
+  );
+}
+
+/** Khối Hiệu quả kinh doanh: theo tháng (?hq=YYYY-MM), tải riêng để không làm chậm phần còn lại. */
+async function MonthEfficiency({
+  orgId,
+  today,
+  hq,
+  params,
+}: {
+  orgId: string;
+  today: string;
+  hq: string | string[] | undefined;
+  params: Record<string, string>;
+}) {
+  const month = resolveMonth(hq, today);
+  const { efficiency, error } = await getMonthEfficiency(orgId, month, today);
+  return (
+    <BusinessEfficiency data={efficiency} error={error} month={month} months={recentMonths(today, 6)} params={params} />
   );
 }
 
