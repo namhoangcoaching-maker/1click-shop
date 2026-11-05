@@ -102,7 +102,7 @@ describe("buildMonthFinance – hai phần tách bạch", () => {
   const f = buildMonthFinance({
     month: "2026-11",
     today: "2026-11-05",
-    pancake: { sales: 120_000_000, revenue: 90_000_000, fee: 25_000_000, partnerFee: 240_600 },
+    pancake: { sales: 120_000_000, revenue: 90_000_000, fee: 25_000_000, partnerFee: 240_600, capital: 30_000_000 },
     cashDays: [
       { date: "2026-11-04", total: 53_369_775 },
       { date: "2026-11-05", total: 32_768_085 },
@@ -113,11 +113,12 @@ describe("buildMonthFinance – hai phần tách bạch", () => {
     ads: null,
   });
 
-  it("Lợi nhuận kinh doanh = Doanh thu (đã trừ phí sàn) − phí vận chuyển ngoại sàn − chi phí theo thẻ; KHÔNG trừ phí sàn lần nữa", () => {
-    expect(f.expenseTotal).toBe(40_600_000);
+  it("Lợi nhuận kinh doanh = Doanh thu − phí ship ngoại sàn − GIÁ VỐN − chi phí theo thẻ TRỪ Sản xuất; không trừ phí sàn lần nữa", () => {
+    expect(f.expenseTotal).toBe(40_600_000); // Dòng tiền vẫn có Sản xuất 30tr
+    expect(f.profitExpenseGroups.map((g) => g.category)).toEqual(["Quay chụp", "Lương"]);
     expect(f.profit).toEqual({
-      sales: 120_000_000, fee: 25_000_000, revenue: 90_000_000, partnerFee: 240_600, ads: null,
-      result: 90_000_000 - 240_600 - 40_600_000,
+      sales: 120_000_000, fee: 25_000_000, revenue: 90_000_000, partnerFee: 240_600, capital: 30_000_000, ads: null,
+      result: 90_000_000 - 240_600 - 30_000_000 - 10_600_000,
     });
   });
   it("phí ship ngoại sàn chỉ trừ ở Lợi nhuận; Dòng tiền trừ phí ship trả riêng (không trừ trùng)", () => {
@@ -133,7 +134,7 @@ describe("buildMonthFinance – hai phần tách bạch", () => {
 
   it("có quảng cáo thì trừ ở cả hai phần", () => {
     const g = buildMonthFinance({
-      month: "2026-11", today: "2026-11-05", pancake: { sales: 1, revenue: 100, fee: 0, partnerFee: 0 },
+      month: "2026-11", today: "2026-11-05", pancake: { sales: 1, revenue: 100, fee: 0, partnerFee: 0, capital: 0 },
       cashDays: [{ date: "2026-11-01", total: 100 }], expenses: [], shippingFeePaid: 0, ads: 30,
     });
     expect(g.profit.result).toBe(70);
@@ -199,7 +200,7 @@ describe("quảng cáo nhập tay qua thẻ “Quảng cáo …” (cách b)", (
   ];
   const base = {
     month: "2026-11", today: "2026-11-05",
-    pancake: { sales: 120_000_000, revenue: 50_000_000, fee: 0, partnerFee: 0 },
+    pancake: { sales: 120_000_000, revenue: 50_000_000, fee: 0, partnerFee: 0, capital: 0 },
     revenueBySource: { Shopee: 30_000_000, Tiktok: 10_000_000 },
     cashDays: [{ date: "2026-11-05", total: 100_000_000 }],
     expenses: expenseLines(txs, adNames, "2026-11-01", "2026-11-30"),
@@ -220,7 +221,7 @@ describe("quảng cáo nhập tay qua thẻ “Quảng cáo …” (cách b)", (
     expect(f.expenseTotal).toBe(40_600_000);
     expect(f.adsGroups.map((g) => [g.category, g.total])).toEqual([["Quảng cáo Shopee", 4_000_000], ["quảng cáo TikTok", 3_000_000]]);
     expect(f.profit.ads).toBe(7_000_000);
-    expect(f.profit.result).toBe(50_000_000 - 40_600_000 - 7_000_000);
+    expect(f.profit.result).toBe(50_000_000 - 10_600_000 - 7_000_000); // Sản xuất không trừ ở Lợi nhuận
     expect(f.cash.net).toBe(100_000_000 - 40_600_000 - 7_000_000);
   });
 

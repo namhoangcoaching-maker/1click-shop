@@ -239,11 +239,14 @@ export function adsAlerts(
   return alerts;
 }
 
+/** Thẻ "Sản xuất" = tiền trả xưởng: chỉ thuộc Dòng tiền, không trừ ở Lợi nhuận (đã có giá vốn). */
+export const isProductionCategory = (category: string) => fold(category) === fold("Sản xuất");
+
 export interface MonthFinanceInput {
   month: MonthString;
   today: DateString;
   /** Thống kê Pancake của tháng (đến hôm nay nếu là tháng hiện tại); null nếu không lấy được. */
-  pancake: { sales: number; revenue: number; fee: number; partnerFee: number } | null;
+  pancake: { sales: number; revenue: number; fee: number; partnerFee: number; capital: number } | null;
   /** Doanh thu Pancake theo tên nguồn đơn (Shopee, TikTok…), để so quảng cáo từng kênh. */
   revenueBySource?: Record<string, number>;
   /** Tiền về từng ngày của cả tháng (gồm ngày tới = dự kiến). */
@@ -261,9 +264,11 @@ export interface MonthFinanceInput {
 export interface MonthFinance {
   month: MonthString;
   isCurrentMonth: boolean;
-  /** Chi phí thường (KHÔNG gồm quảng cáo). */
+  /** Chi phí thường (KHÔNG gồm quảng cáo) – dùng ở Dòng tiền thực tế (gồm cả Sản xuất = tiền trả xưởng). */
   expenseGroups: ExpenseGroup[];
   expenseTotal: number;
+  /** Chi phí thường trừ ở Lợi nhuận kinh doanh: như trên nhưng BỎ "Sản xuất" (đã có giá vốn hàng bán). */
+  profitExpenseGroups: ExpenseGroup[];
   /** Quảng cáo theo thẻ "Quảng cáo …". */
   adsGroups: ExpenseGroup[];
   adsAlerts: AdsAlert[];
@@ -273,6 +278,8 @@ export interface MonthFinance {
     revenue: number | null;
     /** Phí vận chuyển ngoại sàn shop trả đơn vị vận chuyển (Pancake `partner_fee`). */
     partnerFee: number | null;
+    /** Giá vốn hàng bán (Pancake `capital`, đã trừ hàng hoàn). */
+    capital: number | null;
     /** Tổng quảng cáo; null = chưa có số (chưa kết nối, chưa có thẻ). */
     ads: number | null;
     /** null khi không có Doanh thu Pancake. */
@@ -297,6 +304,9 @@ export function buildMonthFinance(i: MonthFinanceInput): MonthFinance {
   const groups = all.filter((g) => !isAdsCategory(g.category));
   const adsGroups = all.filter((g) => isAdsCategory(g.category));
   const expenseTotal = groups.reduce((s, g) => s + g.total, 0);
+  // Lợi nhuận kinh doanh dùng GIÁ VỐN hàng bán, không dùng phiếu Sản xuất (chủ dự án chốt 05/11/2026).
+  const profitGroups = groups.filter((g) => !isProductionCategory(g.category));
+  const profitExpenseTotal = profitGroups.reduce((s, g) => s + g.total, 0);
   const adsTagged = adsGroups.reduce((s, g) => s + g.total, 0);
   const adsKnown = i.ads !== null || adsGroups.length > 0 || i.hasAdsTags === true;
   const adsValue = adsKnown ? (i.ads ?? 0) + adsTagged : null;
@@ -309,6 +319,7 @@ export function buildMonthFinance(i: MonthFinanceInput): MonthFinance {
     isCurrentMonth: i.today.startsWith(i.month),
     expenseGroups: groups,
     expenseTotal,
+    profitExpenseGroups: profitGroups,
     adsGroups,
     adsAlerts: adsAlerts(adsGroups, i.pancake?.revenue ?? null, i.revenueBySource ?? {}),
     profit: {
@@ -316,8 +327,11 @@ export function buildMonthFinance(i: MonthFinanceInput): MonthFinance {
       fee: i.pancake?.fee ?? null,
       revenue: i.pancake?.revenue ?? null,
       partnerFee: i.pancake?.partnerFee ?? null,
+      capital: i.pancake?.capital ?? null,
       ads: adsValue,
-      result: i.pancake ? i.pancake.revenue - i.pancake.partnerFee - expenseTotal - ads : null,
+      result: i.pancake
+        ? i.pancake.revenue - i.pancake.partnerFee - i.pancake.capital - profitExpenseTotal - ads
+        : null,
     },
     cash: {
       received,

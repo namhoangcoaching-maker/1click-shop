@@ -82,7 +82,7 @@ export async function getMonthFinance(orgId: string, month: MonthString, today: 
   ]);
   const { tagNames } = cashOut;
 
-  let pancake: { sales: number; revenue: number; fee: number; partnerFee: number } | null = null;
+  let pancake: { sales: number; revenue: number; fee: number; partnerFee: number; capital: number } | null = null;
   let pancakeError: string | null = null;
   const revenueBySource: Record<string, number> = {};
   if (creds && from <= today) {
@@ -103,6 +103,7 @@ export async function getMonthFinance(orgId: string, month: MonthString, today: 
         revenue: total?.result.revenue ?? 0,
         fee: total?.result.fee_marketplace ?? 0,
         partnerFee: total?.result.partner_fee ?? 0,
+        capital: total?.result.capital ?? 0,
       };
     } catch {
       pancakeError = "Không lấy được Doanh thu từ Pancake, thử Tải lại sau.";

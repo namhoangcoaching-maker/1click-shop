@@ -106,8 +106,9 @@ export function MonthFinanceView({ f, pancakeError }: { f: MonthFinance; pancake
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Panel title={`Lợi nhuận kinh doanh tháng ${label}`} icon={PiggyBankIcon} tone="violet">
         <p className="mb-2 text-xs text-muted-foreground">
-          Doanh thu trừ tiền thực trả xưởng và các khoản chi trong tháng. Khác “Lợi nhuận” của Pancake (Pancake trừ giá
-          vốn từng sản phẩm bán ra).{f.isCurrentMonth && " Tháng đang chạy: số tính tới hôm nay."}
+          Doanh thu trừ giá vốn hàng đã bán (theo Pancake) và các khoản chi trong tháng. Tiền trả xưởng (Sản xuất) không
+          trừ ở đây mà ở Dòng tiền thực tế. Bằng lợi nhuận khối Hiệu quả kinh doanh ở Tổng quan.
+          {f.isCurrentMonth && " Tháng đang chạy: số tính tới hôm nay."}
         </p>
         {pancakeError && <p className="mb-2 text-sm text-destructive">{pancakeError}</p>}
         <Line label="Doanh số" value={f.profit.sales} muted />
@@ -119,7 +120,8 @@ export function MonthFinanceView({ f, pancakeError }: { f: MonthFinance; pancake
           sign="−"
           note="shop trả đơn vị vận chuyển, Doanh thu chưa trừ"
         />
-        {f.expenseGroups.map((g) => (
+        <Line label="Giá vốn hàng bán" value={f.profit.capital} sign="−" note="Pancake: giá vốn từng sản phẩm bán ra" />
+        {f.profitExpenseGroups.map((g) => (
           <ExpenseRow key={g.category} group={g} />
         ))}
         {adsRows(f.profit.ads)}

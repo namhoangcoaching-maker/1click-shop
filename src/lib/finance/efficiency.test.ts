@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { adsByChannel, buildEfficiency, buildSourceGroups, type SourceInput } from "./efficiency";
-import type { ExpenseLine } from "./month";
+import { buildMonthFinance, type ExpenseLine } from "./month";
 
 const line = (category: string, amount: number, date = "2026-11-05"): ExpenseLine => ({
   date,
@@ -129,5 +129,23 @@ describe("buildSourceGroups – Nguồn đơn kèm phí sàn, ads, ME/RE", () =>
   it("kỳ trước cũng cộng lại phí sàn để so cùng loại doanh thu", () => {
     const [g] = buildSourceGroups([{ ...src("Shopee", 10, 5, 8), fee: { value: 5, previous: 4 } }], new Map());
     expect(g.rows[0].previous).toBe(12);
+  });
+});
+
+describe("một con số lợi nhuận cho cả web", () => {
+  it("Lợi nhuận kinh doanh (trang Dòng tiền) = Lợi nhuận khối Hiệu quả kinh doanh (Tổng quan)", () => {
+    const P = { revenue: 181_898_076, fee: 53_971_888, partnerFee: 254_600, capital: 67_614_000 };
+    const eff = buildEfficiency({ pancakeRevenue: P.revenue, fee: P.fee, partnerFee: P.partnerFee, capital: P.capital, expenses });
+    const month = buildMonthFinance({
+      month: "2026-11",
+      today: "2026-11-05",
+      pancake: { sales: 0, ...P },
+      cashDays: [],
+      expenses,
+      shippingFeePaid: 0,
+      ads: null,
+    });
+    expect(month.profit.result).toBe(eff.profit);
+    expect(month.profit.result).toBe(87_429_476);
   });
 });

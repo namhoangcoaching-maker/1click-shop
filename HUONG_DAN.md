@@ -177,7 +177,7 @@ Database của web này là project Supabase **"Doanh nghiệp 1 người"** (m�
 ### Kết quả theo tháng (trang Dòng tiền)
 
 - Chọn tháng bằng các nút "Tháng MM/YYYY" (6 tháng gần nhất).
-- **Lợi nhuận kinh doanh** = Doanh thu Pancake (đã trừ chiết khấu, hàng hoàn, phí sàn) − **Phí vận chuyển ngoại sàn** (số `partner_fee` trong thống kê Pancake: phí ship shop trả SPX/J&T… cho đơn ngoại sàn, Doanh thu Pancake chưa trừ) − từng loại chi phí theo thẻ − Quảng cáo. Dòng tiền thực tế KHÔNG trừ dòng này (tiền về đã trừ sẵn phí ship hoặc có dòng "Phí ship trả riêng") nên không trừ trùng.
+- **Lợi nhuận kinh doanh** = Doanh thu Pancake (đã trừ chiết khấu, hàng hoàn, phí sàn) − **Phí vận chuyển ngoại sàn** (`partner_fee`) − **Giá vốn hàng bán** (`capital` của Pancake) − từng loại chi phí theo thẻ **trừ thẻ Sản xuất** − Quảng cáo. Bằng đúng lợi nhuận khối Hiệu quả kinh doanh ở Tổng quan (chủ dự án chốt 05/11/2026: một con số lợi nhuận). Tiền trả xưởng (thẻ **Sản xuất**) chỉ trừ ở **Dòng tiền thực tế**.
 - **Dòng tiền thực tế** = Tiền về trong tháng − từng loại chi phí theo thẻ − Phí ship trả riêng − Quảng cáo. Tháng đang chạy hiện thêm tiền về dự kiến tới cuối tháng.
 - Chi phí = **chỉ phiếu chi Pancake có gắn thẻ**, tính theo **ngày phát sinh** của phiếu. Phiếu Pancake tự sinh theo đơn (trả trước, hoàn, đổi số tiền) không phải chi phí. Trả xưởng / nhập hàng: tạo phiếu chi thẻ **Sản xuất** đúng số tiền trả (không dùng phiếu nhập hàng).
 - Bấm vào một loại chi phí để xem từng phiếu (ngày, mã phiếu, nội dung, số tiền).
