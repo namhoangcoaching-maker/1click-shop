@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { ClipboardCheckIcon, ClockIcon, IdCardIcon, WalletIcon } from "lucide-react";
+import { ClipboardCheckIcon, ClockIcon, IdCardIcon, TargetIcon, WalletIcon } from "lucide-react";
+import { PayBreakdown } from "@/components/staff/pay-view";
+import { estimatePay } from "@/lib/staff/payroll";
 import { NoDataPanel } from "@/components/dashboard/no-data-panel";
 import { Panel } from "@/components/dashboard/panel";
 import { Skeleton } from "@/components/dashboard/stat-card";
@@ -35,10 +37,10 @@ export default function MyPage() {
         <MySetup />
       </Suspense>
       <NoDataPanel
-        title="KPI, lương dự kiến"
-        icon={WalletIcon}
-        stage="Bước 6.4"
-        note="KPI, hiệu suất và lương dự kiến tới hôm nay của bạn."
+        title="KPI, hiệu suất"
+        icon={TargetIcon}
+        stage="Bước 6.6"
+        note="KPI, hiệu suất và thưởng theo KPI của bạn."
       />
       <NoDataPanel
         title="Kế hoạch hôm nay và báo cáo cuối ngày"
@@ -71,6 +73,7 @@ async function MyAttendance() {
   const month = personMonth(rows, s.workDays, from, to, today);
 
   return (
+    <>
     <Panel title="Chấm công" icon={ClockIcon} tone="green">
       <ClockCard
         mode={s.attendanceMode}
@@ -93,6 +96,12 @@ async function MyAttendance() {
         </div>
       </details>
     </Panel>
+    {s.baseSalary > 0 && (
+      <Panel title={`Lương dự kiến tháng ${today.slice(5, 7)}/${today.slice(0, 4)}`} icon={WalletIcon} tone="violet">
+        <PayBreakdown s={s} e={estimatePay(s, month)} />
+      </Panel>
+    )}
+    </>
   );
 }
 

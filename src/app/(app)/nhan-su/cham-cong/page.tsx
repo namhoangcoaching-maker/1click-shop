@@ -12,6 +12,8 @@ import { getManagerOrg } from "@/lib/org/guard";
 import { formatUnits, monthEditable, personMonth, vnTimeOf, weekday, type DayResult } from "@/lib/staff/attendance";
 import { getAttendance, isMonthUnlocked } from "@/lib/staff/attendance-data";
 import { getMembers } from "@/lib/staff/data";
+import { formatVND } from "@/lib/format";
+import { estimatePay } from "@/lib/staff/payroll";
 import { canManage } from "@/lib/staff/permissions";
 import { DAY_LABELS } from "@/lib/staff/settings";
 import { cn } from "@/lib/utils";
@@ -141,6 +143,7 @@ async function Sheet({ searchParams }: Pick<PageProps<"/nhan-su/cham-cong">, "se
                   <th className="sticky left-0 z-10 min-w-[150px] bg-card py-2 pr-3 text-left font-normal">Nhân sự</th>
                   <th className="px-2 py-2 text-right font-normal">Công</th>
                   <th className="px-2 py-2 text-right font-normal">Muộn</th>
+                  <th className="px-2 py-2 text-right font-normal whitespace-nowrap">Lương dự kiến</th>
                   {sheet[0].pm.days.map((d) => (
                     <th key={d.date} className={cn("w-9 px-0.5 py-2 text-center font-normal", d.date === today && "text-primary font-semibold")}>
                       <div className="text-[10px]">{DAY_LABELS[weekday(d.date) - 1]}</div>
@@ -158,6 +161,9 @@ async function Sheet({ searchParams }: Pick<PageProps<"/nhan-su/cham-cong">, "se
                     </td>
                     <td className="px-2 py-2 text-right font-semibold tabular-nums">{formatUnits(pm.summary.units)}</td>
                     <td className={cn("px-2 py-2 text-right tabular-nums", pm.summary.lateCount > 0 && "text-warning")}>{pm.summary.lateCount}</td>
+                    <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">
+                      {m.settings!.baseSalary > 0 ? formatVND(estimatePay(m.settings!, pm).sofar.total) : "—"}
+                    </td>
                     {pm.days.map((d) => {
                       const c = cell(d);
                       const selected = editing?.m.userId === m.userId && editDate === d.date;

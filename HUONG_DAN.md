@@ -238,6 +238,17 @@ Database của web này là project Supabase **"Doanh nghiệp 1 người"** (m�
 - **Khóa sổ:** tháng N sửa được tới hết **mùng 5 tháng N+1**; sau đó khóa. Chủ shop có nút **Mở khóa sổ để sửa** / **Khóa sổ lại**. Database chặn đúng như vậy (migration 0015), không chỉ giao diện.
 - Nhân viên không tự sửa được giờ của mình (kể cả gọi thẳng database); tọa độ GPS lúc chấm được lưu, người sửa không đổi được.
 
+### Lương dự kiến (Giai đoạn 6.4)
+
+- **Cách tính (chủ dự án chốt 05/11/2026)**, theo bảng chấm công + cấu hình lương từng người:
+  - Lương tháng theo ngày công = lương ÷ ngày công chuẩn × số công. Làm **vượt** ngày công chuẩn thì **trả thêm** theo công.
+  - Lương theo ngày = đơn giá × số công. Lương theo giờ = đơn giá × số giờ làm trong ca.
+  - **Phụ cấp theo tỷ lệ công**: phụ cấp × (số công ÷ ngày công chuẩn), tối đa đủ phụ cấp.
+  - Trừ **phạt đi muộn** = số lần muộn × tiền phạt mỗi lần. Tổng không âm.
+- **"Tới hôm nay"** = theo công đã chấm. **"Ước cả tháng"** = cộng thêm các ngày làm còn lại (kể cả hôm nay) như đi làm đủ ca, phạt muộn giữ như hiện tại.
+- Xem ở: **Của tôi** (khối Lương dự kiến, có từng dòng tính), **Nhân sự** (cột Lương dự kiến + **Quỹ lương dự kiến** cả shop), **Bảng chấm công** (cột Lương dự kiến). Quản lý không xem được lương của Chủ / Quản lý khác.
+- **Chỉ để xem:** Lợi nhuận kinh doanh và Dòng tiền vẫn trừ theo **phiếu chi thẻ Lương** trên Pancake (tiền thật đã trả), không trừ trùng. Chưa gồm KPI / thưởng (bước 6.6).
+
 ## 4. Nhờ Claude Code sửa hoặc thêm tính năng
 
 Mẫu câu hay dùng:

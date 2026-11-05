@@ -8,6 +8,7 @@ import { todayInVN } from "@/lib/date-range";
 import { monthRange } from "@/lib/finance/month";
 import { formatUnits, personMonth, vnTimeOf } from "@/lib/staff/attendance";
 import { getAttendance } from "@/lib/staff/attendance-data";
+import { estimatePay } from "@/lib/staff/payroll";
 import { Panel } from "@/components/dashboard/panel";
 import { Skeleton } from "@/components/dashboard/stat-card";
 import { formatVND } from "@/lib/format";
@@ -48,12 +49,36 @@ async function Overview() {
   const org = await getManagerOrg();
   if (!org) return null;
   const today = todayInVN();
-  const { from } = monthRange(today.slice(0, 7));
+  const { from, to } = monthRange(today.slice(0, 7));
   const [all, rows] = await Promise.all([getMembers(org.id), getAttendance(org.id, from, today)]);
   const members = all.filter((m) => !m.disabledAt);
+  // Bảng công + lương dự kiến của người mình được quản lý (đã có cấu hình).
+  const calc = new Map(
+    members
+      .filter((m) => m.settings && canManage(org.role, m.role))
+      .map((m) => {
+        const pm = personMonth(rows.filter((r) => r.userId === m.userId), m.settings!.workDays, from, to, today);
+        return [m.userId, { pm, pay: m.settings!.baseSalary > 0 ? estimatePay(m.settings!, pm) : null }] as const;
+      }),
+  );
+  const totalSofar = [...calc.values()].reduce((s, c) => s + (c.pay?.sofar.total ?? 0), 0);
+  const totalMonth = [...calc.values()].reduce((s, c) => s + (c.pay?.month.total ?? 0), 0);
 
   return (
-    <Panel title={`${members.length} người đang làm`} icon={UsersIcon}>
+    <Panel
+      title={`${members.length} người đang làm`}
+      icon={UsersIcon}
+      action={
+        totalSofar > 0 ? (
+          <div className="text-right text-sm">
+            <div className="text-xs text-muted-foreground">Quỹ lương dự kiến tháng {today.slice(5, 7)}</div>
+            <div className="font-semibold tabular-nums">
+              {formatVND(totalSofar)} <span className="font-normal text-muted-foreground">tới hôm nay · ước {formatVND(totalMonth)}</span>
+            </div>
+          </div>
+        ) : undefined
+      }
+    >
       <div className="-mx-4 overflow-x-auto px-4">
         <table className="w-full min-w-[820px] text-sm">
           <thead>
@@ -64,7 +89,7 @@ async function Overview() {
               <th className="px-3 py-2 font-normal">Lương cứng</th>
               <th className="px-3 py-2 font-normal">Hôm nay</th>
               <th className="px-3 py-2 font-normal">Công tháng này</th>
-              <th className="px-3 py-2 font-normal text-muted-foreground/70">Lương dự kiến</th>
+              <th className="px-3 py-2 text-right font-normal">Lương dự kiến</th>
             </tr>
           </thead>
           <tbody>
@@ -103,10 +128,10 @@ async function Overview() {
                       "—"
                     )}
                   </td>
-                  {s && manageable ? (
+                  {calc.has(m.userId) ? (
                     (() => {
-                      const pm = personMonth(rows.filter((r) => r.userId === m.userId), s.workDays, from, today, today);
-                      const t = pm.days.at(-1)!;
+                      const { pm } = calc.get(m.userId)!;
+                      const t = pm.days.find((d) => d.date === today)!;
                       const l = dayLabel(t);
                       return (
                         <>
@@ -133,7 +158,16 @@ async function Overview() {
                       <td className="px-3 py-2.5 text-muted-foreground">—</td>
                     </>
                   )}
-                  <td className="px-3 py-2.5 text-muted-foreground/70">6.4</td>
+                  <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                    {calc.get(m.userId)?.pay ? (
+                      <>
+                        <div className="font-medium tabular-nums">{formatVND(calc.get(m.userId)!.pay!.sofar.total)}</div>
+                        <div className="text-xs text-muted-foreground tabular-nums">ước {formatVND(calc.get(m.userId)!.pay!.month.total)}</div>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </td>
                 </tr>
               );
             })}
@@ -141,8 +175,9 @@ async function Overview() {
         </table>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        Công tháng này tính tới hôm nay. Sửa công (quên chấm, chấm sai) ở Bảng chấm công. Lương dự kiến, KPI: bước
-        6.4–6.6. Bấm tên để cấu hình.
+        Công và lương dự kiến tính tới hôm nay theo bảng chấm công; “ước” = nếu đi làm đủ các ngày còn lại. Lương dự
+        kiến chỉ để xem: Lợi nhuận và Dòng tiền vẫn trừ theo phiếu chi thẻ Lương trên Pancake. Sửa công ở Bảng chấm công;
+        bấm tên để cấu hình.
       </p>
     </Panel>
   );
