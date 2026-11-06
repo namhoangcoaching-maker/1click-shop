@@ -827,6 +827,53 @@ describe("6.5 Kế hoạch và báo cáo ngày", () => {
   });
 });
 
+describe("7.1 Hóa đơn điện tử, quy định thuế, cấu hình thuế", () => {
+  beforeAll(async () => {
+    const { error } = await admin.from("einvoices").insert([
+      { org_id: orgA, einvoice_id: 9_000_001, invoice_no: "001", status: 2, order_system_id: "1", total_amount: 100 },
+      { org_id: orgB, einvoice_id: 9_000_002, invoice_no: "002", status: 2, order_system_id: "2", total_amount: 200 },
+    ]);
+    if (error) throw error;
+  });
+
+  it("hóa đơn: Chủ, Quản lý shop A thấy hóa đơn shop A; Nhân viên không thấy; shop B không thấy; không ai ghi được", async () => {
+    const o = await ownerA.from("einvoices").select("invoice_no");
+    expect(o.data).toEqual([{ invoice_no: "001" }]);
+    const m = await managerA.from("einvoices").select("invoice_no");
+    expect(m.data).toEqual([{ invoice_no: "001" }]);
+    const s = await staffA.from("einvoices").select("invoice_no");
+    expect(s.data ?? []).toEqual([]);
+    const ins = await ownerA.from("einvoices").insert({ org_id: orgA, einvoice_id: 9_000_003, status: 2 });
+    expect(ins.error).not.toBeNull();
+    const up = await ownerA.from("einvoices").update({ status: 3 }).eq("einvoice_id", 9_000_001).select("status");
+    expect(up.data ?? []).toEqual([]);
+  });
+
+  it("quy định thuế: ai đăng nhập cũng đọc được, không ai sửa được qua trình duyệt", async () => {
+    const r = await staffA.from("tax_rules").select("business_type, vat_period").eq("business_type", "household").order("revenue_min");
+    expect(r.data!.map((x) => x.vat_period)).toEqual(["none", "quarter", "month"]);
+    const up = await ownerA.from("tax_rules").update({ vat_period: "none" }).eq("business_type", "company").select("id");
+    expect(up.data ?? []).toEqual([]);
+    const ins = await ownerA.from("tax_rules").insert({ business_type: "company", vat_period: "none", einvoice_required: false, summary: "x", effective_from: "2026-01-01" });
+    expect(ins.error).not.toBeNull();
+  });
+
+  it("cấu hình thuế: chỉ Chủ lưu; Quản lý xem được nhưng không sửa; Nhân viên, shop B không thấy", async () => {
+    const o = await ownerA.from("tax_settings").upsert({ org_id: orgA, business_type: "household", prior_year_revenue: 3_200_000_000 }, { onConflict: "org_id" });
+    expect(o.error).toBeNull();
+    const m = await managerA.from("tax_settings").select("prior_year_revenue");
+    expect(m.data).toEqual([{ prior_year_revenue: 3_200_000_000 }]);
+    const mUp = await managerA.from("tax_settings").update({ prior_year_revenue: 1 }).eq("org_id", orgA).select("org_id");
+    expect(mUp.data ?? []).toEqual([]);
+    const s = await staffA.from("tax_settings").select("org_id");
+    expect(s.data ?? []).toEqual([]);
+    const b = await ownerB.from("tax_settings").select("org_id").eq("org_id", orgA);
+    expect(b.data).toEqual([]);
+    const bIns = await ownerB.from("tax_settings").insert({ org_id: orgA, business_type: "company" });
+    expect(bIns.error).not.toBeNull();
+  });
+});
+
 describe("Người chưa đăng nhập", () => {
   it("không đọc được gì", async () => {
     const anon = createClient(URL, PUBLISHABLE, noSession);
@@ -838,7 +885,7 @@ describe("Người chưa đăng nhập", () => {
     expect(conns.data ?? []).toEqual([]);
     const settings = await anon.from("inventory_settings").select("org_id");
     expect(settings.data ?? []).toEqual([]);
-    for (const table of ["products", "orders", "order_items", "sync_state", "incoming_stock", "cash_transactions", "daily_reports", "attendance", "attendance_unlocks", "kpi_templates", "kpi_assignments", "kpi_results", "tasks", "recurring_tasks", "recurring_done", "work_reports", "kpi_daily"]) {
+    for (const table of ["products", "orders", "order_items", "sync_state", "incoming_stock", "cash_transactions", "daily_reports", "attendance", "attendance_unlocks", "kpi_templates", "kpi_assignments", "kpi_results", "tasks", "recurring_tasks", "recurring_done", "work_reports", "kpi_daily", "einvoices", "tax_settings", "tax_rules"]) {
       const r = await anon.from(table).select("org_id");
       expect(r.data ?? []).toEqual([]);
     }

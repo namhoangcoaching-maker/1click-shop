@@ -263,6 +263,18 @@ Database của web này là project Supabase **"Doanh nghiệp 1 người"** (m�
 - **KPI nhập tay = tổng số các ngày trong báo cáo** (chủ dự án chốt 05/11/2026). Ở trang KPI, Quản lý vẫn nhập được số cả tháng; **số Quản lý nhập thắng** (xóa ô để quay về tổng báo cáo ngày). Dưới ô có dòng "Tổng báo cáo ngày: …".
 - Quyền: Nhân viên chỉ thấy việc / báo cáo của mình và chỉ ghi được cho hôm nay; Quản lý giao việc, xem báo cáo, nhận xét cho Nhân viên; Chủ cho mọi người. Database chặn (migration 0017).
 
+### Thuế – hóa đơn điện tử (Giai đoạn 7.1)
+
+- Trang **Thuế** (Chủ, Quản lý). Dòng cam đầu trang: *"Thông tin tham khảo, vui lòng xác nhận với kế toán hoặc cơ quan thuế."*
+- **Nghĩa vụ thuế**: loại hình, doanh thu năm trước, quy định đang áp dụng (kèm căn cứ), kỳ khai GTGT và hạn nộp kỳ hiện tại. **Chủ shop** sửa loại hình / doanh thu năm trước ở mục "Sửa loại hình…". Sugar Crush đang để số tạm "trên 1 tỷ" (1.000.000.001 ₫) – Chủ shop điền số chính xác.
+- **Quy định thuế nằm trong bảng `tax_rules` của database** (có ngày hiệu lực), không nằm trong code. Luật đổi → thêm dòng mới có `effective_from` = ngày áp dụng, đặt `effective_to` cho dòng cũ (nhờ Claude Code viết migration). Giá trị hiện tại lấy theo PROJECT_BRIEF mục 3.5, **chờ kế toán xác nhận**.
+- **Hóa đơn điện tử** lấy từ Pancake (`/list_einvoices/`) mỗi 30 phút, 120 ngày gần nhất, **không lưu thông tin người mua**. Pancake tự xuất hóa đơn đúng lúc đơn chuyển "Đã nhận".
+  - **Tỷ lệ đã xuất** theo tháng = đơn đã có hóa đơn ÷ đơn khách đã nhận (đơn hoàn toàn bộ mà chưa có hóa đơn không tính).
+  - **Đơn chưa xuất hóa đơn**: khách đã nhận từ hôm qua trở về trước mà chưa có hóa đơn.
+  - **Hóa đơn cần điều chỉnh** (tự phát hiện): đơn đã hoàn / hoàn một phần / đã hủy mà hóa đơn vẫn "Đã phát hành" và chưa có hóa đơn điều chỉnh hay thay thế; tiền hóa đơn lệch mọi cách tính tiền đơn (dung sai 1.000 ₫). **Hạn xử lý = hạn nộp tờ khai của kỳ chứa hóa đơn gốc** (chủ dự án chốt); quá hạn hiện đỏ.
+  - Tìm đơn trên Pancake bằng mã **#…**; xử lý xong trên Pancake, 1Click tự cập nhật ở lần đồng bộ sau (hóa đơn cũ lấy lại mỗi 24 giờ, 45 ngày gần nhất).
+- Lịch thuế đầy đủ, nhắc trước 7 ngày / 1 ngày, cảnh báo doanh thu sắp vượt ngưỡng: bước 7.2.
+
 ### KPI (Giai đoạn 6.6)
 
 - Trang **Nhân sự → KPI** (`/nhan-su/kpi`, chọn tháng). Bốn khung:

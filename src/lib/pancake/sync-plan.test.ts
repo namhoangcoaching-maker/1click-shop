@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  einvoicePlan,
+  einvoiceWindows,
   backfillProgress,
   incrementalRange,
   initialState,
@@ -63,5 +65,30 @@ describe("sản phẩm / tồn kho", () => {
   it("lấy lại khi lần trước cũ hơn 10 phút", () => {
     expect(needsProducts({ ...fresh, products_synced_at: "2026-11-04T13:55:00Z" }, now)).toBe(false);
     expect(needsProducts({ ...fresh, products_synced_at: "2026-11-04T13:50:00Z" }, now)).toBe(true);
+  });
+});
+
+describe("đồng bộ hóa đơn điện tử", () => {
+  const now = new Date("2026-11-06T15:00:00Z");
+  const base = { products_synced_at: null, orders_cursor: null, backfill_target: null, backfill_next_end: null };
+  const daysAgo = (d: number) => new Date(now.getTime() - d * 86_400_000).toISOString();
+
+  it("lần đầu: lấy 120 ngày, chia đợt 10 ngày, đợt cuối tới hiện tại", () => {
+    const p = einvoicePlan(base, now);
+    expect(p).toEqual({ start: new Date(daysAgo(120)), refresh: true });
+    const w = einvoiceWindows(p.start, now);
+    expect(w).toHaveLength(12);
+    expect(w.at(-1)!.end).toEqual(now);
+  });
+
+  it("đang lấy dở thì làm tiếp từ mốc", () => {
+    expect(einvoicePlan({ ...base, einvoices_synced_at: daysAgo(50), einvoices_full_at: daysAgo(0.5) }, now)).toEqual({ start: new Date(daysAgo(50)), refresh: false });
+  });
+
+  it("đã đủ: lấy lại 3 ngày; quá 24 giờ thì lấy lại 45 ngày", () => {
+    expect(einvoicePlan({ ...base, einvoices_synced_at: daysAgo(0.01), einvoices_full_at: daysAgo(0.5) }, now).start).toEqual(
+      new Date(Date.parse(daysAgo(0.01)) - 3 * 86_400_000),
+    );
+    expect(einvoicePlan({ ...base, einvoices_synced_at: daysAgo(0.01), einvoices_full_at: daysAgo(1.1) }, now)).toEqual({ start: new Date(daysAgo(45)), refresh: true });
   });
 });

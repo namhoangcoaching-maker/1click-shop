@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { firstStatusTime, isConfirmed, mapOrder, mapTransaction, mapVariation, orderStatusLabel, parsePancakeTime } from "./map";
+import { firstStatusTime, isConfirmed, mapEinvoice, mapOrder, mapTransaction, mapVariation, orderStatusLabel, parsePancakeTime } from "./map";
 
 // Mẫu dựng theo đúng cấu trúc Pancake trả về cho shop thật (đã bỏ thông tin khách).
 const variation = {
@@ -242,5 +242,56 @@ describe("mapTransaction (Thu chi Pancake)", () => {
     });
     expect(mapTransaction({ id: "t2", posted_at: null, inserted_at: "2026-11-04T10:00:00", amount: -500_000 })?.amount).toBe(-500_000);
     expect(mapTransaction({ id: "", posted_at: "2026-11-04T10:00:00" })).toBeNull();
+  });
+});
+
+describe("mapEinvoice (hóa đơn điện tử Pancake)", () => {
+  const raw = {
+    id: 822981151,
+    invoice_no: "00023310",
+    invoice_series: "C26MSC",
+    status: 2,
+    order_id: 540445063133495,
+    order_info: { display_id: 39750, order_sources: "-3" },
+    release_date: "2026-11-06T12:04:08.000000",
+    inserted_at: "2026-11-06T12:04:08.006636",
+    total_amount: 469000,
+    full_name: "Nguyễn Văn A",
+    phone_number: "0900000000",
+    email: "a@example.com",
+    purchaser_tax_code: "0101234567",
+    shipping_address: "Hà Nội",
+  };
+
+  it("lấy số hóa đơn, trạng thái, mã đơn (display_id), giờ quốc tế", () => {
+    expect(mapEinvoice(raw)).toEqual({
+      einvoice_id: 822981151,
+      invoice_no: "00023310",
+      invoice_series: "C26MSC",
+      status: 2,
+      order_system_id: "39750",
+      original_einvoice_id: null,
+      adjustment_type: null,
+      total_amount: 469000,
+      released_at: "2026-11-06T12:04:08.000Z",
+      created_at: "2026-11-06T12:04:08.006Z",
+    });
+  });
+
+  it("KHÔNG giữ thông tin người mua", () => {
+    const row = JSON.stringify(mapEinvoice(raw));
+    for (const pii of ["Nguyễn Văn A", "0900000000", "a@example.com", "0101234567", "Hà Nội"]) expect(row).not.toContain(pii);
+  });
+
+  it("hóa đơn điều chỉnh: đọc mã hóa đơn gốc dạng số, chữ số hoặc object", () => {
+    expect(mapEinvoice({ ...raw, status: 6, original_einvoice: 111, adjustment_type: 2 })).toMatchObject({ original_einvoice_id: 111, adjustment_type: 2 });
+    expect(mapEinvoice({ ...raw, original_einvoice: "222" })!.original_einvoice_id).toBe(222);
+    expect(mapEinvoice({ ...raw, original_einvoice: { id: 333 } })!.original_einvoice_id).toBe(333);
+  });
+
+  it("bỏ dòng thiếu mã / trạng thái lạ", () => {
+    expect(mapEinvoice({ ...raw, id: null })).toBeNull();
+    expect(mapEinvoice({ ...raw, status: 9 })).toBeNull();
+    expect(mapEinvoice({ ...raw, status: null })).toBeNull();
   });
 });

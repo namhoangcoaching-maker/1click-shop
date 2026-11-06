@@ -255,3 +255,45 @@ export function mapTransaction(raw: Raw): TransactionRow | null {
     status: raw.status == null ? null : int(raw.status),
   };
 }
+
+export interface EinvoiceRow {
+  einvoice_id: number;
+  invoice_no: string | null;
+  invoice_series: string | null;
+  /** 0 Chưa phát hành, 1 Chờ phát hành, 2 Đã phát hành, 3 Đã hủy, 4 Thay thế, 5 Bị thay thế, 6 Điều chỉnh, 7 Bị điều chỉnh */
+  status: number;
+  /** = orders.system_id (order_info.display_id của Pancake). */
+  order_system_id: string | null;
+  original_einvoice_id: number | null;
+  adjustment_type: number | null;
+  total_amount: number;
+  released_at: string | null;
+  created_at: string | null;
+}
+
+/**
+ * Một hóa đơn điện tử Pancake (GET /list_einvoices/) → dòng einvoices. CHỈ lấy số hóa đơn, trạng thái, tiền,
+ * ngày, đơn hàng; bỏ mọi thông tin người mua (tên, SĐT, email, MST, địa chỉ).
+ * Giờ là giờ quốc tế không kèm "Z" (đã đối chiếu 06/11/2026: giờ phát hành = giờ đơn chuyển Đã nhận).
+ */
+export function mapEinvoice(raw: Raw): EinvoiceRow | null {
+  const id = typeof raw.id === "number" ? raw.id : Number(raw.id);
+  const status = raw.status == null ? NaN : int(raw.status);
+  if (!Number.isSafeInteger(id) || id <= 0 || !(status >= 0 && status <= 7)) return null;
+  const info = (raw.order_info ?? {}) as Raw;
+  const orig = raw.original_einvoice;
+  const origId =
+    typeof orig === "number" ? orig : typeof orig === "string" && /^\d+$/.test(orig) ? Number(orig) : orig && typeof orig === "object" ? Number((orig as Raw).id) || null : null;
+  return {
+    einvoice_id: id,
+    invoice_no: raw.invoice_no == null ? null : String(raw.invoice_no),
+    invoice_series: str(raw.invoice_series),
+    status,
+    order_system_id: info.display_id == null ? null : String(info.display_id),
+    original_einvoice_id: origId,
+    adjustment_type: raw.adjustment_type == null ? null : int(raw.adjustment_type),
+    total_amount: int(raw.total_amount),
+    released_at: parsePancakeTime(raw.release_date),
+    created_at: parsePancakeTime(raw.inserted_at),
+  };
+}

@@ -2,8 +2,20 @@ import "server-only";
 import { getPancakeCredentials } from "@/lib/connections/credentials";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { pancakeGet, PancakeError, type PancakeCredentials } from "./client";
-import { mapOrder, mapTransaction, mapVariation, type OrderItemRow, type OrderRow, type ProductRow, type TransactionRow } from "./map";
 import {
+  mapEinvoice,
+  mapOrder,
+  mapTransaction,
+  mapVariation,
+  type EinvoiceRow,
+  type OrderItemRow,
+  type OrderRow,
+  type ProductRow,
+  type TransactionRow,
+} from "./map";
+import {
+  einvoicePlan,
+  einvoiceWindows,
   incrementalRange,
   initialState,
   needsProducts,
@@ -46,7 +58,7 @@ async function acquireLock(admin: Admin, orgId: string, now: Date): Promise<Sync
     .eq("org_id", orgId)
     .eq("provider", PROVIDER)
     .or(`running_since.is.null,running_since.lt.${staleBefore}`)
-    .select("products_synced_at, orders_cursor, backfill_target, backfill_next_end, transactions_synced_at");
+    .select("products_synced_at, orders_cursor, backfill_target, backfill_next_end, transactions_synced_at, einvoices_synced_at, einvoices_full_at");
   if (error) throw new Error(`Không khóa được lượt đồng bộ: ${error.message}`);
   return data?.[0] ?? null;
 }
@@ -120,6 +132,41 @@ async function syncTransactions(
     count += rows.length;
     if (page >= (body.total_pages ?? 1) || (body.data ?? []).length === 0) return { complete: true, count };
   }
+}
+
+/**
+ * Hóa đơn điện tử (GET /list_einvoices/, lọc theo ngày tạo, phân trang bằng `page` – `page_number` KHÔNG
+ * có tác dụng, đã thử 06/11/2026). Mỗi đợt 10 ngày, lưu mốc sau mỗi đợt.
+ */
+async function syncEinvoices(admin: Admin, orgId: string, creds: PancakeCredentials, state: SyncStateLike, now: Date, deadline: number) {
+  const plan = einvoicePlan(state, now);
+  if (plan.refresh) await saveState(admin, orgId, { einvoices_full_at: now.toISOString() });
+  let count = 0;
+  for (const w of einvoiceWindows(plan.start, now)) {
+    for (let page = 1; ; page++) {
+      if (Date.now() > deadline) return { complete: false, count };
+      const body = await pancakeGet<{ data?: Record<string, unknown>[]; total_entries?: number }>(creds, "/list_einvoices/", {
+        page,
+        page_size: PAGE_SIZE,
+        startDate: Math.floor(w.start.getTime() / 1000),
+        endDate: Math.floor(w.end.getTime() / 1000),
+      });
+      const raw = body.data ?? [];
+      const rows = raw.map(mapEinvoice).filter((x): x is EinvoiceRow => x !== null);
+      if (rows.length) {
+        const syncedAt = new Date().toISOString();
+        const unique = [...new Map(rows.map((r) => [r.einvoice_id, r])).values()];
+        const { error } = await admin
+          .from("einvoices")
+          .upsert(unique.map((r) => ({ ...r, org_id: orgId, synced_at: syncedAt })), { onConflict: "org_id,einvoice_id" });
+        if (error) throw new Error(`Không lưu được hóa đơn: ${error.message}`);
+      }
+      count += rows.length;
+      if (raw.length < PAGE_SIZE || page * PAGE_SIZE >= (body.total_entries ?? 0)) break;
+    }
+    await saveState(admin, orgId, { einvoices_synced_at: w.end.toISOString() });
+  }
+  return { complete: true, count };
 }
 
 /** Lấy mọi trang đơn trong khoảng thời gian; trả về false nếu hết giờ giữa chừng (chưa xong khoảng này). */
@@ -220,6 +267,12 @@ export async function runPancakeSync(orgId: string, opts: { budgetMs?: number } 
       const t = await syncTransactions(admin, orgId, creds, state.transactions_synced_at ?? null, startedAt, deadline);
       if (t.complete) await saveState(admin, orgId, { transactions_synced_at: startedAt.toISOString() });
       else result.status = "partial";
+    }
+
+    // 5. Hóa đơn điện tử (thuế).
+    if (Date.now() < deadline) {
+      const e = await syncEinvoices(admin, orgId, creds, state, startedAt, deadline);
+      if (!e.complete) result.status = "partial";
     }
 
     await saveState(admin, orgId, {

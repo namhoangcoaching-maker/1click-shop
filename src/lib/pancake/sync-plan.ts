@@ -25,6 +25,37 @@ export interface SyncStateLike {
   backfill_target: string | null;
   backfill_next_end: string | null;
   transactions_synced_at?: string | null;
+  einvoices_synced_at?: string | null;
+  einvoices_full_at?: string | null;
+}
+
+/**
+ * Hóa đơn điện tử: Pancake chỉ lọc theo NGÀY TẠO hóa đơn, nên:
+ *  - lần đầu lấy 120 ngày, mỗi đợt 10 ngày, lưu mốc sau mỗi đợt (hết giờ thì lượt sau làm tiếp);
+ *  - các lượt sau lấy lại 3 ngày gần nhất;
+ *  - mỗi 24 giờ lấy lại 45 ngày để bắt hóa đơn cũ bị hủy / bị điều chỉnh / bị thay thế.
+ */
+export const EINVOICE_RULES = { historyDays: 120, windowDays: 10, overlapDays: 3, refreshEveryHours: 24, refreshDays: 45 } as const;
+
+export function einvoicePlan(state: SyncStateLike, now: Date): { start: Date; refresh: boolean } {
+  const t = now.getTime();
+  const cursor = state.einvoices_synced_at ? Date.parse(state.einvoices_synced_at) : null;
+  if (cursor === null) return { start: new Date(t - EINVOICE_RULES.historyDays * DAY), refresh: true };
+  if (cursor < t - 60 * MIN) return { start: new Date(cursor), refresh: false }; // đang lấy dở
+  const full = state.einvoices_full_at ? Date.parse(state.einvoices_full_at) : null;
+  if (full === null || t - full >= EINVOICE_RULES.refreshEveryHours * 60 * MIN) {
+    return { start: new Date(t - EINVOICE_RULES.refreshDays * DAY), refresh: true };
+  }
+  return { start: new Date(cursor - EINVOICE_RULES.overlapDays * DAY), refresh: false };
+}
+
+/** Các đợt [start, end) mỗi đợt tối đa 10 ngày, tới `now`. */
+export function einvoiceWindows(start: Date, now: Date): { start: Date; end: Date }[] {
+  const out: { start: Date; end: Date }[] = [];
+  for (let s = start.getTime(); s < now.getTime(); s += EINVOICE_RULES.windowDays * DAY) {
+    out.push({ start: new Date(s), end: new Date(Math.min(s + EINVOICE_RULES.windowDays * DAY, now.getTime())) });
+  }
+  return out;
 }
 
 /** Shop lần đầu đồng bộ: lấy đơn mới từ bây giờ, lịch sử lùi dần từ bây giờ về 90 ngày trước. */
