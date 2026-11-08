@@ -3,6 +3,7 @@
  * Số tiền hôm qua lấy từ thống kê Pancake (giống Tổng quan); tiền về, đặt hàng do 1Click tính.
  */
 import type { CashDay } from "@/lib/cash/compute";
+import type { TaxReportPart } from "@/lib/tax/calendar";
 import { addDays, type DateString } from "@/lib/date-range";
 import type { OrderPlan } from "@/lib/inventory/plan";
 import type { PancakeOverview } from "@/lib/overview/pancake-stats";
@@ -60,6 +61,8 @@ export interface DailyReport {
     missingCost: number;
     incomingToday: { product: string; variant: string; quantity: number }[];
   };
+  /** Thuế (7.2): việc sắp tới hạn, hóa đơn cần xử lý, cảnh báo ngưỡng. Báo cáo cũ không có. */
+  tax?: TaxReportPart | null;
 }
 
 export interface ReportInputs {
@@ -71,6 +74,7 @@ export interface ReportInputs {
   plan: OrderPlan;
   missingCost: number;
   incomingToday: { product: string; variant: string; quantity: number }[];
+  tax?: TaxReportPart | null;
 }
 
 const metric = (stats: PancakeOverview, key: string): ReportMetric => {
@@ -148,6 +152,7 @@ export function buildDailyReport(i: ReportInputs): DailyReport {
       urgent: isToday ? 0 : i.plan.urgent.filter((p) => !p.slow).length,
     },
     todo: { missingCost: i.missingCost, incomingToday: i.incomingToday },
+    tax: i.tax ?? null,
   };
 }
 

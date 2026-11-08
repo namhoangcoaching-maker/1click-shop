@@ -273,7 +273,15 @@ Database của web này là project Supabase **"Doanh nghiệp 1 người"** (m�
   - **Đơn chưa xuất hóa đơn**: khách đã nhận từ hôm qua trở về trước mà chưa có hóa đơn.
   - **Hóa đơn cần điều chỉnh** (tự phát hiện): đơn đã hoàn / hoàn một phần / đã hủy mà hóa đơn vẫn "Đã phát hành" và chưa có hóa đơn điều chỉnh hay thay thế; tiền hóa đơn lệch mọi cách tính tiền đơn (dung sai 1.000 ₫). **Hạn xử lý = hạn nộp tờ khai của kỳ chứa hóa đơn gốc** (chủ dự án chốt); quá hạn hiện đỏ.
   - Tìm đơn trên Pancake bằng mã **#…**; xử lý xong trên Pancake, 1Click tự cập nhật ở lần đồng bộ sau (hóa đơn cũ lấy lại mỗi 24 giờ, 45 ngày gần nhất).
-- Lịch thuế đầy đủ, nhắc trước 7 ngày / 1 ngày, cảnh báo doanh thu sắp vượt ngưỡng: bước 7.2.
+
+### Thuế – lịch, nhắc hạn, cảnh báo ngưỡng (Giai đoạn 7.2)
+
+- **Lịch thuế** (trang Thuế): hạn nộp tờ khai GTGT 3 kỳ tới (kể cả kỳ vừa xong chưa tới hạn), thông báo doanh thu năm 31/1 (nếu quy định yêu cầu – hộ kinh doanh dưới ngưỡng), **hạn điều chỉnh hóa đơn gom theo kỳ** (kể cả kỳ đã quá hạn).
+- **Nhắc trước 7 ngày và 1 ngày**: việc có hạn trong 7 ngày tới (kể cả hôm nay) hoặc đã quá hạn hiện khung "Nhắc" cam ở trang Thuế, ở **khối Thuế trên Tổng quan** và mục **Việc cần làm** của báo cáo 8:00.
+- **Khối Thuế ở Tổng quan**: hạn tính trực tiếp; số hóa đơn (đã xuất / chưa xuất / cần điều chỉnh) lấy từ **báo cáo 8:00 gần nhất** để Tổng quan không phải đọc hàng nghìn hóa đơn.
+- **Doanh thu xét ngưỡng = Doanh thu Pancake + phí sàn** (đã trừ chiết khấu, hàng hoàn; chưa trừ phí sàn – chủ dự án chốt 08/11/2026). Trang Thuế hiện doanh thu năm nay tới hôm nay.
+- **Cảnh báo ngưỡng**: khi doanh thu năm nay ≥ 80% ngưỡng trên của quy định đang áp, hoặc dự báo cả năm (lũy kế ÷ số ngày đã qua × 365) vượt ngưỡng; ghi rõ quy định sẽ áp năm sau nếu vượt.
+- **Doanh thu năm trước từ Pancake**: Chủ shop mở "Sửa loại hình / doanh thu năm trước" → dòng "Theo Pancake, năm …" → **Dùng số này** → **Lưu**. Nên đối chiếu với số kế toán đã khai.
 
 ### KPI (Giai đoạn 6.6)
 

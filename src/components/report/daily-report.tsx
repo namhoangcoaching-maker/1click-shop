@@ -4,6 +4,7 @@ import { TrendBadge } from "@/components/dashboard/trend-badge";
 import { formatDateTimeVN, formatDateVN } from "@/lib/date-range";
 import { formatNumber, formatVND, percentChange } from "@/lib/format";
 import type { DailyReport, ReportMetric } from "@/lib/report/build";
+import { dueLabel } from "@/lib/tax/calendar";
 import { cn } from "@/lib/utils";
 
 function Row({ label, m, money = true, positiveIsGood = true }: { label: string; m: ReportMetric; money?: boolean; positiveIsGood?: boolean }) {
@@ -29,6 +30,8 @@ function Box({ title, icon: Icon, children }: { title: string; icon: typeof Wall
     </div>
   );
 }
+
+const hasTaxTodo = (r: DailyReport) => !!r.tax && (r.tax.due.length > 0 || r.tax.missing > 0 || !!r.tax.warning);
 
 /** Nội dung một báo cáo 8:00 (dùng ở Tổng quan và trang Báo cáo). */
 export function DailyReportBody({ report }: { report: DailyReport }) {
@@ -137,7 +140,19 @@ export function DailyReportBody({ report }: { report: DailyReport }) {
             </li>
           )}
           {report.todo.missingCost > 0 && <li>{report.todo.missingCost} mã còn hàng chưa có giá vốn trên Pancake.</li>}
-          {!report.order.isToday && report.todo.incomingToday.length === 0 && report.todo.missingCost === 0 && (
+          {report.tax?.due.map((d) => (
+            <li key={`${d.date}-${d.title}`} className={d.daysLeft < 0 ? "text-destructive" : "text-warning"}>
+              Thuế: {d.title} – {dueLabel(d.daysLeft)} ({formatDateVN(d.date)}).
+            </li>
+          ))}
+          {report.tax && report.tax.missing > 0 && <li>{report.tax.missing} đơn khách đã nhận chưa có hóa đơn điện tử.</li>}
+          {report.tax?.warning && (
+            <li className="text-warning">
+              Doanh thu năm nay {report.tax.warning.level === "exceeded" ? "đã vượt" : "sắp vượt"} ngưỡng {formatVND(report.tax.warning.threshold)} (
+              {String(report.tax.warning.pct).replace(".", ",")}%, dự báo cả năm {formatVND(report.tax.warning.projected)}) – xem trang Thuế.
+            </li>
+          )}
+          {!report.order.isToday && report.todo.incomingToday.length === 0 && report.todo.missingCost === 0 && !hasTaxTodo(report) && (
             <li className="list-none text-muted-foreground">Không có việc gấp.</li>
           )}
         </ul>

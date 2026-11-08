@@ -12,6 +12,8 @@ import type { PancakeOverview } from "@/lib/overview/pancake-stats";
 import { PancakeError } from "@/lib/pancake/client";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { taxReportPart, type TaxReportPart } from "@/lib/tax/calendar";
+import { getTaxSummary } from "@/lib/tax/data";
 import { buildDailyReport, reportDateToShow, withFreshYesterday, type DailyReport } from "./build";
 
 /**
@@ -42,6 +44,15 @@ export async function generateDailyReport(orgId: string, now = new Date()): Prom
     }
   }
 
+  // Thuế: lịch, hóa đơn cần xử lý, cảnh báo ngưỡng. Lỗi phần này không làm hỏng cả báo cáo.
+  let tax: TaxReportPart | null = null;
+  try {
+    const t = await getTaxSummary(orgId, today, admin);
+    tax = taxReportPart({ events: t.events, adjust: t.inv.adjust, missing: t.inv.missing.length, rate: t.inv.coverage[0]?.rate ?? null, warning: t.warning });
+  } catch {
+    tax = null;
+  }
+
   const active = inventory.items.filter((i) => !i.inactive);
   const plan = buildOrderPlan(toPlanItems(active, incoming, rules.velocityWindowDays, today), today, rules);
   const byId = new Map(inventory.items.map((i) => [i.id, i]));
@@ -59,6 +70,7 @@ export async function generateDailyReport(orgId: string, now = new Date()): Prom
         const it = byId.get(r.variation_id);
         return { product: it?.name ?? "Mã đã xóa", variant: it ? (it.variant ?? it.sku) : "", quantity: r.quantity };
       }),
+    tax,
   });
 
   const { error } = await admin

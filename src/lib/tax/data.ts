@@ -1,6 +1,9 @@
 import "server-only";
 import type { DateString } from "@/lib/date-range";
 import { createClient } from "@/lib/supabase/server";
+import { rangeToPancake } from "@/lib/overview/compute";
+import { cachedSaleStats } from "@/lib/pancake/cached";
+import { taxCalendar, thresholdWarning, type TaxReportPart } from "./calendar";
 import { analyzeInvoices, type InvoiceLite, type OrderLite } from "./invoices";
 import { pickRule, ruleFromDb, type TaxRule, type TaxSettings } from "./rules";
 
@@ -57,8 +60,8 @@ export interface TaxContext {
 }
 
 /** Cấu hình thuế của shop + quy định đang áp dụng. */
-export async function getTaxContext(orgId: string, today: DateString): Promise<TaxContext> {
-  const supabase = await createClient();
+export async function getTaxContext(orgId: string, today: DateString, client?: Supabase): Promise<TaxContext> {
+  const supabase = client ?? (await createClient());
   const [s, r] = await Promise.all([
     supabase.from("tax_settings").select("business_type, prior_year_revenue").eq("org_id", orgId).maybeSingle(),
     supabase.from("tax_rules").select("*").order("effective_from"),
@@ -70,10 +73,10 @@ export async function getTaxContext(orgId: string, today: DateString): Promise<T
 
 /**
  * Hóa đơn 3 tháng gần nhất (từ mùng 1 của 2 tháng trước) đối chiếu với đơn khách đã nhận.
- * Đọc qua RLS (chỉ Chủ / Quản lý). Người gọi dùng getManagerOrg() trước.
+ * Đọc qua RLS (chỉ Chủ / Quản lý) – người gọi dùng getManagerOrg() trước; lịch 8:00 truyền `client` khóa secret.
  */
-export async function getInvoiceOverview(orgId: string, today: DateString, ctx: TaxContext) {
-  const supabase = await createClient();
+export async function getInvoiceOverview(orgId: string, today: DateString, ctx: TaxContext, client?: Supabase) {
+  const supabase = client ?? (await createClient());
   const m = Number(today.slice(5, 7));
   const y = Number(today.slice(0, 4));
   const fm = m - 2 <= 0 ? m + 10 : m - 2;
@@ -118,4 +121,43 @@ export async function getInvoiceOverview(orgId: string, today: DateString, ctx: 
     invoiceCount: invoices.length,
     ...analyzeInvoices({ orders, invoices, today, period, from }),
   };
+}
+
+/**
+ * Doanh thu xét ngưỡng thuế trong khoảng ngày = Doanh thu Pancake + phí sàn (chủ dự án chốt 08/11/2026).
+ * Lấy thẳng /analytics/sale (khớp Pancake). null = không lấy được.
+ */
+export async function taxRevenue(orgId: string, from: DateString, to: DateString): Promise<number | null> {
+  try {
+    const [row] = await cachedSaleStats(orgId, rangeToPancake({ from, to }));
+    return Math.round((row?.result.revenue ?? 0) + (row?.result.fee_marketplace ?? 0));
+  } catch {
+    return null;
+  }
+}
+
+/** Mọi thứ về thuế của hôm nay: quy định, hóa đơn, lịch, cảnh báo ngưỡng. */
+export async function getTaxSummary(orgId: string, today: DateString, client?: Supabase) {
+  const ctx = await getTaxContext(orgId, today, client);
+  const year = today.slice(0, 4);
+  const [inv, ytd] = await Promise.all([getInvoiceOverview(orgId, today, ctx, client), taxRevenue(orgId, `${year}-01-01`, today)]);
+  const events = taxCalendar({ today, rule: ctx.rule, adjust: inv.adjust });
+  const warning =
+    ctx.settings && ytd !== null ? thresholdWarning({ today, ytd, settings: ctx.settings, rules: ctx.rules, rule: ctx.rule }) : null;
+  return { ctx, inv, ytd, events, warning };
+}
+
+/** Phần Thuế trong báo cáo 8:00 gần nhất (cho Tổng quan – nhẹ). Đọc qua RLS. */
+export async function latestTaxPart(orgId: string): Promise<{ part: TaxReportPart | null; date: DateString | null }> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("daily_reports")
+    .select("report_date, data")
+    .eq("org_id", orgId)
+    .not("data->tax", "is", null)
+    .order("report_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const part = ((data?.data as { tax?: TaxReportPart | null } | undefined)?.tax ?? null) as TaxReportPart | null;
+  return { part, date: (data?.report_date as string | undefined) ?? null };
 }

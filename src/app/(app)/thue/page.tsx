@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { AlertTriangleIcon, ExternalLinkIcon, FileTextIcon, LandmarkIcon, ReceiptIcon } from "lucide-react";
+import { AlertTriangleIcon, BellRingIcon, CalendarDaysIcon, ExternalLinkIcon, FileTextIcon, LandmarkIcon, ReceiptIcon } from "lucide-react";
 import { Panel } from "@/components/dashboard/panel";
 import { Skeleton } from "@/components/dashboard/stat-card";
 import { TaxSettingsForm } from "@/components/tax/tax-settings-form";
@@ -9,7 +9,8 @@ import { formatDateVN, todayInVN } from "@/lib/date-range";
 import { formatVND } from "@/lib/format";
 import { getManagerOrg } from "@/lib/org/guard";
 import { vnDateOf } from "@/lib/staff/attendance";
-import { getInvoiceOverview, getTaxContext } from "@/lib/tax/data";
+import { dueLabel, isDueSoon } from "@/lib/tax/calendar";
+import { getTaxSummary, taxRevenue } from "@/lib/tax/data";
 import { ADJUST_LABELS, INVOICE_STATUS, type AdjustKind } from "@/lib/tax/invoices";
 import { BUSINESS_LABELS, DISCLAIMER, PERIOD_LABELS, daysUntil, periodOf } from "@/lib/tax/rules";
 import { cn } from "@/lib/utils";
@@ -51,9 +52,13 @@ async function Tax() {
   const org = await getManagerOrg();
   if (!org) return null;
   const today = todayInVN();
-  const ctx = await getTaxContext(org.id, today);
-  const inv = await getInvoiceOverview(org.id, today, ctx);
+  const prevYear = Number(today.slice(0, 4)) - 1;
+  const [{ ctx, inv, ytd, events, warning }, pancakePrevYear] = await Promise.all([
+    getTaxSummary(org.id, today),
+    org.role === "owner" ? taxRevenue(org.id, `${prevYear}-01-01`, `${prevYear}-12-31`) : Promise.resolve(null),
+  ]);
   const rule = ctx.rule;
+  const due = events.filter(isDueSoon);
   const current = rule ? periodOf(today, rule.vatPeriod) : null;
   const kinds = (Object.keys(ADJUST_LABELS) as AdjustKind[]).map((k) => ({ k, n: inv.adjust.filter((a) => a.kind === k).length })).filter((x) => x.n > 0);
   const overdue = inv.adjust.filter((a) => a.daysLeft < 0).length;
@@ -98,11 +103,75 @@ async function Tax() {
           <details className="mt-3 rounded-md border" open={!ctx.settings} suppressHydrationWarning>
             <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Sửa loại hình / doanh thu năm trước</summary>
             <div className="px-3 pb-3">
-              <TaxSettingsForm businessType={ctx.settings?.businessType ?? "household"} priorYearRevenue={ctx.settings?.priorYearRevenue ?? 0} />
+              <TaxSettingsForm
+                businessType={ctx.settings?.businessType ?? "household"}
+                priorYearRevenue={ctx.settings?.priorYearRevenue ?? 0}
+                pancake={pancakePrevYear === null ? null : { year: prevYear, revenue: pancakePrevYear }}
+              />
             </div>
           </details>
         )}
-        <p className="mt-2 text-xs text-muted-foreground">Lịch thuế đầy đủ, nhắc trước 7 ngày / 1 ngày và cảnh báo vượt ngưỡng: bước 7.2.</p>
+        {ytd !== null && (
+          <p className="mt-2 text-sm">
+            Doanh thu năm {today.slice(0, 4)} tới hôm nay: <b className="tabular-nums">{formatVND(ytd)}</b>
+            <span className="text-xs text-muted-foreground"> (Doanh thu Pancake + phí sàn – số dùng để xét ngưỡng)</span>
+          </p>
+        )}
+        {warning && (
+          <p className={cn("mt-2 rounded-md px-3 py-2 text-sm", warning.level === "exceeded" ? "bg-destructive/10 text-destructive" : "bg-warning/10 text-warning")}>
+            <b>{warning.level === "exceeded" ? "Đã vượt ngưỡng" : warning.level === "near" ? "Sắp vượt ngưỡng" : "Dự báo vượt ngưỡng"}</b> {formatVND(warning.threshold)}: lũy kế{" "}
+            {String(warning.pct).replace(".", ",")}%, dự báo cả năm {formatVND(warning.projected)}.
+            {warning.nextRule && warning.nextRule.id !== rule?.id && <> Nếu vượt, năm sau áp dụng: {warning.nextRule.summary}</>} Hỏi kế toán để chuẩn bị.
+          </p>
+        )}
+      </Panel>
+
+      <Panel title="Lịch thuế" icon={CalendarDaysIcon} tone="violet">
+        {due.length > 0 && (
+          <div className="mb-3 rounded-md bg-warning/10 px-3 py-2 text-sm">
+            <div className="mb-1 flex items-center gap-1.5 font-semibold text-warning">
+              <BellRingIcon className="size-4" aria-hidden /> Nhắc: {due.length} việc có hạn trong 7 ngày tới hoặc đã quá hạn
+            </div>
+            <ul className="list-disc space-y-0.5 pl-5">
+              {due.map((e) => (
+                <li key={`${e.date}-${e.title}`} className={e.daysLeft < 0 ? "text-destructive" : ""}>
+                  {e.title} – {formatDateVN(e.date)} ({dueLabel(e.daysLeft)})
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {events.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Chưa có lịch (chưa cấu hình loại hình hoặc không có quy định khớp).</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left text-xs text-muted-foreground">
+                <th className="py-1.5 pr-2 font-normal">Hạn</th>
+                <th className="px-2 py-1.5 font-normal">Việc</th>
+                <th className="py-1.5 pl-2 text-right font-normal">Còn</th>
+              </tr>
+            </thead>
+            <tbody>
+              {events.map((e) => (
+                <tr key={`${e.date}-${e.title}`} className="border-b last:border-0">
+                  <td className="py-1.5 pr-2 whitespace-nowrap">{formatDateVN(e.date)}</td>
+                  <td className="px-2 py-1.5">
+                    {e.title}
+                    <span className="block text-xs text-muted-foreground">{e.detail}</span>
+                  </td>
+                  <td className={cn("py-1.5 pl-2 text-right whitespace-nowrap", e.daysLeft < 0 ? "text-destructive" : e.daysLeft <= 7 ? "text-warning" : "text-muted-foreground")}>
+                    {dueLabel(e.daysLeft)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <p className="mt-2 text-xs text-muted-foreground">
+          Nhắc trước 7 ngày và 1 ngày: hiện ở đây, ở khối Thuế trên Tổng quan và trong báo cáo 8:00. Hạn nộp: theo tháng là ngày 20
+          tháng sau; theo quý là ngày cuối tháng đầu quý sau.
+        </p>
       </Panel>
 
       <Panel

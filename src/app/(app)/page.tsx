@@ -5,7 +5,6 @@ import { cache, Suspense } from "react";
 import {
   BadgeDollarSignIcon,
   ChartLineIcon,
-  FileTextIcon,
   MegaphoneIcon,
   PlugIcon,
   UsersIcon,
@@ -40,6 +39,9 @@ import { getReportToShow } from "@/lib/report/generate";
 import { buildSourceGroups } from "@/lib/finance/efficiency";
 import { getAdsByChannel, getMonthEfficiency } from "@/lib/finance/data";
 import { recentMonths, resolveMonth } from "@/lib/finance/month";
+import { TaxSummaryPanel } from "@/components/tax/tax-summary";
+import { taxCalendar } from "@/lib/tax/calendar";
+import { getTaxContext, latestTaxPart } from "@/lib/tax/data";
 
 export const metadata: Metadata = { title: "Tổng quan" };
 
@@ -187,7 +189,9 @@ async function Overview({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
             <Suspense fallback={<Skeleton className="h-80 bg-card" />}>
               <TopProductsSection ctx={ctx} />
             </Suspense>
-            <NoDataPanel title="Thuế" icon={FileTextIcon} stage="Giai đoạn 7" note="Hóa đơn đã xuất, cần điều chỉnh, lịch nộp thuế." />
+            <Suspense fallback={<Skeleton className="h-48 bg-card" />}>
+              <TaxSection />
+            </Suspense>
           </div>
 
           <NoDataPanel title="Content" icon={VideoIcon} stage="Giai đoạn 4" note="Bài đăng nhiều lượt xem nhất trên Facebook, TikTok, Instagram, YouTube." />
@@ -344,6 +348,18 @@ async function MorningReport() {
   const org = await getManagerOrg();
   if (!org) return null;
   return <DailyReportCard report={await getReportToShow(org.id)} />;
+}
+
+/** Khối Thuế: lịch tính trực tiếp + số hóa đơn của báo cáo 8:00 gần nhất. */
+async function TaxSection() {
+  await connection();
+  const org = await getManagerOrg();
+  if (!org) return null;
+  const today = todayInVN();
+  const [ctx, latest] = await Promise.all([getTaxContext(org.id, today), latestTaxPart(org.id)]);
+  return (
+    <TaxSummaryPanel today={today} events={taxCalendar({ today, rule: ctx.rule, adjust: [] })} part={latest.part} reportDate={latest.date} />
+  );
 }
 
 function OverviewSkeleton() {
